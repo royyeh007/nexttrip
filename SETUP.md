@@ -18,15 +18,17 @@ Claude 的 API key 只放在 Supabase 的 Edge Function 裡，不會出現在 re
    Authorized redirect URIs 加：`https://<ref>.supabase.co/auth/v1/callback`。
    記下 Client ID 和 Client secret。
 3. 把 Client ID / Secret 填進 `.env.local` 的 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`，跑 `make auth-push`。
-   （或在 Supabase 後台 **Authentication → Providers → Google** 手動貼。）
+   它會先列出要改的設定再問你，看過再按確定。（或在 Supabase 後台 **Authentication → Providers → Google** 手動貼。）
 4. Site URL 和 Redirect URLs 已經在 `supabase/config.toml` 裡，`make auth-push` 會一起推上去。
+5. **把 Email 登入關掉**：Supabase 後台 **Authentication → Sign In / Providers → Email** 整個關閉（這個網站只用 Google）。
+   開著的話，任何人都能用隨便一個 email 註冊拿到登入身分。`supabase/config.toml` 裡也已經設成關閉。
 
 ## 3. 本機設定檔
 
 ```bash
 cp .env.example .env.local
 ```
-填 `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`ADMIN_EMAIL`（你登入 Google 用的 email，會變成管理員）、`SITE_URL`。
+填 `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`SITE_URL`（`seed/trip.ts` 沒有寫行程 id 的話再加 `TRIP_ID`）。
 `.env.local` 不會進 git。
 
 ## 4. 建表、部署、灌資料
@@ -37,10 +39,19 @@ Claude API key 在 https://console.anthropic.com → API keys 產生。
 supabase login                              # 開瀏覽器登入 Supabase
 make link REF=<project ref>
 make db-push                                # 建表、權限、Storage bucket
-make secrets ANTHROPIC_API_KEY=sk-ant-...   # 給 Edge Function 用
-make fn-deploy                              # 部署 parse-upload、chat 兩個 function
-make seed                                   # 把 seed/trip.ts 的行程、表單、管理員放進去，最後會印出邀請連結
+make secrets                                # 給 Edge Function 用的 Claude key（會問你，輸入時不顯示）
+make fn-deploy                              # 部署七個 function
+make seed                                   # 把 seed/trip.ts 的行程、表單放進去（只補缺的），最後會印出邀請連結
 ```
+
+另外兩個 secret（航班即時狀態要用，沒設的話那個功能自己關掉）：
+
+```bash
+supabase secrets set AVIATIONSTACK_KEY=...   # https://aviationstack.com 免費方案
+supabase secrets set CRON_TOKEN=...          # 自己產生一串長亂碼；同一串放進 GitHub repo 的 secret FLIGHT_CRON_TOKEN
+```
+
+建議到 https://console.anthropic.com → Settings → Limits 設每月支出上限。網站自己有每人、每個行程的每日次數上限，這是最後一道保險。
 
 ## 5. GitHub Pages
 
@@ -57,8 +68,9 @@ Pages 的來源已經設成 GitHub Actions；之後每次 push 到 `main` 都會
 
 ## 6. 平常怎麼用
 
-- **邀請家人**：登入後到「上傳行程」最下面複製邀請連結（只有管理員看得到），傳給家人。他們點開 → 邀請碼已帶入 → 用 Google 註冊 → 選自己是哪一家，就加入了。
+- **邀請家人**：登入後到「管理行程 → 邀請連結」產生一個（可以選幾天後失效、能用幾次、先指定是哪一家），複製傳給家人。他們點開 → 邀請碼已帶入 → 用 Google 登入 → 選自己是哪一家，就加入了。管理員邀請預設只能用 1 次。
 - **改行程**：
-  - 大改：改本機的 `seed/trip.ts`，跑 `make seed`（只會蓋掉檔案裡有的那幾天）。
+  - 平常都在網站上改。`make seed` 只會補上資料庫裡還沒有的日子，不會動已經有的。
+  - 真的要整份用 `seed/trip.ts` 蓋回去：`make seed-overwrite`。大家在網站上加的地點、備註、勾過的待辦、填的航班都會被檔案的內容取代，執行前會要你輸入行程名稱確認。
   - 家人上傳表單／截圖，或在「問 Claude」直接說要改什麼 → 自己按「確認，更新行程」就生效（不用你審核）。
 - **本機預覽**：`make`，開 http://localhost:5173。登入後資料一樣從 Supabase 來。

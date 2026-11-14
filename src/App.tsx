@@ -23,6 +23,7 @@ import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
 import { TripPicker } from "./components/TripPicker";
 import { supabase } from "./supabase";
+import { removeTripImages } from "./images";
 import { useTrip } from "./trip";
 import { endPreview, fakeNow, setNowLine, startPreview, useNow, useNowLine } from "./now";
 import { useScrollEdges } from "./useScrollEdges";
@@ -54,8 +55,34 @@ function Notice({ title, children }: { title: string; children?: React.ReactNode
   );
 }
 
+/** 「載入中…」，等了一陣子還沒好就給一個出口（訊號很差時不要讓人對著空白畫面乾等）。 */
+function Loading() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setSlow(true), 7000); return () => clearTimeout(t); }, []);
+  return (
+    <Notice title="載入中…">
+      {slow && <><p>網路有點慢，還在等回應。</p><div className="actions"><button type="button" className="btn" onClick={() => location.reload()}>重新整理</button></div></>}
+    </Notice>
+  );
+}
+
+const clock = (at: number) => new Date(at).toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+
+/** 更新失敗或離線時的提示：畫面照樣顯示原本的資料，不會整頁換成錯誤。 */
+function SyncBar() {
+  const { sync, retry } = useTrip();
+  const [busy, setBusy] = useState(false);
+  if (!sync.message) return null;
+  return (
+    <div className="syncbar" role="status">
+      <span>⚠ {sync.message}。{sync.at ? `畫面上是 ${clock(sync.at)} 的資料` : "畫面上可能不是最新的"}{sync.offline ? "，現在只能看、不能改。" : "。"}</span>
+      <button type="button" className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await retry(); } finally { setBusy(false); } }}>{busy ? "重試中…" : "再試一次"}</button>
+    </div>
+  );
+}
+
 export default function App() {
-  const { phase, error, invite, setInvite, signOut, reload, refreshMemberships, enterTrip } = useTrip();
+  const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip } = useTrip();
   if (phase === "noconfig") {
     return (
       <Notice title="還沒接上 Supabase">
@@ -67,11 +94,11 @@ export default function App() {
     return (
       <Notice title="讀不到資料">
         <p className="err">{error}</p>
-        <div className="actions"><button type="button" className="btn primary" onClick={() => { refreshMemberships(); reload(); }}>再試一次</button><button type="button" className="btn" onClick={signOut}>登出</button></div>
+        <div className="actions"><button type="button" className="btn primary" onClick={() => { retry(); }}>再試一次</button><button type="button" className="btn" onClick={signOut}>登出</button></div>
       </Notice>
     );
   }
-  if (phase === "loading") return <Notice title="載入中…" />;
+  if (phase === "loading") return <Loading />;
   if (phase === "signedout") return <Login invite={invite} />;
   if (phase === "join" && invite) {
     return <JoinTrip code={invite} onDone={async (tripId) => { setInvite(null); await refreshMemberships(); enterTrip(tripId); }} onCancel={() => setInvite(null)} />;
@@ -89,7 +116,9 @@ function LeaveDialog({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     if (!supabase || !current) return;
-    supabase.from("members").select("user_id", { count: "exact", head: true }).eq("trip_id", current.id).then(({ count }) => setAlone(count === 1));
+    // 查不到人數（網路問題）時維持「確認中」，不要當成「還有別人」：只剩自己時退出會刪掉整個行程
+    supabase.from("members").select("user_id", { count: "exact", head: true }).eq("trip_id", current.id)
+      .then(({ count, error }) => { if (error || count == null) setErr("查不到這個行程還有幾個人，可能是網路問題。關掉再開一次試試"); else setAlone(count === 1); });
   }, [current]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -100,6 +129,8 @@ function LeaveDialog({ onClose }: { onClose: () => void }) {
   const go = async () => {
     if (!supabase || !current || !ok) return;
     setBusy(true); setErr(null);
+    // 最後一個人退出＝刪掉整個行程：資訊頁的圖片是公開網址，先清掉
+    if (alone) await removeTripImages(current.id);
     const { error } = await supabase.rpc("leave_trip", { p_trip: current.id });
     if (error) { setErr(error.message); setBusy(false); return; }
     await refreshMemberships();
@@ -305,6 +336,7 @@ function Main() {
         </div>
 
         <main>
+          <SyncBar />
           {fakeNow() && (
             <div className="previewbar">
               <span>預覽模式：假裝現在是 {now.date.slice(5).replace("-", "/")} {now.hhmm}（當地時間）</span>
@@ -344,7 +376,7 @@ function Main() {
             : view === "admin" ? <AdminView />
             : view === "guide" ? <GuideView role={member?.role ?? "member"} />
             : cur && mode === "all" ? <AllFamiliesDay dateId={cur.id} onOpen={(day, stop, arrive) => setSelected({ day, stop, arrive })} />
-            : cur ? <DayView day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
+            : cur ? <DayView key={`${cur.id}|${(cur.fam ?? []).join(",")}|${fam.id}`} day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
             : !adding && (
               <section className="dayhead">
                 <h2>還沒有行程</h2>

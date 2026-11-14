@@ -5,6 +5,7 @@ import type { Day, Family, Proposal, Stop, Upload as UploadRow } from "../data";
 import { invoke, supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { fillTripDays } from "../days";
+import { whereDay } from "../dayEdit";
 
 export const STATUS: Record<UploadRow["status"], string> = { pending: "等你確認", approved: "已更新", rejected: "已取消", failed: "解析失敗" };
 
@@ -43,7 +44,7 @@ export async function applyProposal(id: string, p: Proposal, tripId: string, day
       const joint = days.find((d) => d.id === day.id && d.fam && d.fam.length > 1 && d.fam.includes(p.family_id));
       if (joint?.fam) {
         const rest = joint.fam.filter((f) => f !== p.family_id);
-        const { error: je } = await supabase.from("days").update({ fam: rest, updated_at: now }).eq("trip_id", tripId).eq("date_id", day.id).contains("fam", joint.fam);
+        const { error: je } = await whereDay(supabase.from("days").update({ fam: rest, updated_at: now }), tripId, joint);
         if (je) throw new Error(je.message);
       }
     }
@@ -68,8 +69,31 @@ export async function applyProposal(id: string, p: Proposal, tripId: string, day
     const target = days.find((d) => d.id === j.date_id && d.fam?.includes(j.with)) ?? days.find((d) => d.id === j.date_id && !d.fam);
     if (!target || !target.fam) continue; // missing, or already a shared day
     if (!j.from) {
-      if (!target.fam.includes(p.family_id)) {
-        const { error } = await supabase.from("days").update({ fam: [...target.fam, p.family_id], updated_at: now }).eq("trip_id", tripId).eq("date_id", j.date_id).contains("fam", [j.with]);
+      // This same proposal also carries the family's own version of that date: that one wins, joining as well would leave two rows.
+      if (p.days.some((d) => d.id === j.date_id && d.scope === "family")) continue;
+      let joined = target.fam.includes(p.family_id);
+      if (!joined) {
+        const { data, error } = await whereDay(supabase.from("days").update({ fam: [...target.fam, p.family_id], updated_at: now }), tripId, target).select("id");
+        if (error) throw new Error(error.message);
+        // 0 rows = not allowed: only that family (or an admin) may add another family to its row. It used to look like
+        // a success while nothing had happened.
+        joined = !!data?.length;
+      }
+      const own = days.find((d) => d.id === j.date_id && d.fam?.length === 1 && d.fam[0] === p.family_id);
+      if (joined) {
+        // "We go with them all day" replaces the family's own version of that date. Left in place it would keep being the
+        // one on screen (own beats joint), and deleting it later used to take the joint row with it.
+        if (own) {
+          const { error } = await whereDay(supabase.from("days").delete(), tripId, own);
+          if (error) throw new Error(error.message);
+        }
+      } else {
+        // Fallback that this person is allowed to do: their own version of the day, copied from the other family's
+        // (it will not follow later changes over there; an admin, or that family, can make it a real joint day).
+        const { error } = await supabase.from("days").upsert(
+          { trip_id: tripId, date_id: j.date_id, fam: [p.family_id], d: target.d, w: target.w, city: target.city, title: `和${labelIn(families, j.with)}一起：${target.title}`.slice(0, 80), hotel: target.hotel, items: target.items, updated_at: now },
+          { onConflict: "trip_id,date_id,fam" },
+        );
         if (error) throw new Error(error.message);
       }
     } else {

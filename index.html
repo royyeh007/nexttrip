@@ -7,9 +7,18 @@
     <meta name="theme-color" content="#eef2f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0e1422" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c43d26'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='serif' font-weight='900'%3E旅%3C/text%3E%3C/svg%3E" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="行程" />
+    <!--
+      字型：內文用手機內建的中文字型（iPhone 的蘋方、Android 的思源黑體），不下載。
+      只有標題用的 Noto Serif TC 和數字用的 IBM Plex Mono 從 Google Fonts 載，而且不擋住畫面：
+      先用內建字型顯示，字型到了再換上。（原本連內文的 Noto Sans TC 三個字重都下載，樣式表本身就 600 多 KB，還會擋住第一次顯示。）
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=IBM+Plex+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=IBM+Plex+Mono:wght@500;600&display=swap" /></noscript>
     <title>我們的行程</title>
   </head>
   <body>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { addDays, dateOf } from "../data";
+import { addDays, canEdit, dateOf } from "../data";
 import type { Family } from "../data";
 import { supabase } from "../supabase";
 import { useTrip } from "../trip";
@@ -8,7 +8,7 @@ const CITIES = ["東京", "長野", "輕井澤", "草津", "成田", "橫濱", "
 
 /** Small form to add a date for this family (e.g. an earlier arrival or later departure). */
 export function AddDay({ family, onDone }: { family: Family; onDone: (dateId?: string) => void }) {
-  const { trip, current, reload } = useTrip();
+  const { trip, current, member, reload } = useTrip();
   const min = current ? addDays(current.start_date, -14) : "";
   const max = current ? addDays(current.end_date, 14) : "";
   const [date, setDate] = useState(current?.start_date ?? "");
@@ -22,7 +22,8 @@ export function AddDay({ family, onDone }: { family: Family; onDone: (dateId?: s
     if (!supabase || !current) return;
     setErr(null);
     if (!date || date < min || date > max) { setErr(`日期要在 ${min} 到 ${max} 之間（行程前後兩週內）`); return; }
-    if (trip.days.some((d) => d.id === date && d.fam?.includes(family.id))) { setErr("這天已經有你們家的行程了"); return; }
+    if (trip.days.some((d) => d.id === date && d.fam?.includes(family.id))) { setErr(`這天已經有${family.label}的行程了`); return; }
+    if (!canEdit([family.id], member)) { setErr(`你現在看的是${family.label}，只能幫自己家加日子。先切回「看我們家」。`); return; }
     setBusy(true);
     const { d, w } = dateOf(date);
     const { error } = await supabase.from("days").insert({ trip_id: current.id, date_id: date, fam: [family.id], d, w, city: city.trim() || "待定", title: title.trim() || `${family.label} ${d}`, hotel: hotel.trim(), items: [] });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { COUPONS, distText, expired, loadBaked, locate, nearby, searchLink, untilText, walkLink } from "../coupons";
+import { COUPONS, distText, expired, loadBaked, locate, nearby, searchLink, supportsWebp, untilText, walkLink, webpOf } from "../coupons";
 import type { Coupon, Here, Shop } from "../coupons";
 import { countryOf } from "../cards";
 import { useNow } from "../now";
@@ -15,13 +15,22 @@ export function useCouponsOn(): boolean {
   return countryOf(current?.place ?? "") === "jp";
 }
 
-/** Fetch every barcode picture in the background so tapping one shows it at once, even with a weak signal later. */
+/**
+ * Fetch the barcode pictures in the background so tapping one shows it at once, even with a weak signal later.
+ * Only the small WebP versions (about 2 MB for all ten; the service worker then keeps them on the phone), and not at all
+ * when the phone is in data-saver mode. Browsers without WebP load the JPEG only for the coupon that is opened.
+ */
 let warmed = false;
 function warm() {
   if (warmed) return;
   warmed = true;
   void loadBaked();
-  for (const c of COUPONS) if (c.img) { const i = new Image(); i.decoding = "async"; i.src = c.img; }
+  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+  if (saveData) return;
+  supportsWebp().then((ok) => {
+    if (!ok) return;
+    for (const c of COUPONS) { const src = webpOf(c); if (src) { const i = new Image(); i.decoding = "async"; i.src = src; } }
+  });
 }
 
 type Near = { state: "idle" } | { state: "busy"; step: string } | { state: "error"; msg: string; here: Here | null } | { state: "done"; shops: Shop[]; radius: number; live: boolean; here: Here };
@@ -107,7 +116,7 @@ function CouponView({ coupon, onClose }: { coupon: Coupon; onClose: () => void }
       <div className="cpbody">
         <p className="cptip">結帳<b>前</b>連同護照一起給店員，一筆只能用一張。{coupon.note}</p>
         {coupon.img
-          ? <img src={coupon.img} alt={`${coupon.name} 優惠券條碼：${coupon.tiers}`} />
+          ? <picture><source srcSet={webpOf(coupon)} type="image/webp" /><img src={coupon.img} alt={`${coupon.name} 優惠券條碼：${coupon.tiers}`} /></picture>
           : <a className="btn primary big" href={coupon.url} target="_blank" rel="noopener">開啟 {coupon.name} 的優惠券網頁 ›</a>}
         {coupon.img && <p className="note">掃不到就把螢幕亮度調到最高，用兩指放大那一級的條碼。</p>}
       </div>
@@ -119,6 +128,14 @@ function CouponView({ coupon, onClose }: { coupon: Coupon; onClose: () => void }
 export function CouponHost() {
   const [list, setList] = useState(false);
   const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const listClose = useRef<HTMLButtonElement>(null);
+  // the list dialog takes the keyboard focus when it opens and gives it back to whatever opened it
+  useEffect(() => {
+    if (!list) return;
+    const prev = document.activeElement as HTMLElement | null;
+    listClose.current?.focus();
+    return () => { prev?.focus?.(); };
+  }, [list]);
   useEffect(() => {
     const on = (e: Event) => {
       const id = (e as CustomEvent<string | undefined>).detail;
@@ -145,7 +162,7 @@ export function CouponHost() {
           <div className="dialog quickpick cpdialog" role="dialog" aria-modal="true" aria-labelledby="cp-title">
             <header>
               <div><h3 id="cp-title">藥妝優惠券</h3><small>免稅之外再折 3～8%，結帳前出示。</small></div>
-              <button type="button" className="x" aria-label="關閉" onClick={() => setList(false)}>×</button>
+              <button ref={listClose} type="button" className="x" aria-label="關閉" onClick={() => setList(false)}>×</button>
             </header>
             <CouponList />
           </div>

@@ -47,18 +47,28 @@ function Memos({ day, stop }: { day: Day; stop: Stop }) {
   const editable = canEdit(day.fam, member);
   useEffect(() => { setMemos(stop.memo ?? []); }, [stop]);
 
-  const write = async (next: Memo[]) => {
-    if (!current) return;
+  // `change` works on the notes as they are in the database right now, not on the copy this sheet opened with:
+  // two people adding a note to the same stop within a few minutes used to lose the first one.
+  const write = async (change: (fresh: Memo[]) => Memo[]) => {
+    if (!current || busy) return;
     setBusy(true);
+    let saved: Memo[] | null = null;
     const err = await editDayItems(current.id, day, (items) => {
       const idx = findStop(items, stop);
-      return idx < 0 ? null : items.map((it, i) => (i === idx ? { ...it, memo: next } : it));
+      if (idx < 0) return null;
+      const next = change((items[idx] as Stop).memo ?? []);
+      saved = next;
+      return items.map((it, i) => { if (i !== idx) return it; const s = { ...(it as Stop) }; if (next.length) s.memo = next; else delete s.memo; return s; });
     });
-    if (err) alert(err); else { setMemos(next); setText(""); reload(); }
+    if (err) alert(err); else { if (saved) setMemos(saved); setText(""); reload(); }
     setBusy(false);
   };
-  const add = () => { if (member && text.trim()) write([...memos, { by: member.user_id, name: member.name ?? member.email ?? "家人", text: text.trim(), at: new Date().toISOString() }]); };
-  const del = (m: Memo) => { if (confirm("刪掉這則備註？")) write(memos.filter((x) => x !== m)); };
+  const add = () => {
+    if (!member || !text.trim()) return;
+    const memo: Memo = { by: member.user_id, name: member.name ?? "家人", text: text.trim().slice(0, 1000), at: new Date().toISOString() };
+    write((fresh) => [...fresh, memo]);
+  };
+  const del = (m: Memo) => { if (confirm("刪掉這則備註？")) write((fresh) => fresh.filter((x) => !(x.by === m.by && x.at === m.at && x.text === m.text))); };
 
   return (
     <div className="sec memos">
@@ -75,7 +85,7 @@ function Memos({ day, stop }: { day: Day; stop: Stop }) {
       </ul>
       {editable ? (
         <div className="addrow memo-add">
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="加一則備註，例：記得帶護照影本" onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) add(); }} />
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="加一則備註，例：記得帶護照影本" onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) add(); }} />
           <button type="button" className="btn primary" onClick={add} disabled={busy || !text.trim()}>＋ 新增</button>
         </div>
       ) : (
@@ -101,6 +111,8 @@ function stopOf(d: Draft, base?: Stop): Stop {
   const set = <K extends keyof Stop>(k: K, v: Stop[K] | undefined | "") => { if (v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) delete out[k]; else out[k] = v as Stop[K]; };
   set("st", d.st || undefined); set("who", d.who.trim()); set("s", d.s.trim()); set("addr", d.addr.trim()); set("tel", d.tel.trim());
   set("book", lines(d.book)); set("rec", lines(d.rec)); set("info", lines(d.info)); set("tips", lines(d.tips));
+  // the saved coordinates belong to the old place: a renamed or re-addressed stop has to be located again (route optimisation trusts `ll`)
+  if (base && (out.n !== base.n || out.q !== base.q || (out.addr ?? "") !== (base.addr ?? ""))) delete out.ll;
   return out;
 }
 
@@ -120,8 +132,12 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
     if (d.t.trim() && !/^\d{1,2}:\d{2}$/.test(d.t.trim())) { setErr("時間請用 H:MM，例如 9:30、14:00"); return; }
     setBusy(true); setErr(null);
     const next = stopOf(d, mode === "edit" ? stop : undefined);
+    // The link to another trip: only touch it when this person changed the choice. Someone who is not in the linked trip
+    // (it is not in their list) used to wipe the link for everyone just by editing the time.
     const refTrip = otherTrips.find((m) => m.trip_id === d.ref);
-    if (refTrip) next.ref = { trip: refTrip.trip_id, name: refTrip.trip.name }; else delete next.ref;
+    if (mode === "edit" && d.ref === (stop.ref?.trip ?? "")) { if (stop.ref) next.ref = stop.ref; else delete next.ref; }
+    else if (refTrip) next.ref = { trip: refTrip.trip_id, name: refTrip.trip.name };
+    else delete next.ref;
     const leg: Leg | null = d.legMode && d.legTxt.trim() ? { leg: d.legMode, txt: d.legTxt.trim() } : null;
     const timeChanged = mode === "add" || d.t.trim() !== stop.t;
     const e = await editDayItems(current.id, day, (items) => {
@@ -129,7 +145,9 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       if (idx < 0) return null;
       const out: Item[] = [...items];
       if (mode === "edit") {
-        out[idx] = next;
+        // notes come from the row as it is now (someone may have added one while this form was open)
+        const memo = (items[idx] as Stop).memo;
+        out[idx] = memo?.length ? { ...next, memo } : (() => { const s = { ...next }; delete s.memo; return s; })();
         const prevIsLeg = idx > 0 && isLeg(out[idx - 1]);
         if (leg && prevIsLeg) out[idx - 1] = { ...(out[idx - 1] as Leg), leg: leg.leg, txt: leg.txt };
         else if (leg && !prevIsLeg) out.splice(idx, 0, leg);
@@ -157,10 +175,11 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
         <label>地址<input value={d.addr} onChange={up("addr")} /></label>
         <label>電話<input value={d.tel} onChange={up("tel")} inputMode="tel" /></label>
         <label>只有誰去（可空）<input value={d.who} onChange={up("who")} placeholder="例：4 位女生" /></label>
-        {otherTrips.length > 0 && (
+        {(otherTrips.length > 0 || (mode === "edit" && stop.ref)) && (
           <label>連到另一個行程（可空）
             <select value={d.ref} onChange={up("ref")}>
               <option value="">不連結</option>
+              {mode === "edit" && stop.ref && !otherTrips.some((m) => m.trip_id === stop.ref!.trip) && <option value={stop.ref.trip}>{stop.ref.name}（你不在這個行程裡）</option>}
               {otherTrips.map((m) => <option key={m.trip_id} value={m.trip_id}>{m.trip.name}</option>)}
             </select>
           </label>
@@ -200,12 +219,15 @@ function RefPanel({ stop, day }: { stop: Stop; day: Day }) {
   const ref = stop.ref;
   const m = ref ? memberships.find((x) => x.trip_id === ref.trip) : undefined;
   const [items, setItems] = useState<Item[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const refTrip = ref?.trip, famId = m?.family_id;
   useEffect(() => {
+    setFailed(false);
     if (!supabase || !refTrip || !famId) { setItems(null); return; }
     let alive = true;
-    supabase.from("days").select("fam, items").eq("trip_id", refTrip).eq("date_id", day.id).then(({ data }) => {
+    supabase.from("days").select("fam, items").eq("trip_id", refTrip).eq("date_id", day.id).then(({ data, error }) => {
       if (!alive) return;
+      if (error) { setFailed(true); return; }
       const rows = (data ?? []) as { fam: string[] | null; items: Item[] }[];
       const pick = rows.find((r) => r.fam?.includes(famId)) ?? rows.find((r) => !r.fam) ?? rows[0];
       setItems(pick ? pick.items : []);
@@ -220,7 +242,7 @@ function RefPanel({ stop, day }: { stop: Stop; day: Day }) {
       <h4>連到另一個行程</h4>
       {!m ? <p className="note">「{ref.name}」：你沒有加入那個行程，看不到內容。</p> : (
         <>
-          <p><b>{m.trip.name}</b>{items === null ? "（載入中…）" : stops.length === 0 ? `：${day.d} 那邊還沒有地點` : `：${day.d} 有 ${stops.length} 個地點`}</p>
+          <p><b>{m.trip.name}</b>{failed ? "（讀不到那邊的行程，可能是網路問題）" : items === null ? "（載入中…）" : stops.length === 0 ? `：${day.d} 那邊還沒有地點` : `：${day.d} 有 ${stops.length} 個地點`}</p>
           {stops.length > 0 && (
             <ul className="refstops">
               {stops.slice(0, 6).map((s, i) => <li key={i}><span className="t">{s.t}</span>{s.n}</li>)}

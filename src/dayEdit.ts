@@ -14,21 +14,35 @@ export function findStop(items: Item[], key: { t: string; n: string }) {
 }
 
 /**
+ * Narrow a `days` query to exactly this row. A date can have several rows (everyone's, one family's own, a joint one):
+ * `fam @> [family]` ("contains") also matches the joint row, so a delete or an edit meant for one row hit both.
+ * By row id when we have it; otherwise by the whole `fam` array (equal, not "contains").
+ * (Typed loosely on purpose: the PostgREST builders are too deeply generic for a structural constraint.)
+ */
+export function whereDay<T>(q: T, tripId: string, day: Pick<Day, "rowId" | "id" | "fam">): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const b = q as any;
+  if (day.rowId) return b.eq("id", day.rowId) as T;
+  const r = b.eq("trip_id", tripId).eq("date_id", day.id);
+  return (day.fam ? r.eq("fam", `{${day.fam.join(",")}}`) : r.is("fam", null)) as T;
+}
+
+/**
  * Change one day's items with a re-read first, so an edit never overwrites what someone else changed while the sheet was open.
  * `mutate` gets the fresh items and returns the new list (or null to abort). Returns an error message or null.
  */
 export async function editDayItems(tripId: string, day: Day, mutate: (items: Item[]) => Item[] | null): Promise<string | null> {
   if (!supabase) return "Supabase 還沒設定";
-  let sel = supabase.from("days").select("items").eq("trip_id", tripId).eq("date_id", day.id);
-  sel = day.fam ? sel.contains("fam", day.fam) : sel.is("fam", null);
-  const { data: fresh, error: readErr } = await sel.maybeSingle();
+  const { data: fresh, error: readErr } = await whereDay(supabase.from("days").select("id, items, updated_at"), tripId, day).maybeSingle();
   if (readErr || !fresh) return readErr?.message ?? "這一天已經不存在了";
   const next = mutate(fresh.items as Item[]);
   if (!next) return "這個地點已經被改掉了，重新打開再試";
-  let q = supabase.from("days").update({ items: next, updated_at: new Date().toISOString() }).eq("trip_id", tripId).eq("date_id", day.id);
-  q = day.fam ? q.contains("fam", day.fam) : q.is("fam", null);
-  const { error } = await q;
-  return error ? error.message : null;
+  // only if nobody saved this row between our read and our write (otherwise their change would be lost)
+  const { data: saved, error } = await supabase.from("days").update({ items: next, updated_at: new Date().toISOString() })
+    .eq("id", fresh.id as string).eq("updated_at", fresh.updated_at as string).select("id");
+  if (error) return error.message;
+  if (!saved?.length) return "剛剛有人也改了這一天，請再按一次";
+  return null;
 }
 
 /** Stops in time order, each keeping the leg(s) that lead into it. Unsortable times → unchanged. */

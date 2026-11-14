@@ -26,9 +26,30 @@ const must = (label, { error }) => { if (error) { console.error(`${label} 失敗
 // ---- which trip ----
 const tripId = trip.TRIP?.id ?? env.TRIP_ID;
 if (!tripId) { console.error("缺行程 id：在 seed/trip.ts export TRIP = { id, name, start_date, end_date, place }，或在 .env.local 設 TRIP_ID"); process.exit(1); }
-if (trip.TRIP) {
-  must(`trips（${trip.TRIP.name}）`, await sb.from("trips").upsert({ id: tripId, name: trip.TRIP.name, start_date: trip.TRIP.start_date, end_date: trip.TRIP.end_date, place: trip.TRIP.place ?? "", tz: trip.TRIP.tz ?? "Asia/Tokyo" }));
+// 預設只「補上還沒有的」：行程、家庭、日子、待辦已經在資料庫裡的一律不動。
+// 大家已經在網站上改過行程、勾過待辦、填過航班，整份蓋回去會把那些全部洗掉。
+// 真的要用檔案蓋掉資料庫：node seed/seed.mjs --overwrite（會先列出目標並要你輸入行程名稱確認；加 --yes 跳過確認）
+const OVERWRITE = process.argv.includes("--overwrite");
+console.log(`→ 目標資料庫：${new URL(url).host}${OVERWRITE ? "　（--overwrite：會蓋掉資料庫裡已經有的內容）" : "　（只補缺的，不會動已經有的）"}`);
+{
+  const { data: existing } = await sb.from("trips").select("id, name").eq("id", tripId).maybeSingle();
+  if (existing && OVERWRITE && !process.argv.includes("--yes")) {
+    const [{ count: dayCount }, { count: memberCount }] = await Promise.all([
+      sb.from("days").select("id", { count: "exact", head: true }).eq("trip_id", tripId),
+      sb.from("members").select("user_id", { count: "exact", head: true }).eq("trip_id", tripId),
+    ]);
+    console.log(`\n要蓋掉的是「${existing.name}」：${dayCount ?? "?"} 個日子、${memberCount ?? "?"} 位成員正在用。`);
+    console.log("檔案裡有的每一天會整天換成檔案的內容（大家加的地點、備註會不見）、各家的航班會換成檔案的、待辦的勾選會被還原。");
+    const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await rl.question(`確定的話輸入行程名稱「${existing.name}」：`);
+    rl.close();
+    if (answer.trim() !== existing.name) { console.error("沒有輸入正確的名稱，什麼都沒有改。"); process.exit(1); }
+  }
+  if (trip.TRIP && (!existing || OVERWRITE)) {
+    must(`trips（${trip.TRIP.name}）`, await sb.from("trips").upsert({ id: tripId, name: trip.TRIP.name, start_date: trip.TRIP.start_date, end_date: trip.TRIP.end_date, place: trip.TRIP.place ?? "", tz: trip.TRIP.tz ?? "Asia/Tokyo" }));
+  }
 }
+const keep = { ignoreDuplicates: !OVERWRITE };
 const { data: tripRow, error: tErr } = await sb.from("trips").select("id, name, start_date, end_date").eq("id", tripId).maybeSingle();
 if (tErr || !tripRow) { console.error(`找不到行程 ${tripId}${tErr ? `：${tErr.message}` : ""}`); process.exit(1); }
 console.log(`→ 行程：${tripRow.name}（${tripRow.start_date} – ${tripRow.end_date}）`);
@@ -52,12 +73,12 @@ function toIso(id) {
 }
 const dateOf = (iso) => { const dt = new Date(iso + "T00:00:00Z"); return { d: `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`, w: WEEKDAY[dt.getUTCDay()] }; };
 
-must("families", await sb.from("families").upsert(trip.FAMILIES.map((f, i) => ({ trip_id: tripId, id: f.id, name: f.name, label: f.label, flights: f.flights ?? [], sort: i })), { onConflict: "trip_id,id" }));
-must(`days（${trip.DAYS.length} 列）`, await sb.from("days").upsert(
+must("families", await sb.from("families").upsert(trip.FAMILIES.map((f, i) => ({ trip_id: tripId, id: f.id, name: f.name, label: f.label, flights: f.flights ?? [], sort: i })), { onConflict: "trip_id,id", ...keep }));
+must(`days（${trip.DAYS.length} 列${OVERWRITE ? "" : "，只補缺的"}）`, await sb.from("days").upsert(
   trip.DAYS.map((d) => { const iso = toIso(d.id); const { d: dd, w } = dateOf(iso); return { trip_id: tripId, date_id: iso, fam: d.fam ?? null, d: dd, w, city: d.city, title: d.title, hotel: d.hotel, items: d.items, updated_at: new Date().toISOString() }; }),
-  { onConflict: "trip_id,date_id,fam" },
+  { onConflict: "trip_id,date_id,fam", ...keep },
 ));
-must("extras", await sb.from("extras").upsert([{ trip_id: tripId, key: "notes", data: { shared: trip.SHARED_NOTE ?? "" } }], { onConflict: "trip_id,key" }));
+must("extras", await sb.from("extras").upsert([{ trip_id: tripId, key: "notes", data: { shared: trip.SHARED_NOTE ?? "" } }], { onConflict: "trip_id,key", ...keep }));
 // 其他資訊：seed/info.json 的每一頁進 info_pages；已經存在的頁不動（大家可能已經在網站上改過）
 if (existsSync("seed/info.json")) {
   const pages = JSON.parse(readFileSync("seed/info.json", "utf8"));
@@ -66,7 +87,7 @@ if (existsSync("seed/info.json")) {
     { onConflict: "trip_id,id", ignoreDuplicates: true }));
 }
 must(`todos（${(trip.TODO ?? []).length} 筆，大家一起）`, await sb.from("todos").upsert(
-  (trip.TODO ?? []).map(([key, due, text, done], i) => ({ trip_id: tripId, key, fam: null, due, text, done: !!done, sort: i })), { onConflict: "trip_id,key" }));
+  (trip.TODO ?? []).map(([key, due, text, done], i) => ({ trip_id: tripId, key, fam: null, due, text, done: !!done, sort: i })), { onConflict: "trip_id,key", ...keep }));
 // 聯絡資料不再 seed：網頁會從行程裡有電話、email 的地點自動帶出；contacts 表只放大家自己加的。
 if (process.argv.includes("--fix-dates")) {
   // 舊資料庫裡還有 dMMDD 的列：換成完整日期
@@ -74,13 +95,19 @@ if (process.argv.includes("--fix-dates")) {
   for (const r of old ?? []) { const iso = toIso(r.date_id); must(`${r.date_id} → ${iso}`, await sb.from("days").update({ date_id: iso, ...dateOf(iso) }).eq("id", r.id)); }
 }
 
-// 邀請連結：管理員一個（自己用）、成員一個
-const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
-async function ensureInvite(role, note, maxUses) {
-  const { data } = await sb.from("invites").select("code").eq("trip_id", tripId).eq("role", role).order("created_at").limit(1);
-  if (data?.[0]?.code) return data[0].code;
+// 邀請連結：16 碼、會到期。還能用的就沿用；過期、用完或舊的短碼（6 碼、沒有期限）就產生新的。
+const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+function newCode(n = 16) {
+  let out = "";
+  while (out.length < n) for (const b of crypto.getRandomValues(new Uint8Array(n * 2))) { if (b < 248 && out.length < n) out += ALPHABET[b % 31]; }
+  return out;
+}
+async function ensureInvite(role, note, maxUses, days) {
+  const { data } = await sb.from("invites").select("code, uses, max_uses, expires_at").eq("trip_id", tripId).eq("role", role).order("created_at", { ascending: false });
+  const usable = (data ?? []).find((i) => i.code.length >= 12 && i.uses < i.max_uses && i.expires_at && new Date(i.expires_at).getTime() > Date.now());
+  if (usable) return usable.code;
   const code = newCode();
-  must(`邀請碼（${role}）`, await sb.from("invites").insert({ trip_id: tripId, code, role, note, max_uses: maxUses }));
+  must(`邀請碼（${role}）`, await sb.from("invites").insert({ trip_id: tripId, code, role, note, max_uses: maxUses, expires_at: new Date(Date.now() + days * 86400000).toISOString() }));
   return code;
 }
 
@@ -91,8 +118,13 @@ if (existsSync("seed/assets/trip-form.xlsx")) {
 }
 
 const site = (env.SITE_URL || "https://<你的網址>/").replace(/\/?$/, "/");
-const adminCode = await ensureInvite("admin", "管理員（自己用）", 3);
-const memberCode = await ensureInvite("member", "家人", 50);
-console.log(`\n管理員連結（自己用，可用 3 次）：${site}#invite=${adminCode}`);
-console.log(`家人邀請連結（可用 50 次）：${site}#invite=${memberCode}`);
+// 管理員連結等於整個行程的鑰匙：已經有管理員就不再產生；要產生也只能用 1 次、7 天內
+const { count: admins } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("trip_id", tripId).eq("role", "admin");
+if (admins) console.log("\n這個行程已經有管理員，不再產生管理員連結（要再加管理員，到網站的「管理行程」產生）。");
+else console.log(`\n管理員連結（自己用，只能用 1 次，7 天內有效）：${site}#invite=${await ensureInvite("admin", "管理員（自己用）", 1, 7)}`);
+const memberCode = await ensureInvite("member", "家人", 30, 30);
+console.log(`家人邀請連結（可用 30 次，30 天內有效）：${site}#invite=${memberCode}`);
 console.log(`本機測試：http://localhost:5173/#invite=${memberCode}`);
+const { data: old } = await sb.from("invites").select("code, expires_at").eq("trip_id", tripId);
+const weak = (old ?? []).filter((i) => i.code.length < 12 || !i.expires_at);
+if (weak.length) console.log(`\n⚠ 還有 ${weak.length} 個舊的邀請連結（短碼或沒有期限）。建議到網站的「管理行程 → 邀請連結」刪掉。`);

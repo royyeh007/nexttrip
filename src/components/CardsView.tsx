@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { COUNTRY_NAME, COUNTRY_ORDER, NETWORKS, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, WHERE_NAME, explain, isAbroad, pct, rank, setCardsOn } from "../cards";
 import type { Card, CardRate, Country, RateKind, RateWhere } from "../cards";
 import { isViewer } from "../data";
@@ -12,7 +12,7 @@ const COUNTRIES = COUNTRY_ORDER;
 /** The rates of this card that matter at the destination, bonus categories only (for the catalog rows). */
 const bonusesAt = (c: Card, dest: Country) => {
   const abroad = isAbroad(c, dest);
-  return c.rates.filter((x) => x.kind !== "all" && (x.where === "home" ? !abroad : x.where === "overseas" ? abroad : x.where === dest));
+  return (Array.isArray(c.rates) ? c.rates : []).filter((x) => x && x.kind !== "all" && (x.where === "home" ? !abroad : x.where === "overseas" ? abroad : x.where === dest));
 };
 
 // ---------- the editor for one catalog entry ----------
@@ -25,6 +25,8 @@ const draftOf = (c: Card | null, name = "", country: Country = "us"): Draft => (
   cap: c?.cap ?? "", conditions: c?.conditions ?? "", source: c?.source ?? "", checked_at: c?.checked_at ?? new Date().toISOString().slice(0, 10),
 });
 interface LookupResult { card: Partial<Card> & { note?: string }; remaining: number }
+/** Only a real web address becomes a link (the catalog is written by many people and by the AI lookup). */
+const isHttp = (s: string | null | undefined) => !!s && /^https?:\/\/\S+$/i.test(s.trim());
 
 function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | null; name?: string; country?: Country; onDone: (id: string) => void; onCancel: () => void }) {
   const { member, current, reloadCards } = useTrip();
@@ -32,26 +34,32 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
   const [busy, setBusy] = useState<"save" | "ai" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [aiNote, setAiNote] = useState<string | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const lookupAbort = useRef<AbortController | null>(null);
+  // The form sits at the top of the page; 「改資料」 can be pressed far down in the catalog. Bring the form into view.
+  useEffect(() => { boxRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }); boxRef.current?.querySelector("input")?.focus({ preventScroll: true }); }, []);
   const up = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   const upRate = (i: number, patch: Partial<RateDraft>) => setD((x) => ({ ...x, rates: x.rates.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
 
   /** Sonnet looks the card up online (issuer page + card sites) and fills the form; the person checks it before saving. */
   const lookup = async () => {
     if (!current || !d.name.trim()) { setErr("先填卡片名稱"); return; }
+    const ac = new AbortController();
+    lookupAbort.current = ac;
     setBusy("ai"); setErr(null); setAiNote(null);
     try {
-      const res = await invoke<LookupResult>("card-lookup", { trip_id: current.id, name: d.name.trim(), country: d.country });
+      const res = await invoke<LookupResult>("card-lookup", { trip_id: current.id, name: d.name.trim(), country: d.country }, { timeoutMs: 140_000, signal: ac.signal });
       const c = res.card;
       setD((x) => ({
         ...x,
         name: c.name || x.name, short: c.short ?? x.short, bank: c.bank ?? x.bank, country: c.country ?? x.country, network: c.network ?? x.network,
         fx_fee: c.fx_fee != null ? String(c.fx_fee) : x.fx_fee,
         rates: c.rates?.length ? c.rates.map((r) => ({ where: r.where, kind: r.kind, rate: String(r.rate), note: r.note ?? "", until: r.until ?? "", cond: r.cond ?? "" })) : x.rates,
-        cap: c.cap ?? x.cap, conditions: c.conditions ?? x.conditions, source: c.source ?? x.source, checked_at: new Date().toISOString().slice(0, 10),
+        cap: c.cap ?? x.cap, conditions: c.conditions ?? x.conditions, source: isHttp(c.source) ? c.source!.trim() : x.source, checked_at: new Date().toISOString().slice(0, 10),
       }));
       setAiNote(`${c.note ? c.note + " " : ""}請對照銀行公告看一下再儲存。（今天還可以查 ${res.remaining} 次）`);
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(null); }
+    } catch (e) { if (!ac.signal.aborted) setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(null); lookupAbort.current = null; }
   };
 
   const save = async () => {
@@ -71,26 +79,38 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
       if (r.cond.trim()) row.cond = r.cond.trim();
       rates.push(row);
     }
+    const source = d.source.trim();
+    if (source && !isHttp(source)) { setErr("來源網址要以 https:// 開頭（或留白）"); return; }
     setBusy("save"); setErr(null);
-    const who = member.name ?? member.email ?? "成員";
+    // shown to everyone in every trip as 「○○ 改過」: a display name, never the e-mail address
+    const who = member.name?.trim() || "成員";
     const row = { id: d.id, name: d.name.trim(), short: d.short.trim() || d.name.trim().slice(0, 8), bank: d.bank.trim(), country: d.country, network: d.network, fx_fee: fee, rates, cap: d.cap.trim(), conditions: d.conditions.trim(), source: d.source.trim(), checked_at: d.checked_at || null, updated_by: member.user_id, updated_by_name: who, updated_at: new Date().toISOString() };
-    const { error } = card
-      ? await supabase.from("card_catalog").update(row).eq("id", d.id)
-      : await supabase.from("card_catalog").insert({ ...row, created_by: member.user_id });
+    let error: { message: string } | null = null, saved = 1;
+    if (card) {
+      // only if the card is still the version this form opened with (someone else may have updated the rates meanwhile)
+      let q = supabase.from("card_catalog").update(row).eq("id", d.id);
+      if (card.updated_at) q = q.eq("updated_at", card.updated_at);
+      const r = await q.select("id");
+      error = r.error; saved = r.data?.length ?? 0;
+    } else {
+      const r = await supabase.from("card_catalog").insert({ ...row, created_by: member.user_id });
+      error = r.error;
+    }
     setBusy(null);
-    if (error) { setErr(error.message); return; }
+    if (error) { setErr(/row-level security|permission/i.test(error.message) ? "沒有權限改卡片庫（觀察員只能勾自己有的卡）" : error.message); return; }
+    if (!saved) { setErr("沒有存進去：這張卡在你編輯的時候被別人改過（或刪掉）了，或你沒有權限。按取消後重新打開「改資料」再改一次。"); await reloadCards(); return; }
     await reloadCards();
     onDone(d.id);
   };
 
   return (
-    <div className="gcard cardedit">
+    <div className="gcard cardedit" ref={boxRef}>
       <h3>{card ? `編輯「${card.name}」` : "新增一張卡到卡片庫"}</h3>
       <p className="note">回饋填「在那裡買那類東西可以拿到的總回饋 %」（已含基本回饋；點數卡換成約略的 %，例：3x 點數以 1.5¢ 計 ≈ 4.5%）。「出國」＝發卡國以外都適用。沒把握的欄位留白就好，或先按「✦ 幫我查這張卡」。</p>
       <div className="formgrid">
-        <label>卡片名稱<input value={d.name} onChange={(e) => up("name", e.target.value)} placeholder="例：Chase Sapphire Preferred" autoFocus={!card} /></label>
+        <label>卡片名稱<input value={d.name} onChange={(e) => up("name", e.target.value)} placeholder="例：Chase Sapphire Preferred" maxLength={80} /></label>
         <label>短名（標籤用）<input value={d.short} onChange={(e) => up("short", e.target.value)} placeholder="例：CSP" maxLength={10} /></label>
-        <label>銀行<input value={d.bank} onChange={(e) => up("bank", e.target.value)} placeholder="例：Chase" /></label>
+        <label>銀行<input value={d.bank} onChange={(e) => up("bank", e.target.value)} placeholder="例：Chase" maxLength={60} /></label>
         <label>發卡國<select value={d.country} onChange={(e) => up("country", e.target.value as Country)}>{COUNTRIES.map((c) => <option key={c} value={c}>{COUNTRY_NAME[c]}</option>)}</select></label>
         <label>海外交易手續費 %<input value={d.fx_fee} onChange={(e) => up("fx_fee", e.target.value)} inputMode="decimal" placeholder="美國卡常見 0 或 3；英國 0 或 2.99；台灣 1.5" /></label>
       </div>
@@ -118,14 +138,16 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
         <button type="button" className="link" onClick={() => setD((x) => ({ ...x, rates: [...x.rates, emptyRate("overseas")] }))}>＋ 加一列回饋</button>
       </div>
       <div className="formgrid">
-        <label>回饋上限<input value={d.cap} onChange={(e) => up("cap", e.target.value)} placeholder="例：無上限" /></label>
-        <label>重要條件<input value={d.conditions} onChange={(e) => up("conditions", e.target.value)} placeholder="例：年費 $95；超市加碼只限美國境內" /></label>
-        <label>來源網址<input value={d.source} onChange={(e) => up("source", e.target.value)} placeholder="https://…" inputMode="url" /></label>
+        <label>回饋上限<input value={d.cap} onChange={(e) => up("cap", e.target.value)} placeholder="例：無上限" maxLength={300} /></label>
+        <label>重要條件<input value={d.conditions} onChange={(e) => up("conditions", e.target.value)} placeholder="例：年費 $95；超市加碼只限美國境內" maxLength={600} /></label>
+        <label>來源網址<input value={d.source} onChange={(e) => up("source", e.target.value)} placeholder="https://…" inputMode="url" maxLength={500} /></label>
         <label>查證日期<input value={d.checked_at} onChange={(e) => up("checked_at", e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" /></label>
       </div>
       <div className="actions">
         <button type="button" className="btn primary" onClick={save} disabled={!!busy}>{busy === "save" ? "儲存中…" : "儲存"}</button>
-        <button type="button" className="btn" onClick={onCancel} disabled={!!busy}>取消</button>
+        {busy === "ai"
+          ? <button type="button" className="btn" onClick={() => lookupAbort.current?.abort()}>取消查詢</button>
+          : <button type="button" className="btn" onClick={onCancel} disabled={busy === "save"}>取消</button>}
         {!isViewer(member) && <button type="button" className="btn" onClick={lookup} disabled={!!busy} title="AI 上網查這張卡目前的海外手續費和回饋，填進表單給你核對">{busy === "ai" ? "查詢中…（約 30 秒）" : "✦ 幫我查這張卡"}</button>}
       </div>
       {aiNote && <p className="note">{aiNote}</p>}
@@ -147,7 +169,7 @@ function CardRow({ c, dest, date, mine, actions }: { c: Card; dest: Country; dat
         <span className="cwhy">{COUNTRY_NAME[dest]}一般消費：{explain(best)}{best.stale ? "（優惠標示已到期，要確認）" : ""}</span>
         {bonuses.length > 0 && <span className="cwhy">{bonuses.map((x) => `${RATE_KIND_NAME[x.kind]} ${pct(x.rate)}${x.note ? `（${x.note}）` : ""}`).join("、")}</span>}
         {(c.conditions || c.cap) && <span className="cwhy muted">{[c.conditions, c.cap].filter(Boolean).join(" ")}</span>}
-        <span className="cmeta">查證 {fmtDate(c.checked_at)}{c.updated_by_name ? ` ・ ${c.updated_by_name} 改過` : ""}{c.source && <> ・ <a href={c.source} target="_blank" rel="noopener">來源 ↗</a></>}</span>
+        <span className="cmeta">查證 {fmtDate(c.checked_at)}{c.updated_by_name ? ` ・ ${c.updated_by_name} 改過` : ""}{isHttp(c.source) && <> ・ <a href={c.source.trim()} target="_blank" rel="noopener noreferrer">來源 ↗</a></>}</span>
       </div>
       <div className="cacts">{actions}</div>
     </li>
@@ -156,8 +178,11 @@ function CardRow({ c, dest, date, mine, actions }: { c: Card; dest: Country; dat
 
 // ---------- the page ----------
 export function CardsView() {
-  const { member, current, cards, reloadCards } = useTrip();
+  const { member, current, cards, reloadCards, memberships } = useTrip();
   const r = useRecommend();
+  // same rules as the database: writing the shared catalog needs member/admin in at least one trip; deleting needs the creator or an admin of any trip
+  const canWrite = memberships.some((m) => m.role !== "viewer") && !isViewer(member);
+  const [opening, setOpening] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<{ card: Card | null; name?: string; addToMine?: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -196,12 +221,24 @@ export function CardsView() {
   const del = async (c: Card) => {
     if (!supabase || !confirm(`把「${c.name}」從卡片庫刪掉？有勾這張卡的人也會一起失去它。`)) return;
     setBusy(c.id); setErr(null);
-    const { error } = await supabase.from("card_catalog").delete().eq("id", c.id);
+    const { data, error } = await supabase.from("card_catalog").delete().eq("id", c.id).select("id");
     setBusy(null);
     if (error) { setErr(error.message); return; }
+    if (!data?.length) setErr("沒有刪掉：只有建立這張卡的人或管理員可以刪");
     await reloadCards();
   };
-  const canDelete = (c: Card) => !!member && (c.created_by === member.user_id || member.role === "admin");
+  const canDelete = (c: Card) => !!member && canWrite && (c.created_by === member.user_id || memberships.some((m) => m.role === "admin"));
+  // Open the form on the card as it is in the database now: the copy on screen was loaded when the page opened,
+  // and saving an old copy would undo an update someone else made since.
+  const edit = async (c: Card) => {
+    if (!supabase || opening) return;
+    setOpening(c.id); setErr(null);
+    const { data, error } = await supabase.from("card_catalog").select("id, name, short, bank, country, network, fx_fee, rates, cap, conditions, source, checked_at, created_by, updated_by_name, updated_at").eq("id", c.id).maybeSingle();
+    setOpening(null);
+    if (error) { setErr(`讀不到這張卡的最新資料（${error.message}），等網路好一點再改`); return; }
+    if (!data) { setErr("這張卡已經被刪掉了"); await reloadCards(); return; }
+    setEditing({ card: { ...data, fx_fee: Number(data.fx_fee) || 0, rates: Array.isArray(data.rates) ? data.rates : [], network: Array.isArray(data.network) ? data.network : [] } as Card });
+  };
 
   if (cards.ready && !cards.available) {
     return (
@@ -232,7 +269,7 @@ export function CardsView() {
         {!r.on && <span className="note" style={{ margin: 0 }}>關掉後行程上不會出現 💳 標籤，這一頁還是可以看。</span>}
       </div>
 
-      {editing && <CardEditor key={editing.card?.id ?? "new"} card={editing.card} name={editing.name} country={filter === "all" ? "us" : filter} onCancel={() => setEditing(null)} onDone={async (id) => { if (editing.addToMine) await add(id); setEditing(null); }} />}
+      {editing && <CardEditor key={`${editing.card?.id ?? "new"}|${editing.card?.updated_at ?? ""}`} card={editing.card} name={editing.name} country={filter === "all" ? "us" : filter} onCancel={() => setEditing(null)} onDone={async (id) => { if (editing.addToMine) await add(id); setEditing(null); }} />}
 
       <div className="gcard mycards">
         <h3>我的卡 {r.mine.length > 0 && <small className="muted">{r.mine.length} 張</small>}</h3>
@@ -242,7 +279,7 @@ export function CardsView() {
           <ul className="cardlist">
             {r.mine.map((c) => (
               <CardRow key={c.id} c={c} dest={dest} date={date0} mine={false} actions={<>
-                <button type="button" className="link" onClick={() => setEditing({ card: c })}>✎ 改資料</button>
+                {canWrite && <button type="button" className="link" onClick={() => edit(c)} disabled={opening === c.id}>{opening === c.id ? "讀取中…" : "✎ 改資料"}</button>}
                 <button type="button" className="link" onClick={() => remove(c.id)} disabled={busy === c.id}>移除</button>
               </>} />
             ))}
@@ -260,7 +297,9 @@ export function CardsView() {
                   </button>
                 </li>
               ))}
-              <li><button type="button" className="new" onClick={() => { setEditing({ card: null, name: q.trim(), addToMine: true }); }}>＋ 卡片庫沒有「{q.trim()}」，新增一張（可以讓 AI 幫查）</button></li>
+              {canWrite
+                ? <li><button type="button" className="new" onClick={() => { setEditing({ card: null, name: q.trim().slice(0, 80), addToMine: true }); }}>＋ 卡片庫沒有「{q.trim()}」，新增一張（可以讓 AI 幫查）</button></li>
+                : matches.length === 0 && <li><span className="note">卡片庫沒有「{q.trim()}」。觀察員不能新增卡片，請成員幫忙加。</span></li>}
             </ul>
           )}
         </div>
@@ -316,7 +355,7 @@ export function CardsView() {
               <button type="button" className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>全部</button>
               {COUNTRIES.filter((c) => counts[c]).map((c) => <button key={c} type="button" className={filter === c ? "on" : ""} onClick={() => setFilter(c)}>{COUNTRY_NAME[c]} {counts[c]}</button>)}
             </div>
-            <button type="button" className="btn" onClick={() => setEditing({ card: null })}>＋ 新增一張卡</button>
+            {canWrite && <button type="button" className="btn" onClick={() => setEditing({ card: null })}>＋ 新增一張卡</button>}
           </div>
           <ul className="cardlist">
             {sorted.filter((c) => filter === "all" || c.country === filter).map((c) => (
@@ -324,7 +363,7 @@ export function CardsView() {
                 {mineSet.has(c.id)
                   ? <button type="button" className="link" onClick={() => remove(c.id)} disabled={busy === c.id}>移除</button>
                   : <button type="button" className="link" onClick={() => add(c.id)} disabled={busy === c.id}>＋ 我有這張</button>}
-                <button type="button" className="link" onClick={() => setEditing({ card: c })}>✎ 改資料</button>
+                {canWrite && <button type="button" className="link" onClick={() => edit(c)} disabled={opening === c.id}>{opening === c.id ? "讀取中…" : "✎ 改資料"}</button>}
                 {canDelete(c) && <button type="button" className="link danger" onClick={() => del(c)} disabled={busy === c.id}>刪除</button>}
               </>} />
             ))}

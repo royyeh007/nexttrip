@@ -32,47 +32,27 @@ export const delayOf = (sched: string, eff: string | null) => (eff ? minutes(eff
 /** "2026-12-26T11:05:00" in the given time zone (default Japan) */
 export const nowIn = (tz = "Asia/Tokyo") => new Date().toLocaleString("sv-SE", { timeZone: tz }).replace(" ", "T");
 export const nowJST = () => nowIn("Asia/Tokyo");
+/** 航班文字上的日期和時間是出發機場的當地時間：有查到出發機場的時區就用它，不然用行程的時區。 */
+export function nowAtDeparture(depTz: string | null | undefined, tripTz: string): string {
+  if (depTz) { try { return nowIn(depTz); } catch { /* 不認得的時區名稱 */ } }
+  return nowIn(tripTz || "Asia/Tokyo");
+}
 export const flightKey = (q: Query) => `${q.airline.toUpperCase()}${Number(q.number)}`;
 
-export interface DateRange { start: string; end: string } // YYYY-MM-DD
-const pad2 = (n: number) => String(n).padStart(2, "0");
-const dayDiff = (a: string, b: string) => Math.abs(new Date(a + "T00:00:00Z").getTime() - new Date(b + "T00:00:00Z").getTime()) / 86400000;
-/** "12/26" has no year in the flight text: pick the year that lands closest to (ideally inside) the trip's dates. */
-export function resolveDate(month: number, day: number, range?: DateRange | null): string {
-  if (!range) { const y = new Date().getUTCFullYear(); return `${y}-${pad2(month)}-${pad2(day)}`; }
-  const y0 = Number(range.start.slice(0, 4)), y1 = Number(range.end.slice(0, 4));
-  let best = "", bestDist = Infinity;
-  for (let y = y0 - 1; y <= y1 + 1; y++) {
-    const iso = `${y}-${pad2(month)}-${pad2(day)}`;
-    const dist = iso < range.start ? dayDiff(iso, range.start) : iso > range.end ? dayDiff(iso, range.end) : 0;
-    if (dist < bestDist) { best = iso; bestDist = dist; }
-  }
-  return best;
-}
-
-/** "去 BR192 12/26 松山 07:15 → 羽田 T3 11:00" → Query + which airports the text mentions */
-export function parseFlightText(text: string, range?: DateRange | null): (Query & { airports: string[] }) | null {
-  const m = text.match(/\b([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{2,4})\b/);
-  const d = text.match(/(\d{1,2})\/(\d{1,2})/);
-  if (!m || !d) return null;
-  const month = Number(d[1]), day = Number(d[2]);
-  const date = resolveDate(month, day, range);
-  const airports: string[] = [];
-  if (/羽田|HND/i.test(text)) airports.push("HND");
-  if (/成田|NRT/i.test(text)) airports.push("NRT");
-  if (/松山|TSA/i.test(text)) airports.push("TSA");
-  if (/桃園|TPE/i.test(text)) airports.push("TPE");
-  return { airline: m[1].toUpperCase(), number: m[2], date, airports };
-}
-/** True when both ends are covered by the free feeds, so aviationstack is never needed. */
-export const freeCovered = (airports: string[]) => airports.length > 0 && airports.every((a) => a === "HND" || a === "TSA");
+// 航班文字的解析和網頁共用（flightText.ts）
+export { parseFlightText, resolveDate } from "./flightText.ts";
+export type { DateRange } from "./flightText.ts";
 
 export async function getJson(url: string, label: string, timeoutMs = 10_000): Promise<Row | Row[] | null> {
   try {
     const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (family trip page)" }, signal: AbortSignal.timeout(timeoutMs) });
     if (!r.ok) { console.warn(`${label} ${r.status}`); return null; }
     return await r.json();
-  } catch (e) { console.warn(`${label} failed: ${e instanceof Error ? e.message : e}`); return null; }
+  } catch (e) {
+    // fetch 的錯誤訊息會帶完整網址：把金鑰遮掉再進 log
+    console.warn(`${label} failed: ${String(e instanceof Error ? e.message : e).replace(/access_key=[^&\s"']+/g, "access_key=***")}`);
+    return null;
+  }
 }
 
 // ---------- 羽田 ----------
@@ -144,7 +124,7 @@ export function avToStatuses(f: Row, updated: string): Status[] {
   return out;
 }
 
-export interface AvCache { statuses: Status[]; phase: "info" | "eve" | "live"; final?: boolean; schedDep?: string | null; flightDate?: string; note?: string; liveCount?: number }
+export interface AvCache { statuses: Status[]; phase: "info" | "eve" | "live"; final?: boolean; schedDep?: string | null; depTz?: string | null; flightDate?: string; note?: string; liveCount?: number }
 export const LIVE_BUDGET_PER_FLIGHT = 12;
 
 /** Spend one aviationstack request (respecting the monthly cap) and store the result under `cacheKey`. */
@@ -153,19 +133,37 @@ export async function avFetchAndStore(admin: SupabaseClient, q: Query, cacheKey:
   if (!key) return { ok: false, note: "沒有設定 aviationstack key" };
   const now = nowJST();
   const quotaKey = `quota:${now.slice(0, 7)}`;
-  const { data: quota } = await admin.from("flight_cache").select("data").eq("key", quotaKey).maybeSingle();
-  const used = Number((quota?.data as Row | undefined)?.n ?? 0);
-  if (used >= AV_MONTHLY_CAP) return { ok: false, note: `本月 aviationstack 額度用完（${used}/${AV_MONTHLY_CAP}）` };
+  // 先把額度「加一」再查。加一用資料庫函式一次做完（多支手機同時查也不會少算）；函式還沒建（migration 沒跑）就退回舊的讀了再寫。
+  let used: number;
+  const bump = await admin.rpc("bump_counter", { p_key: quotaKey, p_max: AV_MONTHLY_CAP });
+  if (!bump.error) {
+    if (bump.data == null) return { ok: false, note: `本月 aviationstack 額度用完（${AV_MONTHLY_CAP}/${AV_MONTHLY_CAP}）` };
+    used = Number(bump.data);
+  } else {
+    const { data: quota } = await admin.from("flight_cache").select("data").eq("key", quotaKey).maybeSingle();
+    const before = Number((quota?.data as Row | undefined)?.n ?? 0);
+    if (before >= AV_MONTHLY_CAP) return { ok: false, note: `本月 aviationstack 額度用完（${before}/${AV_MONTHLY_CAP}）` };
+    used = before + 1;
+    await admin.from("flight_cache").upsert({ key: quotaKey, data: { n: used }, fetched_at: new Date().toISOString() });
+  }
 
   const url = `https://api.aviationstack.com/v1/flights?access_key=${key}&flight_iata=${flightKey(q)}&limit=5`;
   const res = await getJson(url, "aviationstack", 12_000) as Row | null;
-  await admin.from("flight_cache").upsert({ key: quotaKey, data: { n: used + 1 }, fetched_at: new Date().toISOString() });
-  const rows = (res?.data as Row[] | undefined) ?? [];
-  const f = rows.find((r) => r.flight_date === q.date) ?? rows[0];
+  // 連不上、逾時：不要存成「查不到這個航班號」（那樣就不會再查了），下次再試
+  if (!res) return { ok: false, note: `aviationstack 沒有回應（本月第 ${used} 次），下次再試` };
+  const rows = (res.data as Row[] | undefined) ?? [];
+  const exact = rows.find((r) => r.flight_date === q.date);
+  const f = exact ?? rows[0];
   const updated = now.replace("T", " ").slice(0, 16);
   const data: AvCache = f
-    ? { statuses: avToStatuses(f, updated), phase, final: ["landed", "cancelled", "diverted"].includes(f.flight_status), schedDep: localHHMM(f.departure?.scheduled), flightDate: f.flight_date, liveCount: phase === "live" ? liveCount + 1 : undefined }
-    : { statuses: [], phase, note: res?.error ? `aviationstack：${res.error.message ?? JSON.stringify(res.error)}` : "aviationstack 查不到這個航班號", liveCount: phase === "live" ? liveCount + 1 : undefined };
+    ? {
+      statuses: avToStatuses(f, updated), phase,
+      // 只有「就是這一天的這一班」降落或取消才算結束。回來的如果是昨天同班號的資料，不能因為它已降落就停止更新今天的。
+      final: !!exact && ["landed", "cancelled", "diverted"].includes(f.flight_status),
+      schedDep: localHHMM(f.departure?.scheduled), depTz: typeof f.departure?.timezone === "string" ? f.departure.timezone : null,
+      flightDate: f.flight_date, liveCount: phase === "live" ? liveCount + 1 : undefined,
+    }
+    : { statuses: [], phase, note: res.error ? `aviationstack：${String(res.error.message ?? res.error.code ?? "查詢失敗").slice(0, 120)}` : "aviationstack 查不到這個航班號", liveCount: phase === "live" ? liveCount + 1 : undefined };
   await admin.from("flight_cache").upsert({ key: cacheKey, data, fetched_at: new Date().toISOString() });
-  return { ok: true, data, note: `aviationstack 本月第 ${used + 1} 次` };
+  return { ok: true, data, note: `aviationstack 本月第 ${used} 次` };
 }

@@ -74,13 +74,19 @@ export async function ensurePlaces(cities: string[]) {
       if (v && Date.now() - v.at < 7 * 86400000) hit = v.p;
     } catch { /* ignore */ }
     if (hit === undefined) {
+      // Remember the answer for a week only when the service really answered ("found" or "no such place").
+      // A network failure or a timeout is not an answer: remembering it meant no weather for that city for seven days.
+      let answered = false;
       try {
-        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(c)}&count=1&language=zh&format=json`);
-        const j = r.ok ? await r.json() as { results?: { latitude: number; longitude: number; name: string }[] } : null;
-        const g = j?.results?.[0];
-        hit = g ? { key: k, name: c, lat: g.latitude, lon: g.longitude } : null;
-      } catch { hit = null; }
-      try { localStorage.setItem(`wx-geo:${c}`, JSON.stringify({ at: Date.now(), p: hit })); } catch { /* ignore */ }
+        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(c)}&count=1&language=zh&format=json`, { signal: AbortSignal.timeout(8000) });
+        if (r.ok) {
+          const j = await r.json() as { results?: { latitude: number; longitude: number; name: string }[] };
+          const g = j?.results?.[0];
+          hit = g ? { key: k, name: c, lat: g.latitude, lon: g.longitude } : null;
+          answered = true;
+        }
+      } catch { /* offline or too slow: try again next time */ }
+      if (answered) { try { localStorage.setItem(`wx-geo:${c}`, JSON.stringify({ at: Date.now(), p: hit })); } catch { /* ignore */ } }
     }
     if (hit) registry.set(k, { ...hit, key: k });
   }));

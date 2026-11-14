@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { canEdit, contactsFromDays, daysFor, isViewer } from "../data";
 import type { ContactRow, FamilyId, TodoRow } from "../data";
 import { supabase } from "../supabase";
@@ -24,42 +24,78 @@ function ScopePick({ value, onChange, mine }: { value: Scope; onChange: (s: Scop
   );
 }
 
+type Write = PromiseLike<{ error: { message: string } | null; data?: unknown[] | null }>;
+/**
+ * One write at a time (a second Enter while the first is still saving is ignored), and the caller learns whether it
+ * worked: the forms used to clear themselves even when the save failed, and a held Enter key added the item twice.
+ */
+function useRun() {
+  const { reload } = useTrip();
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const run = async (write: () => Write): Promise<boolean> => {
+    if (lock.current) return false;
+    lock.current = true; setBusy(true);
+    try {
+      const { error, data } = await write();
+      if (error) { alert(error.message); return false; }
+      if (Array.isArray(data) && data.length === 0) { alert("沒有改到：這一筆可能已經被刪掉，或你沒有權限"); await reload(); return false; }
+      await reload();
+      return true;
+    } finally { lock.current = false; setBusy(false); }
+  };
+  return { busy, run };
+}
+/** Enter that really means "submit": not the Enter that picks a candidate while typing Chinese (Safari reports that one as keyCode 229). */
+const isEnter = (e: React.KeyboardEvent) => e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229;
+
 function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
-  const { trip, member, reload, labelOf, current } = useTrip();
+  const { trip, member, labelOf, current, patchTrip } = useTrip();
   const mine = member!.family_id;
   const viewFam = fam;
   const rows = visible(trip.todos, viewFam);
   const [due, setDue] = useState(""); const [text, setText] = useState(""); const [scope, setScope] = useState<Scope>("mine");
   const [editing, setEditing] = useState<string | null>(null); const [eDue, setEDue] = useState(""); const [eText, setEText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const run = async (p: PromiseLike<{ error: { message: string } | null }>) => { setBusy(true); const { error } = await p; if (error) alert(error.message); else await reload(); setBusy(false); };
+  const { busy, run } = useRun();
+  // ticks show at once and are saved in the background; a failed save puts the box back
+  const [ticking, setTicking] = useState<Record<string, boolean>>({});
 
-  const add = () => { if (!supabase || !text.trim()) return; run(supabase.from("todos").insert({ trip_id: current!.id, fam: famOf(scope, mine), due: due.trim(), text: text.trim(), created_by: member!.user_id })).then(() => { setDue(""); setText(""); }); };
-  const toggle = (r: TodoRow, done: boolean) => supabase && run(supabase.from("todos").update({ done }).eq("id", r.id));
-  const save = (r: TodoRow) => supabase && run(supabase.from("todos").update({ due: eDue.trim(), text: eText.trim() }).eq("id", r.id)).then(() => setEditing(null));
-  const del = (r: TodoRow) => supabase && confirm(`刪掉「${r.text}」？`) && run(supabase.from("todos").delete().eq("id", r.id));
+  const add = async () => {
+    if (!supabase || !text.trim()) return;
+    if (await run(() => supabase!.from("todos").insert({ trip_id: current!.id, fam: famOf(scope, mine), due: due.trim().slice(0, 60), text: text.trim().slice(0, 300), created_by: member!.user_id }))) { setDue(""); setText(""); }
+  };
+  const toggle = async (r: TodoRow, done: boolean) => {
+    if (!supabase) return;
+    setTicking((m) => ({ ...m, [r.id]: done }));
+    const { data, error } = await supabase.from("todos").update({ done }).eq("id", r.id).select("id");
+    if (error || !data?.length) alert(error?.message ?? "沒有改到：這一筆可能已經被刪掉，或你沒有權限");
+    else patchTrip((t) => ({ ...t, todos: t.todos.map((x) => (x.id === r.id ? { ...x, done } : x)) }));
+    setTicking((m) => { const next = { ...m }; delete next[r.id]; return next; });
+  };
+  const save = async (r: TodoRow) => { if (supabase && eText.trim() && await run(() => supabase!.from("todos").update({ due: eDue.trim().slice(0, 60), text: eText.trim().slice(0, 300) }).eq("id", r.id).select("id"))) setEditing(null); };
+  const del = (r: TodoRow) => { if (supabase && confirm(`刪掉「${r.text}」？`)) run(() => supabase!.from("todos").delete().eq("id", r.id).select("id")); };
 
   const list = (
       <ul className="todo">
         {rows.map((r) => (
           <li key={r.id}>
-            <input type="checkbox" id={`td-${r.id}`} checked={r.done} disabled={busy || !canEdit(r.fam, member)} onChange={(e) => toggle(r, e.target.checked)} />
+            <input type="checkbox" id={`td-${r.id}`} checked={ticking[r.id] ?? r.done} disabled={r.id in ticking || !canEdit(r.fam, member)} onChange={(e) => toggle(r, e.target.checked)} />
             {editing === r.id ? (
               <div className="editrow">
                 <input value={eDue} onChange={(e) => setEDue(e.target.value)} placeholder="時間（例：11/20 前）" />
-                <input value={eText} onChange={(e) => setEText(e.target.value)} placeholder="要做什麼" />
-                <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eText.trim()}>儲存</button><button type="button" className="btn" onClick={() => setEditing(null)}>取消</button></div>
+                <input value={eText} onChange={(e) => setEText(e.target.value)} placeholder="要做什麼" onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
+                <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eText.trim()}>儲存</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>取消</button></div>
               </div>
             ) : (
               <label htmlFor={`td-${r.id}`}>
-                <span className={`when ${r.done ? "done" : ""}`}>{r.due || "—"} <Tag fam={r.fam} /></span>
+                <span className={`when ${(ticking[r.id] ?? r.done) ? "done" : ""}`}>{r.due || "—"} <Tag fam={r.fam} /></span>
                 <span className="what">{r.text}</span>
               </label>
             )}
             {editing !== r.id && canEdit(r.fam, member) && (
               <span className="rowacts">
                 <button type="button" className="link" onClick={() => { setEditing(r.id); setEDue(r.due); setEText(r.text); }}>改</button>
-                <button type="button" className="link" onClick={() => del(r)}>刪</button>
+                <button type="button" className="link" onClick={() => del(r)} disabled={busy}>刪</button>
               </span>
             )}
           </li>
@@ -75,7 +111,7 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
       {list}
       {!isViewer(member) && <div className="addrow">
         <input value={due} onChange={(e) => setDue(e.target.value)} placeholder="時間（例：11/20 前）" />
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="要做什麼" onKeyDown={(e) => e.key === "Enter" && add()} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="要做什麼" onKeyDown={(e) => { if (isEnter(e)) add(); }} />
         <ScopePick value={scope} onChange={setScope} mine={mine} />
         <button type="button" className="btn primary" onClick={add} disabled={busy || !text.trim()}>＋ 新增</button>
       </div>}
@@ -84,18 +120,20 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
 }
 
 function Contacts({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
-  const { trip, member, reload, current } = useTrip();
+  const { trip, member, current } = useTrip();
   const mine = member!.family_id;
   const viewFam = fam;
   const rows = visible(trip.contacts, viewFam);
   const [name, setName] = useState(""); const [value, setValue] = useState(""); const [scope, setScope] = useState<Scope>("mine");
   const [editing, setEditing] = useState<string | null>(null); const [eName, setEName] = useState(""); const [eValue, setEValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const run = async (p: PromiseLike<{ error: { message: string } | null }>) => { setBusy(true); const { error } = await p; if (error) alert(error.message); else await reload(); setBusy(false); };
+  const { busy, run } = useRun();
 
-  const add = () => { if (!supabase || !name.trim() || !value.trim()) return; run(supabase.from("contacts").insert({ trip_id: current!.id, fam: famOf(scope, mine), name: name.trim(), value: value.trim(), created_by: member!.user_id })).then(() => { setName(""); setValue(""); }); };
-  const save = (r: ContactRow) => supabase && run(supabase.from("contacts").update({ name: eName.trim(), value: eValue.trim() }).eq("id", r.id)).then(() => setEditing(null));
-  const del = (r: ContactRow) => supabase && confirm(`刪掉「${r.name}」？`) && run(supabase.from("contacts").delete().eq("id", r.id));
+  const add = async () => {
+    if (!supabase || !name.trim() || !value.trim()) return;
+    if (await run(() => supabase!.from("contacts").insert({ trip_id: current!.id, fam: famOf(scope, mine), name: name.trim().slice(0, 80), value: value.trim().slice(0, 200), created_by: member!.user_id }))) { setName(""); setValue(""); }
+  };
+  const save = async (r: ContactRow) => { if (supabase && eName.trim() && eValue.trim() && await run(() => supabase!.from("contacts").update({ name: eName.trim().slice(0, 80), value: eValue.trim().slice(0, 200) }).eq("id", r.id).select("id"))) setEditing(null); };
+  const del = (r: ContactRow) => { if (supabase && confirm(`刪掉「${r.name}」？`)) run(() => supabase!.from("contacts").delete().eq("id", r.id).select("id")); };
   const href = (v: string) => (v.includes("@") ? `mailto:${v}` : /^[+\d][\d\s-]{6,}$/.test(v) ? `tel:${v.replace(/[\s-]/g, "")}` : null);
 
   const fromTrip = contactsFromDays(daysFor(trip.days, viewFam));
@@ -110,8 +148,8 @@ function Contacts({ fam, compact = false }: { fam: FamilyId; compact?: boolean }
         {rows.map((r) => editing === r.id ? (
           <div className="editrow" key={r.id}>
             <input value={eName} onChange={(e) => setEName(e.target.value)} placeholder="名稱" />
-            <input value={eValue} onChange={(e) => setEValue(e.target.value)} placeholder="電話或 email" />
-            <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eName.trim() || !eValue.trim()}>儲存</button><button type="button" className="btn" onClick={() => setEditing(null)}>取消</button></div>
+            <input value={eValue} onChange={(e) => setEValue(e.target.value)} placeholder="電話或 email" onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
+            <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eName.trim() || !eValue.trim()}>儲存</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>取消</button></div>
           </div>
         ) : (
           <div key={r.id}>
@@ -136,7 +174,7 @@ function Contacts({ fam, compact = false }: { fam: FamilyId; compact?: boolean }
       {list}
       {!isViewer(member) && <div className="addrow">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名稱（例：飯店訂房）" />
-        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="電話或 email" onKeyDown={(e) => e.key === "Enter" && add()} />
+        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="電話或 email" onKeyDown={(e) => { if (isEnter(e)) add(); }} />
         <ScopePick value={scope} onChange={setScope} mine={mine} />
         <button type="button" className="btn primary" onClick={add} disabled={busy || !name.trim() || !value.trim()}>＋ 新增</button>
       </div>}

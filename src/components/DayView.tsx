@@ -11,6 +11,7 @@ import { OptimizeDay } from "./OptimizeDay";
 import { KIND, SEAL } from "../labels";
 import { openForm } from "../form";
 import { supabase } from "../supabase";
+import { whereDay } from "../dayEdit";
 import { useTrip } from "../trip";
 import { toMinutes, useNow, useNowLine } from "../now";
 import { CardChip } from "./CardPick";
@@ -105,10 +106,12 @@ async function removeDay(day: Day, familyId: string, tripId: string) {
   if (!supabase || !day.fam) return;
   const rest = day.fam.filter((f) => f !== familyId);
   const q = supabase.from("days");
-  const { error } = rest.length === 0
-    ? await q.delete().eq("trip_id", tripId).eq("date_id", day.id).contains("fam", [familyId])
-    : await q.update({ fam: rest }).eq("trip_id", tripId).eq("date_id", day.id).contains("fam", [familyId]);
+  // exactly this row: a "contains this family" filter would also hit a joint row the family shares with others
+  const { data, error } = rest.length === 0
+    ? await whereDay(q.delete(), tripId, day).select("id")
+    : await whereDay(q.update({ fam: rest, updated_at: new Date().toISOString() }), tripId, day).select("id");
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("沒有改到：這一天已經被改過，或你沒有權限。重新整理再試");
 }
 
 export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; family: Family; onOpen: (s: Stop, arrive?: LinkedLeg) => void; onRemoved: () => void; wx: WeatherState }) {
@@ -127,16 +130,17 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
     if (!supabase || !current) return;
     if (!meta.title.trim()) { setMetaErr("標題不能空"); return; }
     setBusy(true); setMetaErr(null);
-    let q = supabase.from("days").update({ title: meta.title.trim(), city: meta.city.trim() || day.city, hotel: meta.hotel.trim(), updated_at: new Date().toISOString() }).eq("trip_id", current.id).eq("date_id", day.id);
-    q = day.fam ? q.contains("fam", day.fam) : q.is("fam", null);
-    const { error } = await q;
+    const { data, error } = await whereDay(supabase.from("days").update({ title: meta.title.trim(), city: meta.city.trim() || day.city, hotel: meta.hotel.trim(), updated_at: new Date().toISOString() }), current.id, day).select("id");
     setBusy(false);
     if (error) { setMetaErr(error.message); return; }
+    if (!data?.length) { setMetaErr("沒有存到：這一天已經被改過，或你沒有權限。重新整理再試"); return; }
     await reload();
     setEditMeta(false);
   };
   const own = !!day.fam && day.fam.includes(family.id);
   const shared = !day.fam;
+  // `family` is the family on screen, which can be somebody else's: only offer "our own version" / "remove" to people who may write for it
+  const mayWriteForFamily = canEdit([family.id], member);
   const hasSharedVersion = trip.days.some((d) => d.id === day.id && !d.fam);
   const empty = day.items.length === 0;
 
@@ -153,7 +157,8 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
     const msg = hasSharedVersion ? `要把 ${family.label}自己的 ${day.d} 版本刪掉，改回大家一起的版本嗎？` : `要把 ${day.d} 從${family.label}的行程拿掉嗎？`;
     if (!confirm(msg)) return;
     setBusy(true);
-    try { await removeDay(day, family.id, current!.id); await reload(); onRemoved(); }
+    // when everyone's version of this date exists the page stays on the date and shows that one; otherwise move off the deleted day
+    try { await removeDay(day, family.id, current!.id); await reload(); if (!hasSharedVersion) onRemoved(); }
     catch (e) { alert(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
@@ -166,13 +171,13 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
           <span className="hotel">{day.hotel ? `住 ${day.hotel}` : ""}</span>
           <span className={`tag ${shared ? "shared" : "own"}`}>{shared ? "大家一起的版本" : `${family.label}自己的版本`}</span>
           {editable && !editMeta && <button type="button" className="link" onClick={openMeta} disabled={busy}>✎ 改標題／城市／住宿</button>}
-          {shared && !viewer && <button type="button" className="link" onClick={fork} disabled={busy}>做一份我們家的版本</button>}
-          {own && !viewer && <button type="button" className="link" onClick={remove} disabled={busy}>{hasSharedVersion ? "改回大家一起的版本" : "刪除這天"}</button>}
+          {shared && mayWriteForFamily && <button type="button" className="link" onClick={fork} disabled={busy}>做一份我們家的版本</button>}
+          {own && mayWriteForFamily && <button type="button" className="link" onClick={remove} disabled={busy}>{hasSharedVersion ? "改回大家一起的版本" : "刪除這天"}</button>}
         </div>
         {editMeta ? (
           <div className="daymeta-edit">
             <div className="formgrid">
-              <label>標題<input value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} autoFocus onKeyDown={(e) => { if (e.key === "Enter") saveMeta(); if (e.key === "Escape") setEditMeta(false); }} /></label>
+              <label>標題<input value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} autoFocus onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) saveMeta(); if (e.key === "Escape") setEditMeta(false); }} /></label>
               <label>城市<input value={meta.city} onChange={(e) => setMeta({ ...meta, city: e.target.value })} placeholder="例：東京" /></label>
               <label>那晚住哪<input value={meta.hotel} onChange={(e) => setMeta({ ...meta, hotel: e.target.value })} placeholder="可空" /></label>
             </div>

@@ -19,7 +19,8 @@ export function Login({ invite }: { invite: string | null }) {
 
   useEffect(() => {
     if (!supabase || !invite) { setInfo(null); return; }
-    supabase.rpc("invite_valid", { p_code: invite }).then(({ data }) => setInfo((data as InviteInfo | null) ?? null));
+    // a failed check (no network) is "don't know", not "the link is wrong": leave it undecided so the page does not say the invite is invalid
+    supabase.rpc("invite_valid", { p_code: invite }).then(({ data, error }) => setInfo(error ? undefined : ((data as InviteInfo | null) ?? null)));
   }, [invite]);
 
   const google = async () => {

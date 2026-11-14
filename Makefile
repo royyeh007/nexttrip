@@ -67,17 +67,28 @@ help:
 	@echo "  link REF=<ref>   link to your Supabase project"
 	@echo "  db-push          create tables, policies, buckets"
 	@echo "  fn-deploy        deploy all Edge Functions"
-	@echo "  secrets ANTHROPIC_API_KEY=...  store the Claude key"
-	@echo "  seed             push seed/trip.ts into the database"
+	@echo "  secrets          store the Claude key (asks for it; nothing is echoed)"
+	@echo "  seed             add what seed/trip.ts has and the database lacks (never overwrites)"
+	@echo "  seed-overwrite   replace the database's days/flights/todos with seed/trip.ts (asks first)"
+	@echo "  test             run the logic tests"
 	@echo "  usage [N=15]     what the AI chat cost, per day and for the last N replies"
 	@echo "  setup            db-push + fn-deploy + seed"
 
 # ---------- Supabase ----------
 REF ?=
 
-## Push local seed/trip.ts (families, days, todo, contacts, form, admin, invite) into Supabase
+## Add what seed/trip.ts has and the database does not (families, days, todos, form, invites).
+## Rows that already exist are left alone: people have edited them on the site since.
 seed: node_modules
 	node seed/seed.mjs
+
+## Replace what is in the database with seed/trip.ts. Loses edits made on the site; asks for the trip's name first.
+seed-overwrite: node_modules
+	node seed/seed.mjs --overwrite
+
+## Logic tests (no network, no database)
+test: node_modules
+	$(NPM) test
 
 ## Show what the AI chat cost (per day, and the last N replies): make usage N=30
 N ?= 15
@@ -102,17 +113,21 @@ fn-deploy:
 	supabase functions deploy format-info --no-verify-jwt
 	supabase functions deploy card-lookup --no-verify-jwt
 
-## Store the Claude API key for the Edge Functions: make secrets ANTHROPIC_API_KEY=sk-ant-...
+## Store the Claude API key for the Edge Functions. Asks for the key instead of taking it on the command line,
+## so it does not end up in the terminal scrollback or the shell history; an empty answer changes nothing.
 secrets:
-	supabase secrets set ANTHROPIC_API_KEY=$(ANTHROPIC_API_KEY)
+	@printf "ANTHROPIC_API_KEY (sk-ant-…，輸入時不會顯示)："; stty -echo; read KEY; stty echo; echo; \
+	if [ -z "$$KEY" ]; then echo "沒有輸入，沒有改動。"; exit 1; fi; \
+	supabase secrets set "ANTHROPIC_API_KEY=$$KEY" >/dev/null && echo "已存進 Supabase。"
 
-## Everything after `make link`: tables, functions, data
+## Everything after `make link`: tables, functions, data (seed only adds what is missing)
 setup: db-push fn-deploy seed
 
-.PHONY: seed link db-push fn-deploy secrets setup
+.PHONY: seed seed-overwrite test link db-push fn-deploy secrets setup
 
-## Push auth settings incl. Google login (needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.local)
+## Push auth settings incl. Google login (needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.local).
+## Shows what will change in the hosted project and asks before applying: read the list, in particular the e-mail sign-up lines.
 auth-push:
-	@set -a; . ./.env.local; set +a; supabase config push --yes
+	@set -a; . ./.env.local; set +a; supabase config push
 
 .PHONY: auth-push

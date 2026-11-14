@@ -2,7 +2,9 @@
 import { z } from "npm:zod@4";
 
 // 日期用完整的 YYYY-MM-DD（行程可以在任何年份、跨年）
-export const DateIdZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("日期，格式 YYYY-MM-DD，例如 2026-12-25");
+/** 格式對、而且是月曆上真的有的一天（2026-13-45、2027-02-30 這種會變成 NaN/NaN 的日子不收） */
+const isRealDate = (s: string) => { const d = new Date(s + "T00:00:00Z"); return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; };
+export const DateIdZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDate, "不是真的日期").describe("日期，格式 YYYY-MM-DD，例如 2026-12-25");
 export const KINDS = ["food", "sight", "hotel", "shop", "move"] as const;
 export const MODES = ["taxi", "walk", "train", "bus", "charter", "shuttle", "flight"] as const;
 export const STATUSES = ["ok", "todo", "tbd"] as const;

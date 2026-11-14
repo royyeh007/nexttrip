@@ -9,8 +9,11 @@ export interface Memo { by: string; name: string; text: string; at: string }
 export interface Stop { t: string; n: string; q: string; k: Kind; st?: Status; who?: string; s?: string; info?: string[]; book?: string[]; rec?: string[]; tips?: string[]; addr?: string; tel?: string; memo?: Memo[]; ll?: [number, number]; ref?: { trip: string; name: string } }
 export interface Leg { leg: Mode; txt: string; st?: Status }
 export type Item = Stop | Leg;
-/** One date's itinerary. `id` is the date (YYYY-MM-DD). `fam` missing = everyone's shared day; otherwise only those families have this version. */
-export interface Day { id: string; d: string; w: string; city: string; title: string; hotel: string; items: Item[]; fam?: FamilyId[] | null }
+/**
+ * One date's itinerary. `id` is the date (YYYY-MM-DD). `fam` missing = everyone's shared day; otherwise only those families have this version.
+ * `rowId` is the database row (several rows can share a date: the shared one, a family's own, a joint one), so every write names its row exactly.
+ */
+export interface Day { id: string; d: string; w: string; city: string; title: string; hotel: string; items: Item[]; fam?: FamilyId[] | null; rowId?: string }
 export const isLeg = (i: Item): i is Leg => "leg" in i;
 
 /** Family ids are short slugs chosen per trip (e.g. "lily", "f3a9c1"). */
@@ -19,7 +22,6 @@ export interface Family { id: FamilyId; name: string; label: string; flights: st
 export const labelOf = (families: Family[], id: FamilyId) => families.find((f) => f.id === id)?.label ?? id;
 
 export const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
-export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** "2026-12-26" + 3 → "2026-12-29" */
 export const addDays = (iso: string, n: number) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 /** "2026-12-26" -> { d: "12/26", w: "六" } */
@@ -31,20 +33,10 @@ export function dateOf(iso: string) {
 export const dotDate = (iso: string) => iso.replace(/-0?/g, ".");
 export const daysBetween = (a: string, b: string) => Math.round((new Date(b + "T00:00:00Z").getTime() - new Date(a + "T00:00:00Z").getTime()) / 86400000);
 
-export interface DateRange { start: string; end: string }
-/** A flight line only says "12/26": pick the year that lands closest to (ideally inside) the trip's dates. */
-export function resolveDate(month: number, day: number, range?: DateRange | null): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  if (!range) return `${new Date().getUTCFullYear()}-${pad(month)}-${pad(day)}`;
-  const y0 = Number(range.start.slice(0, 4)), y1 = Number(range.end.slice(0, 4));
-  let best = "", bestDist = Infinity;
-  for (let y = y0 - 1; y <= y1 + 1; y++) {
-    const iso = `${y}-${pad(month)}-${pad(day)}`;
-    const dist = iso < range.start ? daysBetween(iso, range.start) : iso > range.end ? daysBetween(range.end, iso) : 0;
-    if (dist < bestDist) { best = iso; bestDist = dist; }
-  }
-  return best;
-}
+// 航班文字上只有「12/26」：年份怎麼判斷、航班號怎麼解析，和 Edge Function 共用同一份
+export { resolveDate } from "../supabase/functions/_shared/flightText";
+export type { DateRange } from "../supabase/functions/_shared/flightText";
+import type { DateRange } from "../supabase/functions/_shared/flightText";
 
 /** Does this family have an itinerary for this day? */
 export const hasDay = (d: Day, f: FamilyId) => !d.fam || d.fam.includes(f);
@@ -84,8 +76,6 @@ export function tripDates(t: Trip): string[] {
 export const tripLength = (t: Trip) => daysBetween(t.start_date, t.end_date) + 1;
 export const COMMON_TZ = ["Asia/Tokyo", "Asia/Taipei", "Asia/Seoul", "Asia/Shanghai", "Asia/Hong_Kong", "Asia/Bangkok", "Asia/Singapore", "Asia/Kolkata", "Asia/Dubai", "Europe/London", "Europe/Paris", "Europe/Rome", "America/New_York", "America/Chicago", "America/Los_Angeles", "America/Vancouver", "Australia/Sydney", "Pacific/Auckland", "Pacific/Honolulu"];
 
-export type TodoItem = [string, string, string, boolean?];
-export type Contact = [string, string];
 /** Rows of the todos / contacts tables. `fam` null = everyone's. */
 export interface TodoRow { id: string; fam: FamilyId[] | null; due: string; text: string; done: boolean; sort: number; created_at: string }
 export interface ContactRow { id: string; fam: FamilyId[] | null; name: string; value: string; sort: number; created_at: string }

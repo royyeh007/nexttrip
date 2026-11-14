@@ -1,22 +1,20 @@
 // 「信用卡」頁的「✦ 幫我查這張卡」：給一個卡名，Sonnet 上網查這張卡目前的海外交易手續費和各類消費的回饋，
 // 整理成卡片庫的格式回傳；網頁把它填進表單，使用者看過再儲存（不直接寫資料庫）。
-// 省錢：一張卡最多 4 次搜尋、固定輸出格式、每個行程每天最多 N 次（ai_calls 表計數，kind = card-lookup）。
-import { betaZodTool } from "npm:@anthropic-ai/sdk/helpers/beta/zod";
+// 省錢：一張卡最多 4 次搜尋、固定輸出格式、每個行程和每個人每天最多 N 次（ai_calls 表計數，kind = card-lookup）。
+import { betaZodTool } from "npm:@anthropic-ai/sdk@1.8.0/helpers/beta/zod";
 import { z } from "npm:zod@4";
-import { handle, json, HttpError } from "../_shared/http.ts";
+import { handle, json, HttpError, readJson } from "../_shared/http.ts";
 import { requireMember } from "../_shared/supa.ts";
-import { anthropic, CHAT_MODEL } from "../_shared/claude.ts";
+import { aiErrorMessage, anthropic, CHAT_MODEL } from "../_shared/claude.ts";
+import { reserve, settle, sumUsage } from "../_shared/usage.ts";
 import { COUNTRY_NAME, countryOf } from "../_shared/cards.ts";
 import type { Country } from "../_shared/cards.ts";
 
-const DAILY_LIMIT = Number(Deno.env.get("CARD_LOOKUP_DAILY_LIMIT") ?? 10);
-// Sonnet 5.5 牌價（美金／百萬 token）：輸入 2、輸出 10、快取讀 0.1；網頁搜尋每次 0.01
-const PRICE = { input: 2, cache_write: 2.5, read: 0.1, output: 10, search: 0.01 };
 
 const CardZ = z.object({
-  name: z.string().describe("卡的正式名稱（英文卡保留英文）"),
+  name: z.string().max(80).describe("卡的正式名稱（英文卡保留英文）"),
   short: z.string().max(10).describe("標籤用短名，≤10 字，例：CSP、Venture X、CUBE"),
-  bank: z.string().describe("發卡銀行"),
+  bank: z.string().max(60).describe("發卡銀行"),
   country: z.enum(["us", "uk", "tw", "jp", "kr", "other"]).describe("發卡國"),
   network: z.array(z.enum(["visa", "mastercard", "amex", "jcb", "discover", "unionpay"])),
   fx_fee: z.number().min(0).max(10).describe("海外交易手續費 %（foreign transaction fee / non-sterling fee）；沒有就 0"),
@@ -28,36 +26,25 @@ const CardZ = z.object({
     until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("優惠到期日 YYYY-MM-DD；長期有效就不填"),
     cond: z.string().optional().describe("條件：要登錄、要切方案、上限、只限實體店…"),
   })).min(1),
-  cap: z.string().describe("回饋上限一句話；沒有寫「無上限」"),
-  conditions: z.string().describe("最重要的條件或限制一句話（年費、哪些加碼只限國內、Amex 接受度…）"),
-  source: z.string().describe("最主要的來源網址（優先銀行官網）"),
+  cap: z.string().max(300).describe("回饋上限一句話；沒有寫「無上限」"),
+  conditions: z.string().max(600).describe("最重要的條件或限制一句話（年費、哪些加碼只限國內、Amex 接受度…）"),
+  source: z.string().max(500).describe("最主要的來源網址，要是 https:// 開頭的完整網址（優先銀行官網）"),
   confidence: z.enum(["high", "medium", "low"]),
   note: z.string().describe("給使用者看的一句話：哪裡不確定、最近有沒有改版"),
 });
 type CardOut = z.infer<typeof CardZ>;
 
-function startOfToday(tz: string): string {
-  const ymd = new Date().toLocaleDateString("sv-SE", { timeZone: tz });
-  const guess = new Date(ymd + "T00:00:00Z");
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(guess);
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-  const asIfUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"));
-  return new Date(guess.getTime() - (asIfUtc - guess.getTime())).toISOString();
-}
-
 Deno.serve(handle(async (req) => {
-  const body = await req.json().catch(() => ({})) as { trip_id?: string; name?: string; country?: string };
+  const body = await readJson<{ trip_id?: string; name?: unknown; country?: string }>(req, 20_000);
   const { admin, trip, uid } = await requireMember(req, body, { editor: true });
-  const name = (body.name ?? "").trim().slice(0, 80);
+  // 卡名會進提示詞：去掉換行和控制字元
+  // eslint-disable-next-line no-control-regex
+  const name = (typeof body.name === "string" ? body.name : "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
   if (name.length < 2) throw new HttpError(400, "先填卡片名稱");
   const hint = (["us", "uk", "tw", "jp", "kr", "other"] as Country[]).includes(body.country as Country) ? (body.country as Country) : null;
 
-  const tz = trip.tz || "Asia/Tokyo";
-  const { count, error: cErr } = await admin.from("ai_calls").select("id", { count: "exact", head: true })
-    .eq("trip_id", trip.id).eq("kind", "card-lookup").gte("created_at", startOfToday(tz));
-  if (cErr) throw new HttpError(500, `讀不到使用紀錄：${cErr.message}`);
-  const used = count ?? 0;
-  if (used >= DAILY_LIMIT) throw new HttpError(429, `這個行程今天已經查了 ${DAILY_LIMIT} 張卡，明天再試，或自己填`);
+  // 每人、每個行程的每日上限；先記一筆再呼叫模型（失敗的也算，平行送也擋得住）
+  const quota = await reserve(admin, "card-lookup", { tripId: trip.id, uid, tz: trip.tz });
 
   const dest = countryOf(trip.place);
   const today = new Date().toISOString().slice(0, 10);
@@ -78,32 +65,41 @@ Deno.serve(handle(async (req) => {
 5. 優先用銀行官網，再用可靠的信用卡網站（The Points Guy、NerdWallet、MoneySavingExpert、Head for Points、卡優、懶人卡）核對。最多搜尋 4 次。
 不要編數字：查不到的欄位就不填（rates 至少要有一筆一般消費），並在 note 說明哪裡不確定。文字用台灣用語的繁體中文，卡名、點數計畫名保留原文。查完直接呼叫 save_card，不用再多說話。`;
 
-  const client = anthropic();
   const calls: Record<string, unknown>[] = [];
-  for await (const m of client.beta.messages.toolRunner({
-    model: CHAT_MODEL,
-    max_tokens: 4000,
-    max_iterations: 6,
-    output_config: { effort: "medium" },
-    system,
-    tools: [webSearch, save],
-    messages: [{ role: "user", content: `信用卡：${name}` }],
-  })) {
-    calls.push(m.usage as unknown as Record<string, unknown>);
-    if (saved) break;
+  const started = Date.now();
+  let failure: string | null = null;
+  try {
+    // 整個函式最多 150 秒：每次呼叫最多等 60 秒、不重試，跑超過 110 秒就停
+    for await (const m of anthropic({ timeoutMs: 60_000, maxRetries: 0 }).beta.messages.toolRunner({
+      model: CHAT_MODEL,
+      max_tokens: 4000,
+      max_iterations: 6,
+      output_config: { effort: "medium" },
+      system,
+      tools: [webSearch, save],
+      messages: [{ role: "user", content: `信用卡：${name}` }],
+    })) {
+      calls.push(m.usage as unknown as Record<string, unknown>);
+      // runner 是先把這則訊息交出來、之後才執行工具：在這裡直接讀 save_card 的內容就可以收工，
+      // 不用再多打一次 API 把「ok」送回去（那一次會把所有搜尋結果重讀一遍）。
+      const call = m.content.find((b) => b.type === "tool_use" && b.name === "save_card");
+      if (call && call.type === "tool_use") {
+        const parsed = CardZ.safeParse(call.input);
+        if (parsed.success) { saved = parsed.data; break; }
+      }
+      if (saved || Date.now() - started > 110_000) break;
+    }
+  } catch (e) {
+    failure = aiErrorMessage(e);
   }
-  const n = (v: unknown) => (typeof v === "number" ? v : 0);
-  let usd = 0, searches = 0;
-  for (const u of calls) {
-    searches += n((u.server_tool_use as Record<string, unknown> | undefined)?.web_search_requests);
-    usd += (n(u.input_tokens) * PRICE.input + n(u.cache_creation_input_tokens) * PRICE.cache_write + n(u.cache_read_input_tokens) * PRICE.read + n(u.output_tokens) * PRICE.output) / 1e6;
-  }
-  usd += searches * PRICE.search;
-  const usage = { model: CHAT_MODEL, calls: calls.length, searches, name, usd: Math.round(usd * 10000) / 10000 };
+  const usage = { model: CHAT_MODEL, name, ...sumUsage(CHAT_MODEL, calls), ...(failure ? { error: failure } : {}) };
   console.log("card-lookup usage", JSON.stringify(usage));
-  await admin.from("ai_calls").insert({ trip_id: trip.id, user_id: uid, kind: "card-lookup", usage });
+  await settle(admin, quota, usage);
 
+  if (failure) throw new HttpError(502, `查卡失敗：${failure}`);
   if (!saved) throw new HttpError(502, "查不到這張卡的資料，請自己填（或換個更完整的卡名再試）");
   const card = saved as CardOut;
-  return json({ card: { ...card, checked_at: today }, remaining: Math.max(0, DAILY_LIMIT - used - 1) });
+  // 來源會變成頁面上的連結：只收 http(s) 網址
+  const source = /^https?:\/\/\S+$/i.test(card.source.trim()) ? card.source.trim() : "";
+  return json({ card: { ...card, source, checked_at: today }, remaining: quota.remaining });
 }));

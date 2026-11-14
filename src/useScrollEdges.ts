@@ -7,7 +7,9 @@ export function useScrollEdges<T extends HTMLElement>(key?: unknown) {
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+    const start = el.scrollLeft <= 2, end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+    // this runs on every scroll event: only touch state when an edge actually changed, or the whole page re-renders per event
+    setEdge((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
   }, []);
   useEffect(() => {
     update();

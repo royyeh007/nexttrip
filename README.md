@@ -13,6 +13,8 @@
 - **AI 助理**：聊天機器人看得到這個行程每一家的行程，可以問細節，也可以直接說要改什麼，整理好按「確認更新」就生效。
 - **藥妝優惠券**（日本行程）：`src/coupons.ts` 是券的清單，券圖在 `public/coupons/`，點開直接全螢幕顯示條碼。「找附近的藥妝」用瀏覽器定位＋預先抓好的店家清單 `public/coupons/shops.json`（OpenStreetMap，`seed/.build/shops-fetch.mjs` 產生，涵蓋東京都會區到長野、群馬），範圍外才即時查 Overpass。
 - **信用卡**：每個人勾自己有的卡（美國、英國、台灣的卡片庫，大家共用、可更新），每一站旁標出刷哪張最划算（淨回饋＝回饋−海外交易手續費，依餐廳／住宿／購物／交通分類；發卡國＝目的地時不算手續費）。左下角「⚡ 捷徑」是臨時購物用的口袋卡（五種消費各刷哪張，店家不收 AmEx 時的備案）。卡片庫沒有的卡可「✦ 幫我查這張卡」（Sonnet 上網查，每個行程每天 10 次）。規則在 `supabase/functions/_shared/cards.ts`，網頁和聊天機器人共用。
+- **沒訊號也能看**：上次載入的行程存在手機上，沒網路時照樣顯示（只能看、不能改），有網路時先顯示再更新；更新失敗時畫面不會消失，只多一條提示。網站本身的檔案和優惠券的圖由 service worker（`public/sw.js`）存在手機上。登出會清掉手機上存的行程。
+- **AI 用量上限**：每個會呼叫 Claude 的功能都有每人、每個行程的每日上限（`supabase/functions/_shared/usage.ts`，可用環境變數調），用量記在 `ai_calls` 表。建議另外在 Anthropic Console 設每月支出上限當保險。
 - **其他資訊**：大家自己寫的補充頁（Markdown，有預覽；可加圖片，文字旁顯示縮圖、點了放大，存在 Storage `info-images`）。貼一段文字可按「✦ 幫我整理」（Haiku、不上網、每個行程每天 10 次）；AI 助理的回答可一鍵「存到其他資訊」，不用再花一次 token。
 
 ## 結構
@@ -25,8 +27,14 @@
 | `supabase/functions/chat` | 聊天機器人（可送出修改提案） |
 | `supabase/functions/format-info` | 「其他資訊」的「幫我整理」：貼的文字 → Haiku → Markdown，每個行程每天有次數上限 |
 | `supabase/functions/card-lookup` | 「信用卡」頁的「幫我查這張卡」：卡名 → Sonnet 上網查 → 卡片庫格式，使用者看過再存 |
+| `supabase/functions/optimize-day` | 「優化順序」：定位每個地點、重新排可以移動的站 |
+| `supabase/functions/flight-status`、`flight-refresh` | 航班即時狀態（aviationstack 每月 90 次省著用，機場免費資料備援）；後者由 GitHub Actions 每 15 分鐘呼叫 |
+| `supabase/functions/_shared/` | 共用：登入與成員檢查、Claude client（逾時設定）、每日上限與用量、行程提案格式、航班文字解析（網頁也用）、信用卡推薦規則（網頁也用） |
+| `supabase/functions/_shared/vendor/` | 放進專案的第三方程式庫（SheetJS，來源和雜湊見裡面的 README） |
+| `public/sw.js`、`manifest.webmanifest` | 離線用的 service worker、加到主畫面用的名稱和圖示 |
+| `tests/` | 純邏輯的測試（`npm test`，部署前 CI 會跑）：信用卡推薦、優惠券、航班文字、圖片清理、用量計算 |
 | `seed/cards.json` | 起始卡片庫（美／英／台 71 張，2026-11-13 查證）；migration 裡的種子資料由它產生 |
-| `seed/trip.ts` | 行程內容的本機來源（**不進 git**），`make seed` 推進資料庫。格式見 `seed/trip.example.ts` |
+| `seed/trip.ts` | 行程內容的本機來源（**不進 git**）。`make seed` 只補資料庫裡還沒有的；`make seed-overwrite` 才會用檔案蓋掉資料庫（會洗掉大家在網站上的修改，執行前要輸入行程名稱確認）。格式見 `seed/trip.example.ts` |
 | `seed/assets/trip-form.xlsx` | 給家人填的表單（不進 git），`make seed` 會上傳到私有 bucket |
 
 ## 第一次設定

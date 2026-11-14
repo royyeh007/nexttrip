@@ -1,7 +1,7 @@
 # Supabase CLI 設定。project_id 只是本機識別名，真正的專案用 `supabase link --project-ref <ref>` 連。
 project_id = "trip-planner"
 
-# 兩個 Edge Function 自己用 getUser() 驗證登入與家庭，所以關掉 gateway 的 JWT 檢查。
+# 每個 Edge Function 都自己用 getUser() 驗證登入、確認是那個行程的成員，所以關掉 gateway 的 JWT 檢查。
 [functions.parse-upload]
 verify_jwt = false
 
@@ -14,6 +14,13 @@ site_url = "https://royyeh007.github.io/trip-planner/"
 additional_redirect_urls = ["https://royyeh007.github.io/trip-planner/**", "http://localhost:5173/**"]
 # 註冊一律走 Google（邀請碼先驗證），不用匿名登入
 enable_anonymous_sign_ins = false
+
+# Email＋密碼登入整個關掉：這個網站只用 Google。開著的話任何人都能用隨便一個 email 註冊（而且不用收驗證信），
+# 拿到「已登入」的身分；也可能先用家人的 Gmail 註冊，等家人用 Google 登入時共用同一個帳號。
+# 後台對應的位置：Authentication → Sign In / Providers → Email。
+[auth.email]
+enable_signup = false
+enable_confirmations = true
 
 # （選用）Google 登入。要開的話把下面三行取消註解，Client ID / Secret 放 .env.local，跑 `make auth-push`，
 # 並在 GitHub Variables 設 VITE_GOOGLE_LOGIN=1 讓登入頁顯示 Google 按鈕。
@@ -32,4 +39,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.format-info]
+verify_jwt = false
+
+[functions.card-lookup]
 verify_jwt = false

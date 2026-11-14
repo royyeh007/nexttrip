@@ -1,5 +1,8 @@
 // 日本藥妝店給外國旅客的優惠券。券圖放在 public/coupons/（點開就能直接給店員掃，不用再連到別的網站）。
-// 券更新時：換掉 public/coupons/<id>.jpg，改這裡的 tiers／until。資料以券圖上印的為準（2026/11/15 核對）。
+// 每張券兩個檔：<id>.webp（主要用這個，約 200 KB）和 <id>.jpg（不支援 WebP 的舊手機用，約 300 KB），寬都是 1200。
+// 券更新時：兩個檔都換掉，改這裡的 tiers／until。資料以券圖上印的為準（2026/11/15 核對）。
+// 轉檔用 Pillow（WebP quality 82、JPEG quality 74）。不要用 macOS 的 sips 轉 AVIF：它轉出來的檔 Chrome 解出來是全透明的。
+// 換圖之後跑 node seed/.build/smoke.mjs，它會在 Chrome 裡確認條碼真的畫得出來。
 
 export interface Coupon {
   id: string;
@@ -41,6 +44,17 @@ export const COUPONS: Coupon[] = [
   { id: "fukutaro", name: "福太郎", sign: "くすりの福太郎", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 8%", url: "https://matcha-jp.com/tw/coupon/143", note: "限東京、千葉指定免稅店。券在 MATCHA 網頁上。", match: /福太郎|fukutaro/i },
   { id: "tomods", name: "Tomod's", sign: "トモズ", tiers: "免稅再加最高 8%", url: "https://matcha-jp.com/tw/coupon/148?code=matcha", note: "券在 MATCHA 網頁上。", match: /トモズ|tomod/i },
 ];
+
+/** The smaller WebP twin of a coupon picture. */
+export const webpOf = (c: Coupon) => c.img?.replace(/\.jpg$/, ".webp");
+/** Can this browser show WebP? (Everything since 2020: Safari 14+, Chrome, Firefox.) Decided once by decoding a 2×2 picture. */
+let webp: Promise<boolean> | null = null;
+export const supportsWebp = (): Promise<boolean> => (webp ??= new Promise((resolve) => {
+  const i = new Image();
+  i.onload = () => resolve(i.width > 0);
+  i.onerror = () => resolve(false);
+  i.src = "data:image/webp;base64,UklGRjgAAABXRUJQVlA4ICwAAACQAQCdASoCAAIAAsBMJaACdLoAA5gA/u5DH+5sc4twV/9tD/9aH/60P+lAAA==";
+}));
 
 export const couponFor = (text: string): Coupon | undefined => COUPONS.find((c) => c.match.test(text));
 export const expired = (c: Coupon, today: string) => !!c.until && c.until < today;

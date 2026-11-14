@@ -21,13 +21,15 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
   const couponsOn = useCouponsOn();
   // today's promotions while travelling, the first day's otherwise
   const date = current && now.date >= current.start_date && now.date <= current.end_date ? now.date : current?.start_date;
+  const closeFn = useRef(onClose);
+  closeFn.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); closeFn.current(); } };
     document.addEventListener("keydown", onKey, true);
     return () => { document.removeEventListener("keydown", onKey, true); prev?.focus?.(); };
-  }, [onClose]);
+  }, []);
   const rows = ORDER.filter((k) => STOP_KINDS.includes(k)).map((k) => {
     const picks = r.pick(k, date);
     const top = picks[0];

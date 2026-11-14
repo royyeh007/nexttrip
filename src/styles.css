@@ -4,7 +4,7 @@
   --ai:#2b4c86; --ai-soft:#e2e9f5; --shu:#c43d26; --shu-soft:#fae6e1; --pine:#2c6a52; --pine-soft:#e0efe8; --amber:#9a5b12; --amber-soft:#f8ecd9;
   --shadow:0 10px 30px rgba(27,39,64,.12);
   --f-display:"Noto Serif TC","Songti TC",serif;
-  --f-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-body:system-ui,-apple-system,"PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -213,9 +213,6 @@ nav.days a.pending[aria-current="page"]{color:var(--paper)}
 .pendingbox p{margin:0}
 
 /* download-the-form box on the picker */
-.formbox{margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:14px 16px}
-.formbox b{font-size:.92rem}
-.formbox p{margin:2px 0 0;font-size:.82rem;color:var(--muted)}
 .pendingbox .actions{margin-top:6px}
 
 /* login / join / notices */
@@ -318,7 +315,6 @@ nav.days a.pending[aria-current="page"]{color:var(--paper)}
 .famcol .leg a,.famcol .leg span.legbox{font-size:.76rem}
 .famcol .leg .go{display:none}
 @media (max-width:640px){.allgrid{grid-auto-columns:82vw}}
-.allfoot{margin-top:4px}
 
 /* "now" line through today's itinerary */
 .nowline{position:relative;list-style:none;height:2px;background:var(--shu);margin:10px 0 10px;border-radius:1px}
@@ -752,7 +748,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 }
 .catalog{margin-top:14px}
 .catalog .catbody{padding:0 16px 12px}
-.catalog .catbody .actions{margin-bottom:4px}
 @media print{.cardpick{display:none}}
 .tag.cc{margin-left:6px;vertical-align:2px;background:var(--paper);color:var(--muted);border:1px solid var(--line)}
 .tag.cc.us{color:var(--ai);background:var(--ai-soft);border-color:transparent}
@@ -814,7 +809,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 .cpcard .cpuntil{font-size:.74rem;color:var(--muted)}
 .cpcard.gone{opacity:.6}
 .cpcard.gone .cpuntil{color:var(--amber)}
-.cpdialog{width:min(560px,calc(100vw - 24px))}
+@media (min-width:641px){.cpdialog{width:min(560px,calc(100vw - 24px))}}
 .cpdialog .coupons{margin:0}
 /* 條碼畫面固定白底黑字：深色模式下掃描器也讀得到 */
 .cpview{position:fixed;inset:0;z-index:60;background:#fff;color:#111;display:flex;flex-direction:column;overflow:hidden}
@@ -833,3 +828,32 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 @media print{.coupons,.cpview{display:none}}
 .quickpick .qpshort{width:100%;justify-content:space-between;border-color:var(--pine)}
 .quickpick .qpshort small{font-weight:400;font-size:.78rem;color:var(--muted)}
+
+/* ---- 2026-11-15 審查後的修正 ---- */
+/* iPhone Safari 點到字級小於 16px 的輸入框會把整頁放大、而且不縮回來 */
+@media (pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:16px !important}}
+/* 這幾個按鈕用了 all:unset，鍵盤焦點框跟著不見 */
+.modebar button:focus-visible,.infotabs button:focus-visible,nav.days button.add:focus-visible,.quickpick .x:focus-visible,.cpview .x:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+/* 「改」「刪」原本只有字那麼大（約 12×18），手指很難點 */
+.rowacts{gap:2px}
+.rowacts .link{padding:8px 9px;margin:-6px 0;min-width:32px;text-align:center}
+/* 關著的開關在深色模式幾乎看不到圓鈕 */
+.switch .track{box-shadow:inset 0 0 0 1px var(--muted)}
+.switch input:checked + .track{box-shadow:none}
+/* 更新失敗／離線：畫面照舊，上面一條提示 */
+.syncbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--amber);border-radius:12px;background:var(--amber-soft);color:var(--ink);font-size:.86rem}
+.syncbar .btn{flex:none}
+/* 邀請連結的提醒 */
+.invwarn{color:var(--amber);font-weight:700;margin-left:8px}
+/* 還沒儲存的草稿 */
+.notice.leftover{margin:0 0 12px;padding:12px 14px;border:1px dashed var(--line);border-radius:12px;background:var(--surface)}
+.notice.leftover p{margin:0}
+/* 聊天的回覆現在是 Markdown：清單、粗體、可以點的連結 */
+.msg .md{white-space:normal;gap:6px}
+.msg .md p,.msg .md ul,.msg .md ol{margin:0}
+.msg .md ul,.msg .md ol{padding-left:1.25em}
+.msg .md h3,.msg .md h4{font-size:1rem;margin:4px 0 0}
+.msg .md a{word-break:break-all}
+.msg .md .tablewrap{max-width:100%}
+.msg .md .infotable{font-size:.84rem}
+.cpview picture{display:block;width:100%;max-width:560px}

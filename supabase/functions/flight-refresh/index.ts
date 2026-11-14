@@ -5,9 +5,9 @@
 //     eve ：出發前一天查一次
 //     live：當天從起飛前 3 小時到起飛後 3 小時，每 30 分鐘一次（起飛前後一小時內每 12 分鐘），降落或取消就停，每班最多 12 次
 //   航班文字只有月／日，年份照所屬行程的日期判斷；「今天」用該行程的時區。
-import { handle, json, HttpError } from "../_shared/http.ts";
+import { handle, json, readJson } from "../_shared/http.ts";
 import { clients, requireMember } from "../_shared/supa.ts";
-import { LIVE_BUDGET_PER_FLIGHT, avFetchAndStore, flightKey, minutes, nowIn, parseFlightText } from "../_shared/flights.ts";
+import { LIVE_BUDGET_PER_FLIGHT, avFetchAndStore, flightKey, minutes, nowAtDeparture, parseFlightText } from "../_shared/flights.ts";
 import type { AvCache, Query, Row } from "../_shared/flights.ts";
 
 const addDays = (iso: string, n: number) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -28,10 +28,14 @@ Deno.serve(handle(async (req) => {
     });
   } else {
     // a member adding flights: only the "info" pass, only for what they sent
-    const body = await req.json().catch(() => ({})) as { flights?: string[]; trip_id?: string };
+    const body = await readJson<{ flights?: unknown; trip_id?: string }>(req, 20_000);
     const { trip } = await requireMember(req, body, { editor: true });
     const range = { start: trip.start_date, end: trip.end_date };
-    targets = (body.flights ?? []).map((line) => parseFlightText(line, range)).filter((f): f is NonNullable<typeof f> => !!f).map((q) => ({ q, tz: trip.tz || "Asia/Tokyo" }));
+    // 只查「真的存在這個行程某一家航班欄裡」的那幾行，而且一次最多 6 行：每查一班要用掉一次每月額度（一個月只有 90 次）
+    const { data: famRows } = await admin.from("families").select("flights").eq("trip_id", trip.id);
+    const known = new Set((famRows ?? []).flatMap((f: Row) => (Array.isArray(f.flights) ? f.flights : []) as string[]).map((l) => String(l).trim()));
+    const lines = (Array.isArray(body.flights) ? body.flights : []).filter((l): l is string => typeof l === "string").map((l) => l.trim()).filter((l) => known.has(l)).slice(0, 6);
+    targets = lines.map((line) => parseFlightText(line, range)).filter((f): f is NonNullable<typeof f> => !!f).map((q) => ({ q, tz: trip.tz || "Asia/Tokyo" }));
     if (targets.length === 0) return json({ done: [], note: "沒有需要查的航班" });
   }
   const done: { flight: string; phase: string; note: string }[] = [];
@@ -41,10 +45,12 @@ Deno.serve(handle(async (req) => {
     const base = `av:${flightKey(q)}:${q.date}`;
     if (seen.has(base)) continue; // 同一班被好幾家列到
     seen.add(base);
-    const now = nowIn(tz);
-    const today = now.slice(0, 10), nowMin = minutes(now.slice(11, 16));
     const { data: rows } = await admin.from("flight_cache").select("key, data, fetched_at").like("key", `${base}%`);
     const have = new Map((rows ?? []).map((r: Row) => [r.key, r]));
+    // 「今天」「前一天」和起飛前後的時間窗，用出發機場的當地時間算（第一次查到後就知道它的時區）
+    const depTz = ((have.get(`${base}:live`) ?? have.get(`${base}:eve`) ?? have.get(`${base}:info`))?.data as AvCache | undefined)?.depTz;
+    const now = nowAtDeparture(depTz, tz);
+    const today = now.slice(0, 10), nowMin = minutes(now.slice(11, 16));
 
     // info：第一次
     if (!have.has(`${base}:info`)) {
@@ -84,5 +90,3 @@ Deno.serve(handle(async (req) => {
   const { data: quota } = await admin.from("flight_cache").select("data").eq("key", `quota:${month}`).maybeSingle();
   return json({ done, quota: (quota?.data as Row | undefined)?.n ?? 0, checked: seen.size, at: new Date().toISOString() });
 }));
-
-export { HttpError };

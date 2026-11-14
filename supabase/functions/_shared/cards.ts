@@ -58,11 +58,13 @@ export function rank(cards: Card[], kind: RateKind, dest: Country, date?: string
   const picks = cards.map((card): Pick => {
     const abroad = isAbroad(card, dest);
     const fee = abroad ? Number(card.fx_fee) || 0 : 0;
-    const ok = (card.rates ?? []).filter((r) => applies(r, abroad, dest, kind)).sort((a, b) => b.rate - a.rate);
+    // 卡片庫是大家寫的：rates 不是陣列、裡面有空值或回饋不是數字的，當作沒有，不讓一筆壞資料弄壞整頁
+    const rates = (Array.isArray(card.rates) ? card.rates : []).filter((r): r is CardRate => !!r && typeof r === "object" && Number.isFinite(Number(r.rate)));
+    const ok = rates.filter((r) => applies(r, abroad, dest, kind)).sort((a, b) => Number(b.rate) - Number(a.rate));
     const best = ok[0] ?? null;
-    return { card, rate: best, net: round((best?.rate ?? 0) - fee), fee, stale: !!(best?.until && date && best.until < date) };
+    return { card, rate: best, net: round(Number(best?.rate ?? 0) - fee), fee, stale: !!(best?.until && date && best.until < date) };
   });
-  return picks.sort((a, b) => b.net - a.net || Number(a.stale) - Number(b.stale) || Number(!!a.rate?.cond) - Number(!!b.rate?.cond) || a.fee - b.fee || a.card.name.localeCompare(b.card.name, "zh-Hant"));
+  return picks.sort((a, b) => b.net - a.net || Number(a.stale) - Number(b.stale) || Number(!!a.rate?.cond) - Number(!!b.rate?.cond) || a.fee - b.fee || String(a.card.name ?? "").localeCompare(String(b.card.name ?? ""), "zh-Hant"));
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;

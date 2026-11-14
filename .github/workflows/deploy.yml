@@ -5,10 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 預設什麼都不給；要發佈網站的權限只給 deploy 那個 job（build 會跑 npm ci，不該拿得到）
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -21,9 +20,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
+      # 有問題就不要發佈：lint、純邏輯的測試（信用卡推薦、優惠券、航班文字解析…）
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
         env:
           # repo Settings → Secrets and variables → Actions → Variables
@@ -36,6 +38,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

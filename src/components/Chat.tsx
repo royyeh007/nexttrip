@@ -5,9 +5,16 @@ import { invoke, supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { ProposalCard } from "./Proposals";
 import { openInfoPage } from "./InfoView";
+import { Markdown } from "../md";
+import { stripForeignImages } from "../images";
 
 interface Prop { id: string; proposal: Proposal }
 interface Msg { id: string; role: "user" | "assistant"; content: string; proposals: Prop[]; status: "pending" | "done" | "error"; created_at: string }
+
+/** The function gives up after about 2.5 minutes; a reply still "pending" long after that was cut off and will never arrive. */
+const GIVE_UP_MS = 5 * 60_000;
+const staleToError = (m: Msg): Msg => (m.status === "pending" && Date.now() - new Date(m.created_at).getTime() > GIVE_UP_MS
+  ? { ...m, status: "error", content: "出錯了：這一題沒有答完，請再問一次" } : m);
 
 /** Example questions, using this trip's real dates and places. */
 function examples(days: { id: string; city: string }[], start: string, end: string) {
@@ -49,10 +56,12 @@ export function ChatWidget() {
 
   // ---- server-side history ----
   const uid = member?.user_id, tripId = current?.id;
-  const load = useCallback(async () => {
-    if (!supabase || !uid || !tripId) return;
-    const { data } = await supabase.from("chat_messages").select("id, role, content, proposals, status, created_at").eq("trip_id", tripId).eq("user_id", uid).order("created_at").limit(60);
-    const rows = (data ?? []) as Msg[];
+  const load = useCallback(async (): Promise<Msg[] | null> => {
+    if (!supabase || !uid || !tripId) return null;
+    // the newest 60 (ascending + limit gave the *oldest* 60: after ~30 questions a reload showed only old conversation)
+    const { data, error } = await supabase.from("chat_messages").select("id, role, content, proposals, status, created_at").eq("trip_id", tripId).eq("user_id", uid).order("created_at", { ascending: false }).limit(60);
+    if (error) { setErr(`讀不到對話紀錄：${error.message}`); setLoaded(true); return null; }
+    const rows = ((data ?? []) as Msg[]).reverse().map(staleToError);
     setMsgs(rows);
     setLoaded(true);
     const ids = rows.flatMap((m) => m.proposals.map((p) => p.id));
@@ -60,23 +69,35 @@ export function ChatWidget() {
       const { data: ups } = await supabase.from("uploads").select("id, status").in("id", ids);
       setDecided(Object.fromEntries((ups ?? []).filter((u) => u.status !== "pending").map((u) => [u.id, u.status === "approved" ? "approved" : "rejected"])));
     }
+    return rows;
   }, [uid, tripId]);
   useEffect(() => { setMsgs([]); setLoaded(false); load(); }, [load]);
 
   // ---- poll any pending reply (also after a reload) ----
-  const pending = msgs.filter((m) => m.status === "pending").map((m) => m.id).join(",");
+  // (placeholders being sent have "tmp-" ids and are not in the database yet: nothing to ask for)
+  const pending = msgs.filter((m) => m.status === "pending" && !m.id.startsWith("tmp-")).map((m) => m.id).join(",");
   useEffect(() => {
     if (!pending || !supabase) return;
     const ids = pending.split(",");
-    const t = setInterval(async () => {
+    let alive = true, timer: ReturnType<typeof setTimeout> | undefined;
+    // one request at a time (the next one is scheduled when this one is back), and not forever:
+    // a reply the server never finishes is shown as failed after GIVE_UP_MS instead of 「想一下…」 for good
+    const tick = async () => {
       const { data } = await supabase!.from("chat_messages").select("id, role, content, proposals, status, created_at").in("id", ids);
-      const finished = (data ?? []).filter((m) => m.status !== "pending") as Msg[];
+      if (!alive) return;
+      const rows = ((data ?? []) as Msg[]).map(staleToError);
+      const finished = rows.filter((m) => m.status !== "pending");
       if (finished.length) {
         setMsgs((ms) => ms.map((m) => finished.find((f) => f.id === m.id) ?? m));
         if (!openRef.current) setUnread(true);
       }
-    }, 2500);
-    return () => clearInterval(t);
+      // rows that vanished (conversation cleared on another device) stop being asked for
+      const gone = ids.filter((id) => !rows.some((r) => r.id === id));
+      if (data && gone.length) setMsgs((ms) => ms.filter((m) => !gone.includes(m.id)));
+      if (finished.length < ids.length - gone.length || !data) timer = setTimeout(tick, 2500);
+    };
+    timer = setTimeout(tick, 2500);
+    return () => { alive = false; clearTimeout(timer); };
   }, [pending]);
 
   useEffect(() => { if (open) { setUnread(false); endRef.current?.scrollIntoView({ block: "end" }); setTimeout(() => inputRef.current?.focus(), 50); } }, [open, msgs]);
@@ -101,12 +122,21 @@ export function ChatWidget() {
     const tmpUser = `tmp-u-${Date.now()}`, tmpBot = `tmp-a-${Date.now()}`;
     setMsgs((ms) => [...ms, { id: tmpUser, role: "user", content, proposals: [], status: "done", created_at: now }, { id: tmpBot, role: "assistant", content: "", proposals: [], status: "pending", created_at: now }]);
     try {
-      const res = await invoke<{ id: string }>("chat", { trip_id: current?.id, text: content });
+      // the function answers with an id right away and keeps working in the background
+      const res = await invoke<{ id: string }>("chat", { trip_id: current?.id, text: content }, { timeoutMs: 45_000 });
       // the server has the real rows now; swap the placeholder id so polling picks it up
       setMsgs((ms) => ms.map((m) => (m.id === tmpBot ? { ...m, id: res.id } : m)));
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
-      setMsgs((ms) => ms.filter((m) => m.id !== tmpBot));
+      // Did it reach the server after all (only the response got lost)? Then the reply is on its way: show the real rows
+      // and do not invite a second, paid, copy of the same question. Otherwise put the text back so nothing has to be retyped.
+      const rows = await load();
+      const arrived = !!rows?.some((m) => m.role === "user" && m.content === content && Date.now() - new Date(m.created_at).getTime() < 180_000);
+      if (arrived) setErr(null);
+      else {
+        if (!rows) setMsgs((ms) => ms.filter((m) => m.id !== tmpBot && m.id !== tmpUser));
+        setText((t) => t || content);
+      }
     } finally { setBusy(false); }
   };
 
@@ -116,10 +146,12 @@ export function ChatWidget() {
     const i = msgs.findIndex((x) => x.id === m.id);
     const q = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content.trim() : "";
     const firstLine = m.content.split("\n").find((l) => l.trim())?.replace(/^[#*\-\s]+/, "").trim() ?? "";
-    const title = (q || firstLine || "AI 助理的回答").slice(0, 40);
+    const title = (q || firstLine || "AI 助理的回答").replace(/\s+/g, " ").slice(0, 40);
+    // the answer may quote web pages: keep its text and links, but not pictures hosted elsewhere (see stripForeignImages)
+    const answer = stripForeignImages(m.content);
     const id = (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10));
     const { error } = await supabase.from("info_pages").insert({
-      trip_id: current.id, id, title, body: (q ? `> ${q}\n\n` : "") + m.content, blocks: null,
+      trip_id: current.id, id, title, body: (q ? `> ${q.replace(/\n+/g, " ")}\n\n` : "") + answer, blocks: null,
       sort: Math.max(-1, ...trip.info.map((p) => p.sort)) + 1, created_by: member.user_id, updated_by: member.user_id, updated_by_name: member.name,
     });
     if (error) { setErr(`存不進其他資訊：${error.message}`); return; }
@@ -129,8 +161,9 @@ export function ChatWidget() {
 
   const clear = async () => {
     if (!supabase || !member || !current || !confirm("清除你在這個行程的對話紀錄？")) return;
-    await supabase.from("chat_messages").delete().eq("trip_id", current.id).eq("user_id", member.user_id);
-    setMsgs([]);
+    const { error } = await supabase.from("chat_messages").delete().eq("trip_id", current.id).eq("user_id", member.user_id);
+    if (error) { setErr(`清不掉：${error.message}`); return; }
+    setMsgs([]); setErr(null);
   };
 
   return (
@@ -166,7 +199,10 @@ export function ChatWidget() {
           )}
           {msgs.map((m) => (
             <div key={m.id} className={`msg ${m.role === "user" ? "user" : "bot"}${m.status === "pending" ? " thinking" : ""}${m.status === "error" ? " err" : ""}`}>
-              {m.status === "pending" ? "想一下…（切出去也沒關係，回來會有答案）" : m.content}
+              {m.status === "pending" ? "想一下…（切出去也沒關係，回來會有答案）"
+                // the assistant answers in Markdown (lists, bold, source links): render it so links can be tapped
+                : m.role === "assistant" && m.status === "done" ? <Markdown text={m.content} />
+                : m.content}
               {m.role === "assistant" && m.status === "done" && m.content && !m.id.startsWith("tmp-") && (
                 saved[m.id]
                   ? <div className="saverow"><span className="chip">已存到其他資訊</span><button type="button" className="link" onClick={() => { setOpen(false); openInfoPage(saved[m.id]); }}>打開 ›</button></div>
@@ -182,7 +218,8 @@ export function ChatWidget() {
         </div>
         <form className="chatform" onSubmit={(e) => { e.preventDefault(); send(); }}>
           <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="輸入問題或想改的行程…"
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} />
+            maxLength={4000}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); send(); } }} />
           <button type="submit" className="btn primary" disabled={busy || !text.trim()}>送出</button>
         </form>
         {msgs.length > 0 && <button type="button" className="link clear" onClick={clear}>清除對話</button>}

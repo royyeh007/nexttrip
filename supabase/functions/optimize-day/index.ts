@@ -3,11 +3,12 @@
 //   2. 排序：固定點照原順序，可移動的點用動態規劃（子集合 DP）找總距離最短的插入方式；距離用直線距離當代理。
 //   3. 時間：固定點保留原時間；可移動的點在前後固定點之間平均分配（5 分鐘為單位）。交通段：原本就相鄰的沿用，新的用距離估。
 //   只回建議，不寫資料庫；使用者在畫面上按「套用」才會改。
-import { zodOutputFormat } from "npm:@anthropic-ai/sdk/helpers/zod";
+import { zodOutputFormat } from "npm:@anthropic-ai/sdk@1.8.0/helpers/zod";
 import { z } from "npm:zod@4";
-import { handle, json, HttpError } from "../_shared/http.ts";
+import { handle, json, HttpError, readJson } from "../_shared/http.ts";
 import { requireMember } from "../_shared/supa.ts";
 import { anthropic, CHAT_MODEL } from "../_shared/claude.ts";
+import { reserve, settle, sumUsage } from "../_shared/usage.ts";
 
 type LL = [number, number];
 interface Stop { t: string; n: string; q: string; k: string; st?: string; addr?: string; ll?: LL; [k: string]: unknown }
@@ -18,7 +19,11 @@ const isLeg = (i: Item): i is Leg => "leg" in i;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
-const UA = "family-trip-planner/1.0 (+https://github.com/royyeh007/japan-trip)";
+const UA = "family-trip-planner/1.0 (+https://github.com/royyeh007/trip-planner)";
+const MAX_STOPS = 40;         // 一天不會有這麼多站；擋住亂送的大請求（排序的記憶體用量跟站數成正比）
+const GEOCODE_BUDGET_MS = 95_000; // 整個函式最多 150 秒：定位做到這裡就停，剩下的當作「找不到座標」
+/** 真的像座標才收（模型或定位服務偶爾會回 NaN、把經緯度放反、或回 0,0） */
+const validLL = (ll: unknown): ll is LL => Array.isArray(ll) && ll.length === 2 && ll.every((v) => typeof v === "number" && Number.isFinite(v)) && Math.abs(ll[0]) <= 90 && Math.abs(ll[1]) <= 180 && !(ll[0] === 0 && ll[1] === 0);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 const R = 6371;
@@ -46,7 +51,8 @@ async function nominatim(q: string): Promise<LL | null> {
     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`, { headers: { "User-Agent": UA, "Accept-Language": "ja,zh-TW,en" }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) return null;
     const j = await r.json() as { lat: string; lon: string }[];
-    return j?.[0] ? [Number(j[0].lat), Number(j[0].lon)] : null;
+    const ll = j?.[0] ? [Number(j[0].lat), Number(j[0].lon)] : null;
+    return validLL(ll) ? ll : null;
   } catch { return null; }
 }
 async function photon(q: string, bias?: LL | null): Promise<LL | null> {
@@ -56,25 +62,27 @@ async function photon(q: string, bias?: LL | null): Promise<LL | null> {
     if (!r.ok) return null;
     const j = await r.json() as { features?: { geometry?: { coordinates?: number[] } }[] };
     const c = j?.features?.[0]?.geometry?.coordinates;
-    return c ? [Number(c[1]), Number(c[0])] : null;
+    const ll = c ? [Number(c[1]), Number(c[0])] : null;
+    return validLL(ll) ? ll : null;
   } catch { return null; }
 }
 
 interface Est { ll: LL; conf: "high" | "medium" | "low" }
 /** Claude's knowledge of where places are, one call for all of them: used to cross-check the geocoders and as the fallback (marked as an estimate). */
-async function estimate(places: { i: number; n: string; q: string; addr?: string }[], ctx: string): Promise<Map<number, Est>> {
+async function estimate(places: { i: number; n: string; q: string; addr?: string }[], ctx: string, onUsage: (u: unknown) => void): Promise<Map<number, Est>> {
   const out = new Map<number, Est>();
   if (places.length === 0) return out;
   const GeoZ = z.object({ places: z.array(z.object({ i: z.number(), lat: z.number().nullable(), lon: z.number().nullable(), confidence: z.enum(["high", "medium", "low"]) })) });
   try {
-    const res = await anthropic().messages.create({
-      model: CHAT_MODEL, max_tokens: 2000,
+    const res = await anthropic({ timeoutMs: 40_000, maxRetries: 0 }).messages.create({
+      model: CHAT_MODEL, max_tokens: 4000,
       system: "你是地理定位助手。給你一些地點（店名、地圖搜尋字、地址），回每個地點的座標（WGS84 十進位，小數至少 4 位）。confidence：high = 你確定這個店家或地標的位置（誤差 300 公尺內）；medium = 知道大概在哪個區域（誤差 1 公里內，例如知道在銀座四丁目一帶）；low = 只知道城市。完全不知道就 lat/lon 填 null。",
       messages: [{ role: "user", content: `${ctx}\n${places.map((p) => `#${p.i}：${p.n}｜搜尋字：${p.q}${p.addr ? `｜地址：${p.addr}` : ""}`).join("\n")}` }],
       output_config: { format: zodOutputFormat(GeoZ), effort: "low" },
     });
+    onUsage(res.usage);
     const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-    for (const p of GeoZ.parse(JSON.parse(text)).places) if (p.lat != null && p.lon != null) out.set(p.i, { ll: [p.lat, p.lon], conf: p.confidence });
+    for (const p of GeoZ.parse(JSON.parse(text)).places) { const ll = [p.lat, p.lon]; if (validLL(ll)) out.set(p.i, { ll, conf: p.confidence }); }
   } catch (e) { console.warn("estimate failed", e instanceof Error ? e.message : e); }
   return out;
 }
@@ -103,31 +111,41 @@ function bestOrder(n: number, d: number[][], movable: number[]): number[] {
 const pathKm = (order: number[], d: number[][]) => order.slice(1).reduce((s, x, i) => s + d[order[i]][x], 0);
 
 Deno.serve(handle(async (req) => {
-  const body = await req.json().catch(() => ({})) as { trip_id?: string; date_id?: string; city?: string; items?: Item[]; movable?: number[] };
-  const { admin, trip } = await requireMember(req, body, { editor: true });
-  const items = Array.isArray(body.items) ? body.items : [];
+  const started = Date.now();
+  const body = await readJson<{ trip_id?: string; date_id?: string; city?: unknown; items?: unknown; movable?: unknown }>(req);
+  const { admin, trip, uid } = await requireMember(req, body, { editor: true });
+  const items = (Array.isArray(body.items) ? body.items : []).filter((it): it is Item => !!it && typeof it === "object");
   const stops = items.filter((it): it is Stop => !isLeg(it));
   const n = stops.length;
   if (n < 3) throw new HttpError(400, "至少要有三個地點才有順序可以排");
+  if (n > MAX_STOPS || items.length > MAX_STOPS * 3) throw new HttpError(400, `一天最多排 ${MAX_STOPS} 個地點`);
+  // 這些字會拿去查地圖、送給模型：要是字串，而且不要太長
+  for (const s of stops) for (const k of ["t", "n", "q", "addr"] as const) { const v = s[k]; if (v != null && (typeof v !== "string" || v.length > 300)) throw new HttpError(400, "地點資料格式不對"); }
   // first and last stay put; at most 12 movable (the search is exponential in that number)
-  const movable = [...new Set((body.movable ?? []).filter((i) => Number.isInteger(i) && i > 0 && i < n - 1))].sort((a, b) => a - b);
+  const movable = [...new Set((Array.isArray(body.movable) ? body.movable : []).filter((i): i is number => Number.isInteger(i) && i > 0 && i < n - 1))].sort((a, b) => a - b);
   if (movable.length === 0) throw new HttpError(400, "請至少勾選一個可以移動的地點");
   if (movable.length > 12) throw new HttpError(400, "一次最多 12 個可以移動的地點");
 
   // ---- 1. coordinates ----
   //   cache → Claude's estimate for everything still missing (one quick call) → geocoders, accepted only when they agree with the
   //   estimate (within 3 km) or, when Claude has no idea, when they land near the city; Claude's own estimate is the last resort.
-  const city = (body.city ?? "").trim();
+  const city = (typeof body.city === "string" ? body.city : "").trim().slice(0, 60);
   const ctx = `行程在${trip.place || "未知地點"}${city ? `，這一天在${city}` : ""}。`;
   const anchorKey = `geo:city:${norm(`${city} ${trip.place}`)}`;
   let anchor: LL | null = (await cacheGet(admin, anchorKey))?.ll ?? null;
   if (!anchor && (city || trip.place)) { anchor = await photon(city || trip.place); if (anchor) await cachePut(admin, anchorKey, { ll: anchor, source: "photon" }); }
 
-  const geo: Geo[] = stops.map((s) => (s.ll && Array.isArray(s.ll) && s.ll.length === 2 ? { ll: [Number(s.ll[0]), Number(s.ll[1])], source: "stop" } : { ll: null, source: "none" }));
-  const keyOf = (s: Stop) => `geo:q:${norm(s.q || s.n)}`;
-  for (let i = 0; i < n; i++) if (!geo[i].ll) { const c = await cacheGet(admin, keyOf(stops[i])); if (c?.ll) geo[i] = { ll: c.ll, source: c.source === "estimate" ? "estimate" : "cache" }; }
+  const geo: Geo[] = stops.map((s) => (validLL(s.ll) ? { ll: [s.ll[0], s.ll[1]], source: "stop" } : { ll: null, source: "none" }));
+  // 快取是所有行程共用的。有填地址的地點，key 要連地址一起算：
+  // 不然有人送「東京鐵塔＋一個大阪的地址」，查到的座標會被存成所有人的「東京鐵塔」。
+  const keyOf = (s: Stop) => `geo:q:${norm(s.q || s.n)}${s.addr && s.addr.trim().length > 4 ? `|${norm(s.addr).slice(0, 120)}` : ""}`;
+  for (let i = 0; i < n; i++) if (!geo[i].ll) { const c = await cacheGet(admin, keyOf(stops[i])); if (validLL(c?.ll)) geo[i] = { ll: c.ll, source: c.source === "estimate" ? "estimate" : "cache" }; }
   const need = stops.map((_, i) => i).filter((i) => !geo[i].ll);
-  const est = await estimate(need.map((i) => ({ i, n: stops[i].n, q: stops[i].q, addr: stops[i].addr })), ctx);
+  // 有地點要請 Claude 估位置才算一次 AI 用量（全部都有快取時不呼叫模型、不占額度）
+  const quota = need.length > 0 ? await reserve(admin, "optimize-day", { tripId: trip.id, uid, tz: trip.tz }) : null;
+  const estCalls: unknown[] = [];
+  const est = await estimate(need.map((i) => ({ i, n: stops[i].n, q: stops[i].q, addr: stops[i].addr })), ctx, (u) => estCalls.push(u));
+  if (quota) await settle(admin, quota, { model: CHAT_MODEL, places: need.length, ...sumUsage(CHAT_MODEL, estCalls) });
   const agrees = (i: number, ll: LL | null): ll is LL => {
     if (!ll) return false;
     const e = est.get(i);
@@ -135,6 +153,7 @@ Deno.serve(handle(async (req) => {
     return !anchor || km(ll, anchor) <= 25;
   };
   for (const i of need) {
+    if (Date.now() - started > GEOCODE_BUDGET_MS) break; // 時間快用完：剩下的地點維持原位
     const s = stops[i];
     const e = est.get(i);
     const bias = e && e.conf !== "low" ? e.ll : anchor;

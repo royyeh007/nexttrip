@@ -67,8 +67,9 @@ export function parseMd(src: string): Block[] {
   return out;
 }
 
-const INLINE_RE = /(\*\*[^*\n]+\*\*|`[^`\n]+`|!\[[^\]\n]*\]\(https?:\/\/[^\s)]+\)|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s<>()\]]+)/g;
-export const IMG_RE = /!\[([^\]\n]*)\]\((https?:\/\/[^\s)]+)\)/g;
+// A bare URL ends at whitespace, brackets, and also at Chinese text or full-width punctuation: Chinese has no spaces,
+// so 「訂位 https://foo.jp/r，記得帶護照」 used to turn the whole rest of the sentence into the link.
+const INLINE_RE = /(\*\*[^*\n]+\*\*|`[^`\n]+`|!\[[^\]\n]*\]\(https?:\/\/[^\s)]+\)|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s<>()\]\u3000-\u303f\u3040-\u30ff\u4e00-\u9fff\uff00-\uffef]+)/g;
 /** Inline Markdown → React nodes. Only http(s) links become anchors, only http(s) images become thumbnails. */
 export function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -84,7 +85,13 @@ export function inline(text: string): ReactNode[] {
     } else if (tok.startsWith("[")) {
       const mm = tok.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/)!;
       out.push(<a key={k++} href={mm[2]} target="_blank" rel="noopener noreferrer">{mm[1]}</a>);
-    } else out.push(<a key={k++} href={tok} target="_blank" rel="noopener noreferrer">{tok}</a>);
+    } else {
+      // a sentence's own full stop or comma right after the address is not part of it
+      const url = tok.replace(/[.,;:!?'"]+$/, "");
+      out.push(<a key={k++} href={url} target="_blank" rel="noopener noreferrer">{url}</a>);
+      last = i + url.length;
+      continue;
+    }
     last = i + tok.length;
   }
   if (last < text.length) out.push(text.slice(last));

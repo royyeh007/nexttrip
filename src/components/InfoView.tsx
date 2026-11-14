@@ -4,6 +4,7 @@ import type { InfoBlock, InfoPage } from "../data";
 import { Markdown, blocksToMd } from "../md";
 import { CouponList, useCouponsOn } from "./Coupons";
 import { invoke, supabase } from "../supabase";
+import { IMAGE_BUCKET, droppedImages, removeImages, shrink } from "../images";
 import { useTrip } from "../trip";
 
 const OPEN_KEY = "jp-info-open";
@@ -71,27 +72,16 @@ function fmtDate(s: string) {
 }
 const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10));
 
-interface Draft { id: string | null; title: string; body: string }
+/** `seen` = the page's updated_at when editing started (null for a new page): saving checks nobody changed it since. */
+interface Draft { id: string | null; title: string; body: string; seen: string | null }
 
-const IMAGE_BUCKET = "info-images";
-/** Shrink a picture before upload (longest side ≤ 1280, JPEG) so phone photos don't eat the storage quota. Transparent areas become white. */
-async function shrink(file: File, max = 1280): Promise<Blob> {
-  if (typeof createImageBitmap !== "function") return file;
-  try {
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
-    const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(bmp, 0, 0, w, h);
-    bmp.close();
-    const jpeg = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.85));
-    return jpeg && (scale < 1 || jpeg.size < file.size) ? jpeg : file;
-  } catch { return file; }
-}
+// An unsaved draft survives a reload, a tap on a date, or the back swipe (it used to live only in the editor's memory).
+const DRAFT_KEY = (tripId: string) => `jp-info-draft:${tripId}`;
+const draftStore = {
+  get(tripId: string): Draft | null { try { const v = JSON.parse(sessionStorage.getItem(DRAFT_KEY(tripId)) ?? "null"); return v && typeof v.title === "string" && typeof v.body === "string" ? v as Draft : null; } catch { return null; } },
+  set(tripId: string, d: Draft | null) { try { if (d) sessionStorage.setItem(DRAFT_KEY(tripId), JSON.stringify(d)); else sessionStorage.removeItem(DRAFT_KEY(tripId)); } catch { /* storage blocked or full */ } },
+};
+const publicUrl = (path: string) => supabase?.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl ?? "";
 const extOf = (type: string) => ({ "image/png": "png", "image/webp": "webp", "image/gif": "gif" } as Record<string, string>)[type] ?? "jpg";
 
 /** Write or edit one page. 「✦ 幫我整理」 sends the text to the cheap formatting function (no web, no itinerary, daily cap). */
@@ -104,8 +94,32 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: (id: string | null) =
   const [uploading, setUploading] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [tidied, setTidied] = useState<string | null>(null);
+  const [beforeTidy, setBeforeTidy] = useState<{ title: string; body: string } | null>(null);
+  const [conflict, setConflict] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const tidyAbort = useRef<AbortController | null>(null);
+  /** pictures uploaded while this editor was open: the ones that do not end up in the saved page are deleted again */
+  const uploaded = useRef<string[]>([]);
+  const tripId = current?.id ?? "";
+  const dirty = title !== draft.title || body !== draft.body;
+
+  // keep the draft on this device while it is unsaved; warn before a reload or closing the tab
+  useEffect(() => { if (tripId && dirty) draftStore.set(tripId, { id: draft.id, title, body, seen: draft.seen }); }, [tripId, dirty, title, body, draft.id, draft.seen]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const otherBodies = () => trip.info.filter((p) => p.id !== draft.id).map((p) => p.body ?? "");
+  const finish = (id: string | null) => { if (tripId) draftStore.set(tripId, null); onDone(id); };
+  const cancel = () => {
+    if (dirty && !confirm("還沒儲存，確定不要這些修改？")) return;
+    // pictures added in this session that the page (as it was) does not use
+    if (tripId) removeImages(droppedImages(uploaded.current.map((p) => `![](${publicUrl(p)})`).join(" "), draft.body, otherBodies(), tripId));
+    finish(null);
+  };
 
   /** Put a snippet where the cursor is (or at the end when previewing). */
   const insert = (snippet: string) => {
@@ -132,7 +146,8 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: (id: string | null) =
         const path = `${current.id}/${newId()}${Date.now().toString(36)}.${extOf(blob.type)}`;
         const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, blob, { contentType: blob.type || "image/jpeg", cacheControl: "31536000" });
         if (error) throw new Error(/mime|type/i.test(error.message) ? "這種圖片格式不支援，請用 JPG 或 PNG" : error.message);
-        const url = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+        uploaded.current.push(path);
+        const url = publicUrl(path);
         const base = f.name.replace(/\.[^.]+$/, "").replace(/[[\]()]/g, "").trim();
         const alt = !base || /^(img|image|photo|dsc|pxl|screenshot|螢幕|截圖|unnamed|blob)/i.test(base) ? "圖片" : base;
         insert(`![${alt}](${url})`);
@@ -149,39 +164,60 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: (id: string | null) =
     if (fs.length) { e.preventDefault(); addImages(fs); }
   };
 
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!supabase || !current || !member) return;
+  /** `asNew`: keep the text as a separate page (used when someone else changed the page meanwhile). */
+  const save = async (asNew = false) => {
+    if (!supabase || !current || !member || busy) return;
     const t = title.trim();
     if (!t) { setErr("要有標題"); return; }
+    if (uploading > 0) { setErr("圖片還在上傳，等它傳完再儲存"); return; }
     setBusy("save"); setErr(null);
-    const base = { title: t, body, blocks: null, updated_by: member.user_id, updated_by_name: member.name, updated_at: new Date().toISOString() };
-    const id = draft.id ?? newId();
-    const { error } = draft.id
-      ? await supabase.from("info_pages").update(base).eq("trip_id", current.id).eq("id", draft.id)
-      : await supabase.from("info_pages").insert({ ...base, trip_id: current.id, id, sort: Math.max(-1, ...trip.info.map((p) => p.sort)) + 1, created_by: member.user_id });
+    const base = { title: asNew ? `${t}（${member.name ?? "我"}的版本）`.slice(0, 60) : t, body, blocks: null, updated_by: member.user_id, updated_by_name: member.name, updated_at: new Date().toISOString() };
+    const editing = draft.id && !asNew;
+    const id = editing ? draft.id! : newId();
+    let error: { message: string } | null = null, saved = 1;
+    if (editing) {
+      // Save only if the page is still the version this editor opened with. Otherwise the other person's text would be
+      // silently replaced; and a page that was deleted meanwhile (0 rows) used to look like a successful save.
+      let q = supabase.from("info_pages").update(base).eq("trip_id", current.id).eq("id", id);
+      if (draft.seen) q = q.eq("updated_at", draft.seen);
+      const r = await q.select("id");
+      error = r.error; saved = r.data?.length ?? 0;
+    } else {
+      const r = await supabase.from("info_pages").insert({ ...base, trip_id: current.id, id, sort: Math.max(-1, ...trip.info.map((p) => p.sort)) + 1, created_by: member.user_id });
+      error = r.error;
+    }
     setBusy(null);
     if (error) { setErr(error.message); return; }
+    if (!saved) { setConflict(true); setErr("沒有存進去：這一頁在你編輯的時候被別人改過（或刪掉）了。你的內容還在上面，可以「另存成新的一頁」，或複製起來、取消後重新編輯。"); return; }
+    // pictures this page no longer shows (taken out of the text, or uploaded and then removed) and no other page uses
+    const before = [draft.body, ...uploaded.current.map((p) => `![](${publicUrl(p)})`)].join(" ");
+    removeImages(droppedImages(asNew ? uploaded.current.map((p) => `![](${publicUrl(p)})`).join(" ") : before, body, otherBodies(), current.id));
     await reload();
-    onDone(id);
+    finish(id);
   };
 
   const tidy = async () => {
-    if (!current) return;
+    if (!current || busy) return;
+    const ac = new AbortController();
+    tidyAbort.current = ac;
     setBusy("tidy"); setErr(null); setTidied(null);
     try {
-      const r = await invoke<{ title: string; body: string; remaining: number }>("format-info", { trip_id: current.id, text: body, title: title.trim() || undefined });
+      const r = await invoke<{ title: string; body: string; remaining: number }>("format-info", { trip_id: current.id, text: body, title: title.trim() || undefined }, { timeoutMs: 100_000, signal: ac.signal });
+      setBeforeTidy({ title, body });
       setBody(r.body);
       if (!title.trim() && r.title) setTitle(r.title);
       setMode("preview");
-      setTidied(`整理好了，看一下有沒有錯再儲存。這個行程今天還可以用 ${r.remaining} 次。`);
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(null); }
+      setTidied(`整理好了，看一下有沒有錯再儲存。今天還可以用 ${r.remaining} 次。`);
+    } catch (e) { if (!ac.signal.aborted) setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(null); tidyAbort.current = null; }
   };
+  const undoTidy = () => { if (!beforeTidy) return; setTitle(beforeTidy.title); setBody(beforeTidy.body); setBeforeTidy(null); setTidied(null); setMode("write"); };
 
   return (
-    <form className="infoedit" onSubmit={save}>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="標題（例如：退稅流程、租車注意事項）" maxLength={60} required aria-label="標題" />
+    <form className="infoedit" onSubmit={(e: FormEvent) => { e.preventDefault(); save(); }}>
+      {/* Enter in the title (the phone keyboard's "go" key) moves on to the text instead of saving an empty page */}
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="標題（例如：退稅流程、租車注意事項）" maxLength={60} required aria-label="標題"
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!e.nativeEvent.isComposing && e.keyCode !== 229) { setMode("write"); setTimeout(() => taRef.current?.focus(), 0); } } }} />
       <div className="infoedit-bar">
         <div className="modebar" role="group" aria-label="寫或預覽">
           <button type="button" className={mode === "write" ? "on" : ""} onClick={() => setMode("write")}>寫</button>
@@ -202,12 +238,15 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: (id: string | null) =
             onDragOver={(e) => { if (Array.from(e.dataTransfer?.types ?? []).includes("Files")) e.preventDefault(); }}
             placeholder={"直接打字就好，一段一段寫。\n\n想要格式可以用：\n# 小標\n- 項目\n1. 步驟\n| 欄 | 欄 |\n[文字](網址)\n![說明](圖片網址)　← 按「加圖片」或直接貼圖"} />
         : <article className="info preview">{body.trim() ? <Markdown text={body} /> : <p className="note">還沒有內容。</p>}</article>}
-      {tidied && <p className="note ok">{tidied}</p>}
+      {tidied && <p className="note ok">{tidied}{beforeTidy && <> <button type="button" className="link" onClick={undoTidy}>還原成整理前的內容</button></>}</p>}
       {err && <p className="err">{err}</p>}
       <p className="note">「🖼 加圖片」或直接把圖貼進內容，會變成文字旁的小縮圖（例如商品照），點了放大。「✦ 幫我整理」會把從網站、LINE 複製來的一大段文字整理成條列或表格；它不會上網查，也不會加原文沒有的內容。每個行程每天最多 10 次，用完就自己手寫。</p>
       <div className="actions">
-        <button type="submit" className="btn primary" disabled={!!busy}>{busy === "save" ? "儲存中…" : "儲存"}</button>
-        <button type="button" className="btn" onClick={() => onDone(null)} disabled={!!busy}>取消</button>
+        <button type="submit" className="btn primary" disabled={!!busy || uploading > 0}>{busy === "save" ? "儲存中…" : uploading > 0 ? "圖片上傳中…" : "儲存"}</button>
+        {conflict && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy || uploading > 0}>另存成新的一頁</button>}
+        {busy === "tidy"
+          ? <button type="button" className="btn" onClick={() => tidyAbort.current?.abort()}>取消整理</button>
+          : <button type="button" className="btn" onClick={cancel} disabled={busy === "save"}>取消</button>}
       </div>
     </form>
   );
@@ -223,6 +262,9 @@ export function InfoView() {
     try { const v = sessionStorage.getItem(OPEN_KEY); sessionStorage.removeItem(OPEN_KEY); return v; } catch { return null; }
   });
   const [draft, setDraft] = useState<Draft | null>(null);
+  // a draft left behind by a reload or by leaving the page: offer it back instead of losing it
+  const [leftover, setLeftover] = useState<Draft | null>(() => (current && editable ? draftStore.get(current.id) : null));
+  const [opening, setOpening] = useState(false);
   useEffect(() => {
     const on = (e: Event) => { setCur((e as CustomEvent<string>).detail); setDraft(null); };
     window.addEventListener("jp-open-info", on);
@@ -230,12 +272,27 @@ export function InfoView() {
   }, []);
   const page = pages.find((p) => p.id === cur) ?? pages[0];
 
-  const startNew = () => setDraft({ id: null, title: "", body: "" });
-  const startEdit = (p: InfoPage) => setDraft({ id: p.id, title: p.title, body: p.body?.trim() ? p.body : blocksToMd(p.blocks ?? []) });
+  const startNew = () => { setLeftover(null); setDraft({ id: null, title: "", body: "", seen: null }); };
+  const toDraft = (p: Pick<InfoPage, "id" | "title" | "body" | "blocks" | "updated_at">): Draft => ({ id: p.id, title: p.title, body: p.body?.trim() ? p.body : blocksToMd(p.blocks ?? []), seen: p.updated_at || null });
+  // Start from the page as it is in the database right now, not the copy on screen (which can be minutes old):
+  // editing a stale copy and saving it used to wipe out what someone else had just added.
+  const startEdit = async (p: InfoPage) => {
+    if (!supabase || !current || opening) return;
+    setOpening(true);
+    const { data, error } = await supabase.from("info_pages").select("id, title, body, blocks, updated_at").eq("trip_id", current.id).eq("id", p.id).maybeSingle();
+    setOpening(false);
+    if (error) { alert(`讀不到這一頁的最新內容（${error.message}），先不要編輯，等網路好一點再試`); return; }
+    if (!data) { alert("這一頁已經被刪掉了"); await reload(); return; }
+    setLeftover(null);
+    setDraft(toDraft(data as InfoPage));
+  };
   const remove = async (p: InfoPage) => {
     if (!supabase || !current || !confirm(`刪除「${p.title}」這一頁？大家都會看不到。`)) return;
-    const { error } = await supabase.from("info_pages").delete().eq("trip_id", current.id).eq("id", p.id);
+    const { data, error } = await supabase.from("info_pages").delete().eq("trip_id", current.id).eq("id", p.id).select("id");
     if (error) { alert(error.message); return; }
+    if (!data?.length) { alert("沒有刪掉：可能已經被別人刪了，或你沒有權限"); await reload(); return; }
+    // the pictures only this page used are public files: delete them too
+    removeImages(droppedImages(p.body ?? "", "", pages.filter((x) => x.id !== p.id).map((x) => x.body ?? ""), current.id));
     setCur(null);
     await reload();
   };
@@ -249,8 +306,17 @@ export function InfoView() {
         </div>
         <p className="note">{editable ? "大家都可以寫：入境、退稅、伴手禮、租車、要帶的東西……想到什麼就加一頁。AI 助理查到的答案也可以按「存到其他資訊」留在這裡。" : "成員整理的補充資料。"}</p>
       </section>
+      {leftover && !draft && (
+        <div className="notice leftover">
+          <p>有一份還沒儲存的草稿：「{leftover.title || "（沒有標題）"}」。</p>
+          <div className="actions">
+            <button type="button" className="btn primary" onClick={() => { setDraft(leftover); setLeftover(null); }}>繼續編輯</button>
+            <button type="button" className="btn" onClick={() => { if (current) draftStore.set(current.id, null); setLeftover(null); }}>丟掉</button>
+          </div>
+        </div>
+      )}
       {draft ? (
-        <Editor key={draft.id ?? "new"} draft={draft} onDone={(id) => { setDraft(null); if (id) setCur(id); }} />
+        <Editor key={`${draft.id ?? "new"}|${draft.seen ?? ""}`} draft={draft} onDone={(id) => { setDraft(null); if (id) setCur(id); }} />
       ) : !page ? (
         <p className="note">還沒有內容。{editable && "按「＋ 新增一頁」開始。"}</p>
       ) : (
@@ -263,7 +329,7 @@ export function InfoView() {
               <span>更新於 {fmtDate(page.updated_at)}{page.updated_by_name ? `・${page.updated_by_name}` : ""}</span>
               {editable && (
                 <span className="actions">
-                  <button type="button" className="link" onClick={() => startEdit(page)}>✎ 編輯</button>
+                  <button type="button" className="link" onClick={() => startEdit(page)} disabled={opening}>{opening ? "讀取中…" : "✎ 編輯"}</button>
                   <button type="button" className="link danger" onClick={() => remove(page)}>刪除</button>
                 </span>
               )}
