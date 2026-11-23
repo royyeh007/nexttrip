@@ -1016,3 +1016,84 @@ li.split > ol.tl{margin:0;padding:0}
 .dayshare .chip.off{text-decoration:none;border-style:dashed;color:var(--ai)}
 .basepick{display:grid;gap:4px;font-size:.84rem;color:var(--muted);margin-bottom:8px}
 .basepick select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+/* 面板裡的一排按鈕（套用／取消、儲存／取消…）：同一條線、同樣高。
+   原本主要按鈕在面板裡會多 10px 上邊距，並排時看起來比旁邊的大、位置也歪。 */
+.panel .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+.panel .actions .btn{margin-top:0;min-height:38px;padding-block:0;box-sizing:border-box}
+
+/* ================= 手機排版檢查後的修正（用真實資料量、390px 寬逐頁看過）================= */
+.nb{white-space:nowrap}
+/* 城市路線：虛線跟在城市後面，換行時下一行從城市名開始，不會以虛線開頭 */
+.route i.trail{margin:0 0 0 8px}
+/* 日期列：手機用手滑就好，不需要左右箭頭（箭頭會蓋住選中的那一天）；城市太長就截斷 */
+@media (hover:none){.daysbar .scrollbtn,.allbar .scrollbtn{display:none}}
+nav.days a .dc{max-width:9em;overflow:hidden;text-overflow:ellipsis}
+/* 每一天的標題列：第一行是日期＋住宿＋「⋯」，版本標籤固定在第二行。原本依飯店名稱長短有三種排法，「⋯」會自己掉到一行。 */
+.dayhead .meta{align-items:center;gap:6px 10px}
+.dayhead .meta .hotel{flex:1 1 0;min-width:0}
+.dayhead .meta .daymenu{margin-left:auto;flex:none}
+.dayhead .meta .verrow{flex-basis:100%;display:flex}
+/* 改標題的表單、「這一天和誰一起」：自己一塊，和下面那排按鈕分開 */
+.daymeta-edit{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:6px 0 14px}
+.dayshare{margin:10px 0 14px}
+/* 上方那排功能：手機上排成四欄的方塊（圖示在上、字在下），不會有一顆自己掉到第三行 */
+@media (max-width:560px){
+  .quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .quick .btn{flex-direction:column;gap:5px;padding:10px 2px 8px;border-radius:14px;font-size:.76rem;line-height:1.2;justify-content:center;text-align:center;white-space:nowrap}
+  .quick .btn svg{width:22px;height:22px}
+}
+/* 地點卡片：「詳細資訊 ›」固定在右下角，標籤多的時候不會自己掉到新的一行 */
+.card{position:relative}
+.card .row{padding-right:5.4em;min-height:1.4em}
+.card .more{position:absolute;right:14px;bottom:10px;margin:0}
+.famcol .card .row{padding-right:0}
+.famcol .card .more{display:none}
+/* 交通那一段：「路線 ↗」一律靠右，右邊留一點空 */
+.leg .lt{flex:1 1 auto}
+.leg a{padding-right:4px}
+/* 地點詳細頁的「誰參加」：家庭名稱自己一行，名字換行時才不會跑到家庭名稱下面 */
+.stoppeople .chips small{flex-basis:100%;margin:2px 0 0}
+/* 表單：最後剩一格的欄位佔整排；輸入框、下拉、日期一樣高；編輯器裡的下拉和其他欄位同一個樣子、不會撐破版面 */
+.formgrid > label:last-child:nth-child(odd){grid-column:1 / -1}
+.formgrid input,.formgrid select{min-height:38px;box-sizing:border-box}
+.formgrid input[type="date"]{-webkit-appearance:none;appearance:none;line-height:1.4}
+.editor,.editor .formgrid,.editor .formgrid > label,.editor label.full{min-width:0}
+.editor label.full select,.basepick select{
+  font:inherit;color:var(--ink);background-color:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 32px 7px 10px;width:100%;min-width:0;max-width:100%;min-height:38px;box-sizing:border-box;text-overflow:ellipsis;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a95ab' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;background-size:14px}
+.editor .formgrid select{width:100%;min-width:0;max-width:100%}
+.editor .actions{margin-top:12px}
+/* 總覽：一站太長就截斷，不會把整張卡片撐出螢幕 */
+.ovstops li{min-width:0;max-width:100%}
+.overview > li{min-width:0;overflow:hidden}
+/* 「這趟怎麼刷」的表：手機上不要橫向捲動，讓文字換行 */
+@media (max-width:560px){
+  .plantable{min-width:0;font-size:.8rem}
+  .plantable th,.plantable td{padding-inline:6px;overflow-wrap:anywhere}
+}
+/* 管理頁的團員：名字一行、email 一行；手機上名字佔整排，下拉在下面 */
+.admin .row .person{display:grid;line-height:1.3}
+.admin .row .person small{font-size:.76rem;word-break:break-all}
+.admin .row .person b .tag{margin-left:6px;font-size:.68rem;vertical-align:1px}
+/* 捷徑：圖示用和行程一樣的圓形標記；優惠券按鈕的圖示貼著文字 */
+.qprows .k{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:900;font-size:.9rem;justify-self:center}
+.quickpick .qpshort{justify-content:flex-start;gap:8px}
+.quickpick .qpshort small{margin-left:auto}
+/* 頁首：家庭標示和旁邊兩個控制一樣高 */
+.fampill{display:inline-flex;align-items:center;height:34px;padding-block:0}
+.famselect{height:34px}
+/* 登入頁：手機上登入按鈕和下面的輸入框一樣寬 */
+@media (max-width:560px){.joinform .btn.big{justify-self:stretch}}
+.joinform label{margin-top:12px}
+/* 日期列兩側的淡出：手機上縮窄，選中的那一天不會被蓋住一半 */
+@media (hover:none){.daysbar::before,.daysbar::after{width:16px}}
+nav.days{scroll-padding-inline:10px}
+/* 管理頁的列在手機上：名字佔整排，下面的控制（下拉、改名／刪除）靠左排在一起，最後一個靠右 */
+@media (max-width:600px){
+  .admin .row{grid-template-columns:auto auto minmax(0,1fr)}
+  .admin .row > :nth-child(4){justify-self:end}
+  .admin .row > .link{justify-self:start}
+}
+@media (max-width:560px){.plantable th:nth-child(-n+3),.plantable td:nth-child(-n+3){white-space:nowrap;overflow-wrap:normal}}

@@ -18,7 +18,7 @@ export function SharedChip({ stop, day }: { stop: Stop; day: Day }) {
   const mine = new Set([viewFam, ...rowFamilies(trip.days, trip.families, day)]);
   const others = fams.filter((f) => !mine.has(f)).map((f) => trip.families.find((x) => x.id === f)?.label ?? f);
   if (others.length === 0) return null;
-  return <span className="tag together"><MenuIcon name="together" size={14} />{fams.length === trip.families.length ? "大家一起" : `和${others.join("、")}`}</span>;
+  return <span className="tag together"><MenuIcon name="together" size={14} />{fams.length === trip.families.length ? "大家一起" : `和 ${others.join("、")}`}</span>;
 }
 
 /**

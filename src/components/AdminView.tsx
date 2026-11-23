@@ -54,7 +54,7 @@ function Members() {
       <p className="note">管理員可以改所有人的行程、管理邀請和團員；成員只能改自己家和大家一起的日子；觀察員只能看，不能改也不能用聊天機器人。每個行程至少要有一位管理員。</p>
       {rows.map((m) => (
         <div className="row" key={m.user_id}>
-          <span className="person"><b>{m.name ?? "（沒有名字）"}</b><span className="muted"> {m.email}{m.user_id === me?.user_id ? "（你）" : ""}</span></span>
+          <span className="person"><b>{m.name ?? "（沒有名字）"}{m.user_id === me?.user_id && <span className="tag shared">你</span>}</b><small className="muted">{m.email}</small></span>
           <select value={m.family_id} onChange={(e) => setFamily(m, e.target.value)} disabled={busy} aria-label="哪一家">
             {trip.families.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>

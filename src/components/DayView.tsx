@@ -218,10 +218,6 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
         <div className="meta">
           <span>{day.d}（{day.w}）</span>
           <span className="hotel">{hotelFor(day, family.id) ? `住 ${hotelFor(day, family.id)}` : ""}</span>
-          {/* one way in for everything about "whose version is this": tap the label */}
-          {mayWriteForFamily && trip.families.length > 1
-            ? <button type="button" className={`tag versionbtn ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`} aria-expanded={sharing} onClick={() => setSharing((v) => !v)} disabled={busy} title="這一天和誰一起">{versionLabel}<span aria-hidden="true"> ▾</span></button>
-            : <span className={`tag ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`}>{versionLabel}</span>}
           {(editable || canDelete) && (
             <details className="daymenu" ref={menuRef}>
               <summary aria-label="這一天的其他功能" title="改標題、優化順序、刪除"><MenuIcon name="more" size={18} /></summary>
@@ -232,6 +228,12 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
               </div>
             </details>
           )}
+          <span className="verrow">
+          {/* one way in for everything about "whose version is this": tap the label */}
+            {mayWriteForFamily && trip.families.length > 1
+              ? <button type="button" className={`tag versionbtn ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`} aria-expanded={sharing} onClick={() => setSharing((v) => !v)} disabled={busy} title="這一天和誰一起">{versionLabel}<span aria-hidden="true"> ▾</span></button>
+              : <span className={`tag ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`}>{versionLabel}</span>}
+          </span>
         </div>
         {sharing && <DayShare key={`${day.rowId}|${(day.fam ?? []).join(",")}`} day={day} family={family} onClose={() => setSharing(false)} />}
         {editMeta ? (

@@ -91,7 +91,7 @@ export function CouponList() {
           <button key={c.id} type="button" className={`cpcard${expired(c, now.date) ? " gone" : ""}`} onClick={() => openCoupons(c.id)}>
             <b>{c.name}</b>
             <span className="cpsign">{c.sign}</span>
-            <span className="cptiers">{c.tiers}</span>
+            <span className="cptiers">{c.tiers.split("・").map((x, i) => <span key={i} className="nb">{i > 0 && "・"}{x}</span>)}</span>
             <span className="cpuntil">{expired(c, now.date) ? <><MenuIcon name="warn" size={14} />已過期</> : untilText(c)}{c.img ? "" : "・要連網"}</span>
           </button>
         ))}

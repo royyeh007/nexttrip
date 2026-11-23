@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { KIND } from "../labels";
 import { MenuIcon } from "./Logo";
 import { COUNTRY_NAME, KIND_TIP, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, explain, pct } from "../cards";
 import type { Pick, StopKind } from "../cards";
@@ -7,7 +8,6 @@ import { useTrip } from "../trip";
 import { useRecommend } from "./CardPick";
 import { openCoupons, useCouponsOn } from "./Coupons";
 
-const ICON: Record<StopKind, string> = { food: "🍜", shop: "🛍", hotel: "🏨", move: "🚃", sight: "⛩" };
 const ORDER: StopKind[] = ["food", "shop", "hotel", "move", "sight"];
 /** Visa / Mastercard / JCB are taken almost everywhere in Japan; AmEx, Discover and UnionPay often are not at small shops. */
 const WIDELY = ["visa", "mastercard", "jcb"];
@@ -53,7 +53,7 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
         {r.enabled && <ul className="qprows">
           {rows.map(({ k, top, fallback }) => top && (
             <li key={k} className={top.stale ? "stale" : ""}>
-              <span className="qpk" aria-hidden="true">{ICON[k]}</span>
+              <span className={`k ${k}`} aria-hidden="true">{KIND[k]}</span>
               <div className="qpmain">
                 <span className="qpl">{RATE_KIND_NAME[k]}</span>
                 <span className="qpcard">{top.card.name}</span>

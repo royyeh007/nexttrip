@@ -131,6 +131,9 @@ function stopOf(d: Draft, base?: Stop): Stop {
 
 /** Form for one stop (edit it, or add a new one after it) plus the leg that leads into it. */
 type EditorMode = "edit" | "add" | "new";
+const short = (n: string) => (n.length > 12 ? n.slice(0, 12) + "…" : n);
+/** A text box as tall as what is in it (long lines wrap, so count those too), between 2 and 8 rows. */
+const rowsOf = (v: string) => Math.max(2, Math.min(8, v.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 16)), 0)));
 /** `new` = a stop typed in from the day page (no stop to hang it after): it goes where its time puts it. */
 function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; stop: Stop; arrive?: Leg; mode: EditorMode; onDone: (key: { t: string; n: string }) => void; onCancel: () => void }) {
   const { current, reload, memberships, trip, labelOf } = useTrip();
@@ -206,15 +209,15 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
 
   return (
     <div className="sec editor">
-      <h4>{mode === "edit" ? "編輯這一站" : mode === "new" ? "加一站" : "在這站後面加一站"}</h4>
+      {mode !== "new" && <h4>{mode === "edit" ? "編輯這一站" : "在這站後面加一站"}</h4>}
       {users.length > 1 && <p className="note">這一天是{users.length === trip.families.length ? "大家" : famNames(users, labelOf)}共用的同一份：這裡改了，{users.length === 2 ? "兩家" : "每一家"}看到的都會變。</p>}
       {mode === "add" && (
-        <label className="full">和「{stop.n}」的關係
+        <label className="full">和「{short(stop.n)}」的關係
           <select value={split} onChange={(e) => setSplit(e.target.value as typeof split)}>
             <option value="">接在它後面（大家一起去）</option>
             <option value="pick">同時進行，分頭行動（誰去哪一邊之後再選）</option>
-            {canPreset && <option value="child">同時進行：小孩去這一站，大人留在「{stop.n}」</option>}
-            {canPreset && <option value="adult">同時進行：大人去這一站，小孩留在「{stop.n}」</option>}
+            {canPreset && <option value="child">同時進行：小孩去新的這一站，大人留在原本那一站</option>}
+            {canPreset && <option value="adult">同時進行：大人去新的這一站，小孩留在原本那一站</option>}
           </select>
         </label>
       )}
@@ -239,10 +242,10 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       </div>
       <label className="full">一句話說明<input value={d.s} onChange={up("s")} /></label>
       <div className="formgrid">
-        <label>訂位資訊（一行一項）<textarea rows={2} value={d.book} onChange={up("book")} /></label>
-        <label>推薦（一行一項）<textarea rows={2} value={d.rec} onChange={up("rec")} /></label>
-        <label>資訊（一行一項）<textarea rows={2} value={d.info} onChange={up("info")} /></label>
-        <label>提醒（一行一項）<textarea rows={2} value={d.tips} onChange={up("tips")} /></label>
+        <label>訂位資訊（一行一項）<textarea rows={rowsOf(d.book)} value={d.book} onChange={up("book")} /></label>
+        <label>推薦（一行一項）<textarea rows={rowsOf(d.rec)} value={d.rec} onChange={up("rec")} /></label>
+        <label>資訊（一行一項）<textarea rows={rowsOf(d.info)} value={d.info} onChange={up("info")} /></label>
+        <label>提醒（一行一項）<textarea rows={rowsOf(d.tips)} value={d.tips} onChange={up("tips")} /></label>
       </div>
       {hasArrive && (
         <div className="formgrid">

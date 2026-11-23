@@ -59,7 +59,7 @@ export function DayShare({ day, family, onClose }: { day: Day; family: Family; o
         )}
         <label className={mode === "pick" ? "on" : undefined}>
           <input type="radio" name="dayshare" checked={mode === "pick"} onChange={() => setMode("pick")} />
-          <span><b>{picked.length ? `和${picked.map(label).join("、")}一起` : "只有我們家"}</b><small>在下面點要一起的家；都不點就是自己一份</small></span>
+          <span><b>{picked.length ? `和 ${picked.map(label).join("、")} 一起` : "只有我們家"}</b><small>在下面點要一起的家；都不點就是自己一份</small></span>
         </label>
       </div>
       {mode === "pick" && (

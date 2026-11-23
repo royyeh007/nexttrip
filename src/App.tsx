@@ -276,7 +276,7 @@ function Main() {
   }, [view, viewFam]);
   useEffect(() => {
     store.set(dayKey, view);
-    document.querySelector(`nav.days [data-id="${view}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    document.querySelector(`nav.days [data-id="${view}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [view, viewFam, dayKey]);
 
   useEffect(() => { document.title = `${fam.label}・${current?.name ?? "行程"}`; }, [fam.label, current?.name]);
@@ -301,14 +301,14 @@ function Main() {
           </div>
           <div className="eyebrow">
             {first && last ? `${dotDate(first.id)} — ${dotDate(last.id)} ・ ${famDays.length} 天` : current ? `${dotDate(current.start_date)} — ${dotDate(current.end_date)}` : ""}
-            {current?.place && ` ・ ${current.place}`}
+            {current?.place && <> ・ {current.place.split(/(?<=[、，,・])/).map((seg, i) => <span key={i} className="nb">{seg}</span>)}</>}
           </div>
           <div className="titlerow"><TripIcon id={tripIconId(current?.settings)} size={48} /><h1>{current?.name ?? "行程"}</h1></div>
           {route.length > 0 && (
             <div className="route">
               <PaperPlane />
               {route.map((c, i) => (
-                <span key={i}>{i > 0 && <i className="trail" aria-hidden="true" />}{c}</span>
+                <span key={i} className="nb">{c}{i < route.length - 1 && <i className="trail" aria-hidden="true" />}</span>
               ))}
             </div>
           )}
