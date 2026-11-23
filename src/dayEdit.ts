@@ -51,7 +51,11 @@ export function sortByTime(items: Item[]): Item[] {
   let legs: Leg[] = [];
   for (const it of items) { if (isLeg(it)) legs.push(it); else { units.push({ legs, stop: it }); legs = []; } }
   if (units.some((u) => isNaN(toMinutes(u.stop.t)))) return items;
-  const sorted = [...units].sort((a, b) => toMinutes(a.stop.t) - toMinutes(b.stop.t));
+  // 分頭行動 (same `par`) stays together: the whole group sorts by its earliest time, in the order it was written
+  const groupStart = new Map<string, number>();
+  for (const u of units) if (u.stop.par) groupStart.set(u.stop.par, Math.min(groupStart.get(u.stop.par) ?? Infinity, toMinutes(u.stop.t)));
+  const key = (u: { stop: Stop }) => (u.stop.par ? groupStart.get(u.stop.par)! : toMinutes(u.stop.t));
+  const sorted = [...units].sort((a, b) => key(a) - key(b));
   return [...sorted.flatMap((u) => [...u.legs, u.stop]), ...legs];
 }
 

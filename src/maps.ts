@@ -21,7 +21,13 @@ export const dirURL = (from: string, to: string, travel: string | null) =>
 /** Whole-day route: every distinct consecutive stop, Google allows ~10 points. */
 export function dayRouteURL(day: Day) {
   const qs: string[] = [];
-  for (const it of day.items) if (!isLeg(it) && qs[qs.length - 1] !== it.q) qs.push(it.q);
+  // 分頭行動（same `par`）: one route cannot go to two places at once, so only the first of the group is on it
+  const groups = new Set<string>();
+  for (const it of day.items) {
+    if (isLeg(it)) continue;
+    if (it.par) { if (groups.has(it.par)) continue; groups.add(it.par); }
+    if (qs[qs.length - 1] !== it.q) qs.push(it.q);
+  }
   return "https://www.google.com/maps/dir/" + qs.slice(0, 10).map(E).join("/");
 }
 
@@ -37,8 +43,10 @@ export function linkLegs(day: Day) {
     while (p >= 0 && isLeg(day.items[p])) p--;
     let n = i + 1;
     while (n < day.items.length && isLeg(day.items[n])) n++;
-    const prev = day.items[p] as Stop | undefined;
     const next = day.items[n] as Stop | undefined;
+    // 分頭行動: the leg into the second (third…) stop of a group starts where everybody was before splitting up, not at the other group's stop
+    if (next?.par) while (p >= 0 && (isLeg(day.items[p]) || (day.items[p] as Stop).par === next.par)) p--;
+    const prev = day.items[p] as Stop | undefined;
     const linked: LinkedLeg = { ...it, from: prev?.q, to: next?.q };
     legs.set(i, linked);
     if (next) arrive.set(n, linked);

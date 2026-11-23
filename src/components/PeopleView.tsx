@@ -7,6 +7,7 @@ import type { Person } from "../friends";
 import { headcount, peopleApi, personLabel, refreshTripPeople, useTripPeople } from "../people";
 import type { Household, HouseholdPerson, PersonKind, TripPerson } from "../people";
 import { editDayItems, findStop } from "../dayEdit";
+import { sharedFamilies, syncShared } from "../shared";
 
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const kindText = (p: { kind: PersonKind; age: number | null }) => (p.kind === "adult" ? "大人" : p.age !== null ? `小孩・${p.age} 歲` : "小孩");
@@ -191,15 +192,18 @@ export function PeopleBanner() {
   return <a className="peoplebanner" href="#people">👪 這趟你們家誰會去？點這裡勾選，訂位時就知道幾大幾小 ›</a>;
 }
 
-/** The people who can be at a stop: everyone going whose family this day belongs to. */
-function relevantPeople(people: TripPerson[], day: Day) { return day.fam ? people.filter((p) => day.fam!.includes(p.family_id)) : people; }
+/** The people who can be at a stop: everyone going from the families that have this stop (a shared stop: all of them; otherwise the families this day belongs to). */
+export function relevantPeople(people: TripPerson[], day: Day, together: string[]) {
+  if (together.length > 1) return people.filter((p) => together.includes(p.family_id));
+  return day.fam ? people.filter((p) => day.fam!.includes(p.family_id)) : people;
+}
 
 /** 地點卡片上的小標籤：只有部分的人參加時顯示「3 人」。 */
 export function StopPeopleChip({ stop, day }: { stop: Stop; day: Day }) {
-  const { current } = useTrip();
+  const { current, trip } = useTrip();
   const people = useTripPeople(current?.id);
   if (!stop.people || !people) return null;
-  const all = relevantPeople(people, day);
+  const all = relevantPeople(people, day, sharedFamilies(trip.days, trip.families, day.id, stop.sid));
   const n = all.filter((p) => stop.people!.includes(p.id)).length;
   if (n === all.length) return null;
   return <span className="who">👥 {n} 人</span>;
@@ -214,7 +218,7 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => { setChosen(stop.people); }, [stop]);
   if (!current || !people) return null;
-  const all = relevantPeople(people, day);
+  const all = relevantPeople(people, day, sharedFamilies(trip.days, trip.families, day.id, stop.sid));
   if (all.length === 0) return null;
   const editable = canEdit(day.fam, member);
   const on = (id: string) => !chosen || chosen.includes(id);
@@ -233,6 +237,8 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
     });
     setBusy(false);
     if (err) { setChosen(before); alert(err); return; }
+    const warn = await syncShared(current.id, day, stop.sid, { people: next ?? null });
+    if (warn) alert(warn);
     await reload();
   };
   const toggle = (id: string) => {

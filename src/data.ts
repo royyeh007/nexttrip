@@ -6,7 +6,7 @@ export type Mode = "taxi" | "walk" | "train" | "bus" | "charter" | "shuttle" | "
 export interface Memo { by: string; name: string; text: string; at: string }
 /** `ll` = [lat, lon], filled in once the place has been located (route optimisation). */
 /** `ref` = this stop points at another trip (e.g. 「出發前往日本」→ the Japan trip); people who are in both trips can see and open it. */
-export interface Stop { t: string; n: string; q: string; k: Kind; st?: Status; who?: string; /** trip_people ids of who takes part in this stop; missing = everyone on this day */ people?: string[]; s?: string; info?: string[]; book?: string[]; rec?: string[]; tips?: string[]; addr?: string; tel?: string; memo?: Memo[]; ll?: [number, number]; ref?: { trip: string; name: string } }
+export interface Stop { t: string; n: string; q: string; k: Kind; st?: Status; who?: string; /** trip_people ids of who takes part in this stop; missing = everyone on this day */ people?: string[]; /** set when this stop is shared with other families: every family's copy carries the same id (src/shared.ts) */ sid?: string; /** 分頭行動：stops next to each other with the same `par` happen at the same time, each with its own group of people */ par?: string; s?: string; info?: string[]; book?: string[]; rec?: string[]; tips?: string[]; addr?: string; tel?: string; memo?: Memo[]; ll?: [number, number]; ref?: { trip: string; name: string } }
 export interface Leg { leg: Mode; txt: string; st?: Status }
 export type Item = Stop | Leg;
 /**

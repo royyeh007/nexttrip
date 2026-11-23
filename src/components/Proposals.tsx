@@ -54,8 +54,11 @@ export async function applyProposal(id: string, p: Proposal, tripId: string, day
     const items = day.items.map((it) => {
       if (isLeg(it)) return it;
       const prev = existing?.items.find((e): e is Stop => !isLeg(e) && e.n === it.n);
+      // a stop shared with other families: the AI only decides where it sits in our day; its content stays exactly as it is,
+      // otherwise our copy would stop matching the other families' (those are changed together, from the stop's own page)
+      if (prev?.sid) return prev;
       const q = it.q || prev?.q || it.n;
-      const keep = { q, ...(prev?.ll ? { ll: prev.ll } : {}), ...(prev?.ref ? { ref: prev.ref } : {}), ...(prev?.memo?.length ? { memo: prev.memo } : {}), ...(prev?.people ? { people: prev.people } : {}) };
+      const keep = { q, ...(prev?.ll ? { ll: prev.ll } : {}), ...(prev?.ref ? { ref: prev.ref } : {}), ...(prev?.memo?.length ? { memo: prev.memo } : {}), ...(prev?.people ? { people: prev.people } : {}), ...(prev?.par ? { par: prev.par } : {}) };
       return { ...it, ...keep };
     });
     const { d, w } = dateOf(day.id);

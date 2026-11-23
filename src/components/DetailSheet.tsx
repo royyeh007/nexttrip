@@ -13,7 +13,11 @@ import { KIND_NAME, SEAL } from "../labels";
 import { editDayItems, findStop, removeStopAt, sameDayRow, sortByTime } from "../dayEdit";
 import { CardSection } from "./CardPick";
 import { SuitcaseIcon } from "./Logo";
-import { StopPeople } from "./PeopleView";
+import { StopPeople, relevantPeople } from "./PeopleView";
+import { SplitPanel, newPar } from "./Split";
+import { useTripPeople } from "../people";
+import { SharedPanel } from "./SharedPanel";
+import { contentPatch, sharedFamilies, syncShared } from "../shared";
 
 function Copy({ value }: { value: string }) {
   const [done, setDone] = useState(false);
@@ -62,7 +66,14 @@ function Memos({ day, stop }: { day: Day; stop: Stop }) {
       saved = next;
       return items.map((it, i) => { if (i !== idx) return it; const s = { ...(it as Stop) }; if (next.length) s.memo = next; else delete s.memo; return s; });
     });
-    if (err) alert(err); else { if (saved) setMemos(saved); setText(""); reload(); }
+    if (err) alert(err);
+    else {
+      if (saved) setMemos(saved);
+      setText("");
+      const warn = saved ? await syncShared(current.id, day, stop.sid, { memo: (saved as Memo[]).length ? saved : null }) : null;
+      if (warn) alert(warn);
+      reload();
+    }
     setBusy(false);
   };
   const add = () => {
@@ -119,14 +130,21 @@ function stopOf(d: Draft, base?: Stop): Stop {
 }
 
 /** Form for one stop (edit it, or add a new one after it) plus the leg that leads into it. */
-function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; stop: Stop; arrive?: Leg; mode: "edit" | "add"; onDone: (key: { t: string; n: string }) => void; onCancel: () => void }) {
+type EditorMode = "edit" | "add" | "new";
+/** `new` = a stop typed in from the day page (no stop to hang it after): it goes where its time puts it. */
+function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; stop: Stop; arrive?: Leg; mode: EditorMode; onDone: (key: { t: string; n: string }) => void; onCancel: () => void }) {
   const { current, reload, memberships } = useTrip();
+  // 分頭行動: the new stop happens at the same time as `stop`, for another group of people
+  const [split, setSplit] = useState<"" | "pick" | "child" | "adult">("");
+  const goers = useTripPeople(current?.id);
+  const group = goers ? relevantPeople(goers, day, []) : [];
+  const canPreset = !stop.par && group.some((p) => p.kind === "child") && group.some((p) => p.kind === "adult");
   const otherTrips = memberships.filter((m) => m.trip_id !== current?.id);
   const [d, setD] = useState<Draft>(() => (mode === "edit" ? draftOf(stop, arrive) : { ...draftOf(null, undefined), t: stop.t }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const up = <K extends keyof Draft>(k: K) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setD((x) => ({ ...x, [k]: e.target.value }));
-  const hasArrive = mode === "add" || !!arrive || day.items.findIndex((it) => !isLeg(it)) !== day.items.indexOf(stop);
+  const hasArrive = mode === "new" ? day.items.some((it) => !isLeg(it)) : mode === "add" || !!arrive || day.items.findIndex((it) => !isLeg(it)) !== day.items.indexOf(stop);
 
   const save = async () => {
     if (!current) return;
@@ -141,15 +159,31 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
     else if (refTrip) next.ref = { trip: refTrip.trip_id, name: refTrip.trip.name };
     else delete next.ref;
     const leg: Leg | null = d.legMode && d.legTxt.trim() ? { leg: d.legMode, txt: d.legTxt.trim() } : null;
-    const timeChanged = mode === "add" || d.t.trim() !== stop.t;
+    const timeChanged = mode !== "edit" || d.t.trim() !== stop.t;
+    let refPeople: string[] | undefined;
     const e = await editDayItems(current.id, day, (items) => {
+      if (mode === "new") return sortByTime([...items, ...(leg ? [leg, next] : [next])]);
       const idx = findStop(items, stop);
       if (idx < 0) return null;
       const out: Item[] = [...items];
+      if (mode === "add" && split) {
+        // the stop we are adding after and the new one become one 分頭行動 group, next to each other
+        const ref = { ...(items[idx] as Stop) };
+        ref.par = ref.par ?? newPar();
+        const added: Stop = { ...next, par: ref.par };
+        if (split === "child" || split === "adult") {
+          added.people = group.filter((p) => p.kind === split).map((p) => p.id);
+          ref.people = refPeople = group.filter((p) => p.kind !== split).map((p) => p.id);
+        }
+        out[idx] = ref;
+        out.splice(idx + 1, 0, ...(leg ? [leg, added] : [added]));
+        return sortByTime(out);
+      }
       if (mode === "edit") {
         // notes come from the row as it is now (someone may have added one while this form was open)
         const memo = (items[idx] as Stop).memo;
-        out[idx] = memo?.length ? { ...next, memo } : (() => { const s = { ...next }; delete s.memo; return s; })();
+        const kept = { ...next, ...((items[idx] as Stop).sid ? { sid: (items[idx] as Stop).sid } : {}) };
+        out[idx] = memo?.length ? { ...kept, memo } : (() => { const s = { ...kept }; delete s.memo; return s; })();
         const prevIsLeg = idx > 0 && isLeg(out[idx - 1]);
         if (leg && prevIsLeg) out[idx - 1] = { ...(out[idx - 1] as Leg), leg: leg.leg, txt: leg.txt };
         else if (leg && !prevIsLeg) out.splice(idx, 0, leg);
@@ -159,15 +193,29 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       }
       return timeChanged ? sortByTime(out) : out;
     });
+    if (e) { setBusy(false); setErr(e); return; }
+    // shared with other families: their copies get the same content (and move to the new time)
+    const warn = mode === "edit" ? await syncShared(current.id, day, stop.sid, contentPatch({ ...next, sid: stop.sid }))
+      : refPeople ? await syncShared(current.id, day, stop.sid, { people: refPeople }) : null;
     setBusy(false);
-    if (e) { setErr(e); return; }
+    if (warn) alert(warn);
     await reload();
     onDone({ t: next.t, n: next.n });
   };
 
   return (
     <div className="sec editor">
-      <h4>{mode === "edit" ? "編輯這一站" : "在這站後面加一站"}</h4>
+      <h4>{mode === "edit" ? "編輯這一站" : mode === "new" ? "加一站" : "在這站後面加一站"}</h4>
+      {mode === "add" && (
+        <label className="full">和「{stop.n}」的關係
+          <select value={split} onChange={(e) => setSplit(e.target.value as typeof split)}>
+            <option value="">接在它後面（大家一起去）</option>
+            <option value="pick">同時進行，分頭行動（誰去哪一邊之後再選）</option>
+            {canPreset && <option value="child">同時進行：小孩去這一站，大人留在「{stop.n}」</option>}
+            {canPreset && <option value="adult">同時進行：大人去這一站，小孩留在「{stop.n}」</option>}
+          </select>
+        </label>
+      )}
       <div className="formgrid">
         <label>時間<input value={d.t} onChange={up("t")} placeholder="例：14:40" inputMode="numeric" /></label>
         <label>名稱<input value={d.n} onChange={up("n")} placeholder="例：晚餐：○○" /></label>
@@ -177,7 +225,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
         <label>地址<input value={d.addr} onChange={up("addr")} /></label>
         <label>電話<input value={d.tel} onChange={up("tel")} inputMode="tel" /></label>
         <label>只有誰去（可空）<input value={d.who} onChange={up("who")} placeholder="例：4 位女生" /></label>
-        {(otherTrips.length > 0 || (mode === "edit" && stop.ref)) && (
+        {mode !== "new" && (otherTrips.length > 0 || (mode === "edit" && stop.ref)) && (
           <label>連到另一個行程（可空）
             <select value={d.ref} onChange={up("ref")}>
               <option value="">不連結</option>
@@ -297,7 +345,8 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
   const ask = () => { onClose(); setTimeout(() => askClaude(`「${stop.n}」（${day.d}）這個地方幫我查一下：營業時間或開放時間、怎麼去、要注意什麼、有什麼推薦。`), 50); };
 
   const remove = async () => {
-    if (!current || !confirm(`把「${stop.n}」從 ${day.d} 的行程刪掉？`)) return;
+    const others = sharedFamilies(trip.days, trip.families, day.id, stop.sid).length > 1;
+    if (!current || !confirm(others ? `把「${stop.n}」從我們這一份 ${day.d} 的行程拿掉？\n\n這是和別家一起的地點：其他家的行程裡還會留著。要每一家都取消，請用上面「和誰一起」裡的「整個取消」。` : `把「${stop.n}」從 ${day.d} 的行程刪掉？`)) return;
     setBusy(true);
     const err = await editDayItems(current.id, day, (items) => { const i = findStop(items, stop); return i < 0 ? null : removeStopAt(items, i); });
     setBusy(false);
@@ -341,6 +390,8 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
                 </div>
               )}
               <RefPanel stop={stop} day={day} />
+              <SplitPanel day={day} stop={stop} />
+              <SharedPanel day={day} stop={stop} onGone={onClose} />
               <StopPeople day={day} stop={stop} />
               {arrive && <div className="sec"><h4>怎麼去</h4><p>{arrive.txt}</p></div>}
               {(departLeg || nextStop) && (
@@ -376,6 +427,33 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
               )}
             </>
           )}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+/** 從當天的頁面手動加一站（不用先點開別的地點）：照時間排進去；空白的一天也可以用。 */
+export function NewStopSheet({ day, onClose }: { day: Day; onClose: () => void }) {
+  const blank: Stop = { t: "", n: "", q: "", k: "sight" };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <>
+      <div className="scrim" onClick={onClose} />
+      <aside className="sheet" role="dialog" aria-modal="true" aria-labelledby="ns-title">
+        <header>
+          <div className="hd">
+            <div className="st">{day.d}（{day.w}）</div>
+            <h3 id="ns-title">加一站</h3>
+          </div>
+          <button className="x" type="button" aria-label="關閉" onClick={onClose}>×</button>
+        </header>
+        <div className="body">
+          <StopEditor day={day} stop={blank} mode="new" onDone={onClose} onCancel={onClose} />
         </div>
       </aside>
     </>

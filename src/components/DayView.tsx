@@ -1,5 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { StopPeopleChip } from "./PeopleView";
+import { SharedChip } from "./SharedPanel";
+import { SplitNames, SplitNote } from "./Split";
+import { NewStopSheet } from "./DetailSheet";
 import { canEdit, isLeg, isViewer } from "../data";
 import { DayWeatherPanel } from "./Weather";
 import type { WeatherState } from "../useWeather";
@@ -54,7 +57,7 @@ function LegRow({ leg, done, date }: { leg: LinkedLeg; done?: boolean; date?: st
   );
 }
 
-function StopRow({ stop, done, date, day, onOpen }: { stop: Stop; done?: boolean; date?: string; day: Day; onOpen: () => void }) {
+function StopRow({ stop, done, date, day, split, onOpen }: { stop: Stop; done?: boolean; date?: string; day: Day; split?: boolean; onOpen: () => void }) {
   const sub = stop.s || stop.book?.[0] || stop.rec?.[0] || "";
   return (
     <li className={`stop${done ? " done" : ""}`}>
@@ -66,7 +69,8 @@ function StopRow({ stop, done, date, day, onOpen }: { stop: Stop; done?: boolean
         <div className="row">
           {stop.st && <span className={`seal ${stop.st}`}>{SEAL[stop.st]}</span>}
           {stop.who && <span className="who">{stop.who}</span>}
-          <StopPeopleChip stop={stop} day={day} />
+          <SharedChip stop={stop} day={day} />
+          {split ? <SplitNames stop={stop} day={day} /> : <StopPeopleChip stop={stop} day={day} />}
           {stop.ref && <span className="tag trip">↗ {stop.ref.name}</span>}
           <CardChip kind={stop.k} date={date} />
           {stop.memo && stop.memo.length > 0 && <span className="memo-n">備註 {stop.memo.length}</span>}
@@ -85,20 +89,59 @@ export function Timeline({ day, onOpen }: { day: Day; onOpen?: (s: Stop, arrive?
   // index of the last stop whose time has passed; the line goes right after it (-1 = before everything)
   let lastDone = -1;
   if (isToday) day.items.forEach((it, i) => { if (!isLeg(it) && toMinutes(it.t) <= now.minutes) lastDone = i; });
+  // consecutive stops with the same `par` (and the legs between them) are one 分頭行動 group; a lone stop with `par` is an ordinary stop
+  const segments = useMemo(() => {
+    const out: { par?: string; idx: number[] }[] = [];
+    const items = day.items;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const par = !isLeg(it) ? it.par : undefined;
+      if (!par) { out.push({ idx: [i] }); continue; }
+      const idx = [i];
+      let j = i + 1;
+      for (;;) {
+        let k = j;
+        while (k < items.length && isLeg(items[k])) k++;
+        const next = items[k];
+        if (!next || isLeg(next) || next.par !== par) break;
+        for (let x = j; x <= k; x++) idx.push(x);
+        j = k + 1;
+      }
+      out.push(idx.length > 1 ? { par, idx } : { idx });
+      i = j - 1;
+    }
+    return out;
+  }, [day.items]);
   const line = <li className="nowline" key="now" aria-label={`現在 ${now.hhmm}`}><span className="lbl">現在 {now.hhmm}</span></li>;
   return (
     <ol className="tl">
       {isToday && lastDone < 0 && line}
-      {day.items.map((it, i) => (
-        <Fragment key={i}>
-          {isLeg(it) ? (
-            <LegRow leg={legs.get(i)!} done={isToday && i <= lastDone} date={day.id} />
-          ) : (
-            <StopRow stop={it} done={isToday && i <= lastDone} date={day.id} day={day} onOpen={() => onOpen?.(it, arrive.get(i))} />
-          )}
-          {isToday && i === lastDone && line}
-        </Fragment>
-      ))}
+      {segments.map((seg) => {
+        const row = (i: number) => {
+          const it = day.items[i];
+          return (
+            <Fragment key={i}>
+              {isLeg(it) ? (
+                <LegRow leg={legs.get(i)!} done={isToday && i <= lastDone} date={day.id} />
+              ) : (
+                <StopRow stop={it} done={isToday && i <= lastDone} date={day.id} day={day} split={!!seg.par} onOpen={() => onOpen?.(it, arrive.get(i))} />
+              )}
+              {isToday && i === lastDone && line}
+            </Fragment>
+          );
+        };
+        if (!seg.par) return row(seg.idx[0]);
+        // 分頭行動：同一個時段的幾站框在一起，每一站是一組人
+        const after = day.items.slice(seg.idx[seg.idx.length - 1] + 1).find((it): it is Stop => !isLeg(it));
+        return (
+          <li key={`par-${seg.idx[0]}`} className="split">
+            <div className="splithead"><b>分頭行動</b><span>同一個時段，{seg.idx.filter((i) => !isLeg(day.items[i])).length} 組人去不同的地方</span></div>
+            <ol className="tl">{seg.idx.map(row)}</ol>
+            <SplitNote day={day} par={seg.par} />
+            {after && <p className="splitfoot">之後會合：{after.t} {after.n}</p>}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -125,6 +168,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   const canOptimize = editable && day.items.filter((it) => !isLeg(it)).length >= 3;
   // title / city / hotel of this day, edited in place
   const [editMeta, setEditMeta] = useState(false);
+  const [addingStop, setAddingStop] = useState(false);
   const [meta, setMeta] = useState({ title: day.title, city: day.city, hotel: day.hotel });
   const [metaErr, setMetaErr] = useState<string | null>(null);
   const openMeta = () => { setMeta({ title: day.title, city: day.city, hotel: day.hotel }); setMetaErr(null); setEditMeta(true); };
@@ -198,6 +242,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
               <RouteIcon />開啟今天的 Google 地圖路線
             </a>
             {canOptimize && <button type="button" className="btn" onClick={() => setOptimizing((v) => !v)} aria-expanded={optimizing}>⇄ 優化順序</button>}
+            {editable && <button type="button" className="btn" onClick={() => setAddingStop(true)}>＋ 加一站</button>}
           </div>
         )}
         <DayWeatherPanel date={day.id} city={day.city} wx={wx} />
@@ -207,8 +252,9 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
           <p>這天還沒有行程。</p>
           {viewer ? <p>等成員把內容補上。</p> : (
             <>
-              <p>到「上傳行程」傳表單或截圖，或點右下角「Trip醬」直接說這天要做什麼，確認後就會出現在這裡。</p>
+              <p>可以自己一站一站輸入；也可以到「上傳行程」傳表單或截圖，或點右下角「Trip醬」直接說這天要做什麼，確認後就會出現在這裡。</p>
               <div className="actions">
+                {editable && <button type="button" className="btn primary" onClick={() => setAddingStop(true)}>＋ 自己輸入第一站</button>}
                 <a className="btn" href="#upload"><DownloadIcon />上傳行程</a>
                 <button type="button" className="btn" onClick={() => openForm(current?.name)}><DownloadIcon />下載填寫表單</button>
               </div>
@@ -221,6 +267,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
           <Timeline day={day} onOpen={onOpen} />
         </>
       )}
+      {addingStop && <NewStopSheet day={day} onClose={() => setAddingStop(false)} />}
     </>
   );
 }

@@ -969,3 +969,19 @@ button.chip{cursor:pointer}
 button.chip:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
 .copybtn{all:unset;cursor:pointer;font-size:.76rem;color:var(--ai);border:1px solid var(--line);border-radius:6px;padding:1px 8px;margin-left:6px}
 .stoppeople .note{margin:8px 0 0;font-size:.8rem}
+/* ---- 共同的地點 ---- */
+.tag.together{background:var(--butter);color:var(--ink)}
+.stoppeople.shared .chip.fixed{border-color:var(--line);background:var(--paper);color:var(--muted);font-weight:400}
+.stoppeople.shared .chip.off{text-decoration:none;border-style:dashed;color:var(--ai)}
+.link.danger{color:var(--shu)}
+/* ---- 分頭行動：同一個時段的幾站框在一起 ---- */
+.tl > li.split{list-style:none;display:block;margin:10px 0;padding:10px 10px 8px;border:1.5px dashed var(--ai);border-radius:14px;background:color-mix(in srgb,var(--ai-soft) 45%,transparent)}
+.splithead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 2px 6px;font-size:.8rem;color:var(--muted)}
+.splithead b{font-size:.84rem;color:var(--ai);letter-spacing:.06em}
+li.split > ol.tl{margin:0;padding:0}
+.splitok,.splitwarn,.splitfoot{margin:6px 2px 0;font-size:.8rem}
+.splitok{color:var(--pine)}
+.splitwarn{color:var(--shu);font-weight:700}
+.splitfoot{color:var(--muted)}
+.who.group{background:var(--butter);color:var(--ink)}
+.sec .splitok,.sec .splitwarn{margin-left:0}
