@@ -39,3 +39,25 @@ export function PaperPlane({ size = 18 }: { size?: number }) {
     </svg>
   );
 }
+
+/**
+ * The suitcase on its own, small: the face of the chat helper (Trip醬). The outline takes the text colour of whatever it sits on
+ * (the dark chat button, the light panel header); stickers are left out because they turn to specks at this size.
+ */
+export function SuitcaseIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg className="logo suitcase" viewBox="112 150 288 296" width={size} height={size} aria-hidden="true" focusable="false">
+      <g className="s-line" transform="rotate(-5 256 320)">
+        <circle className="s-wheel" cx="188" cy="424" r="13" />
+        <circle className="s-wheel" cx="324" cy="424" r="13" />
+        <path className="l-none" d="M210 218 v-26 a22 22 0 0 1 22 -22 h48 a22 22 0 0 1 22 22 v26" />
+        <rect className="l-case" x="138" y="218" width="236" height="196" rx="42" />
+        <ellipse className="l-cheek" cx="200" cy="330" rx="18" ry="12" />
+        <ellipse className="l-cheek" cx="312" cy="330" rx="18" ry="12" />
+        <circle className="s-face" cx="224" cy="300" r="14" />
+        <circle className="s-face" cx="288" cy="300" r="14" />
+        <path className="s-smile" d="M236 330 q20 19 40 0" />
+      </g>
+    </svg>
+  );
+}

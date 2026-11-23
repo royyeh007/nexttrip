@@ -304,7 +304,7 @@ export function InfoView() {
           <h2>其他資訊</h2>
           {editable && !draft && <button type="button" className="btn" onClick={startNew}>＋ 新增一頁</button>}
         </div>
-        <p className="note">{editable ? "大家都可以寫：入境、退稅、伴手禮、租車、要帶的東西……想到什麼就加一頁。AI 助理查到的答案也可以按「存到其他資訊」留在這裡。" : "成員整理的補充資料。"}</p>
+        <p className="note">{editable ? "大家都可以寫：入境、退稅、伴手禮、租車、要帶的東西……想到什麼就加一頁。Trip醬查到的答案也可以按「存到其他資訊」留在這裡。" : "成員整理的補充資料。"}</p>
       </section>
       {leftover && !draft && (
         <div className="notice leftover">

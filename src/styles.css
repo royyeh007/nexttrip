@@ -890,3 +890,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 /* 城市路線：開頭一架紙飛機，城市之間是飛過的虛線（取代箭頭） */
 .route .plane{margin-right:2px}
 .route i.trail{display:inline-block;width:20px;height:0;border-bottom:3px dotted var(--muted);opacity:.7;vertical-align:middle;margin-right:6px}
+/* Trip醬（聊天小幫手）的臉：只有行李箱。外框跟著所在位置的文字顏色，臉固定深色（行李箱永遠是紅的） */
+.logo.suitcase .s-line{stroke:currentColor;stroke-width:18;stroke-linejoin:round;stroke-linecap:round}
+.logo.suitcase .s-wheel{fill:currentColor}
+.logo.suitcase .s-face{fill:#1b2740;stroke:none}
+.logo.suitcase .s-smile{fill:none;stroke:#1b2740;stroke-width:12}
+.chatfab{padding:9px 18px 9px 12px}
+.chatpanel header .suitcase{margin-right:-2px}

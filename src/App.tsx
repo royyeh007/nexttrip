@@ -382,7 +382,7 @@ function Main() {
             : !adding && (
               <section className="dayhead">
                 <h2>還沒有行程</h2>
-                <p className="note">{isViewer(member) ? "這個行程還沒有內容。" : "按日期列的「＋ 加一天」先把日期加進來，再用「上傳行程」或右下角「AI 助理」把內容補上。"}</p>
+                <p className="note">{isViewer(member) ? "這個行程還沒有內容。" : "按日期列的「＋ 加一天」先把日期加進來，再用「上傳行程」或右下角「Trip醬」把內容補上。"}</p>
               </section>
             )}
         </main>

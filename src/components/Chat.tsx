@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SuitcaseIcon } from "./Logo";
 import { dateOf } from "../data";
 import type { Proposal } from "../data";
 import { invoke, supabase } from "../supabase";
@@ -28,10 +29,6 @@ function examples(days: { id: string; city: string }[], start: string, end: stri
     "這個網站怎麼加一天？",
   ];
 }
-
-const SparkIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.7L19.5 9.5l-5.7 1.8L12 17l-1.8-5.7L4.5 9.5l5.7-1.8L12 2zM5 16l.9 2.6L8.5 19.5l-2.6.9L5 23l-.9-2.6L1.5 19.5l2.6-.9L5 16z" /></svg>
-);
 
 /**
  * Floating chat button + panel. Conversation lives on the server: the function answers in the background and
@@ -146,7 +143,7 @@ export function ChatWidget() {
     const i = msgs.findIndex((x) => x.id === m.id);
     const q = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content.trim() : "";
     const firstLine = m.content.split("\n").find((l) => l.trim())?.replace(/^[#*\-\s]+/, "").trim() ?? "";
-    const title = (q || firstLine || "AI 助理的回答").replace(/\s+/g, " ").slice(0, 40);
+    const title = (q || firstLine || "Trip醬的回答").replace(/\s+/g, " ").slice(0, 40);
     // the answer may quote web pages: keep its text and links, but not pictures hosted elsewhere (see stripForeignImages)
     const answer = stripForeignImages(m.content);
     const id = (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10));
@@ -169,14 +166,15 @@ export function ChatWidget() {
   return (
     <>
       <button type="button" className="chatfab" aria-expanded={open} aria-controls="chatpanel" onClick={() => setOpen((o) => !o)}>
-        <SparkIcon />AI 助理
+        <SuitcaseIcon size={30} />Trip醬
         {unread && <span className="dot" aria-label="有新回覆" />}
       </button>
       {open && <div className="chatscrim" onClick={() => setOpen(false)} />}
-      <section id="chatpanel" className="chatpanel" hidden={!open} role="dialog" aria-label="AI 助理">
+      <section id="chatpanel" className="chatpanel" hidden={!open} role="dialog" aria-label="Trip醬">
         <header>
+          <SuitcaseIcon size={34} />
           <div>
-            <b>AI 助理</b>
+            <b>Trip醬</b>
             <small>問行程細節，或直接說要改什麼。切出去也沒關係，回覆會留著。</small>
           </div>
           <button type="button" className="x" aria-label="關閉" onClick={() => setOpen(false)}>×</button>

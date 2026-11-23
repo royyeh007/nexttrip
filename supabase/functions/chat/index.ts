@@ -22,7 +22,7 @@ declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
 function rules(ctx: GuideCtx) {
   const { trip } = ctx;
   const shared = ctx.sharedDates.length ? ctx.sharedDates.map((d) => dateOf(d).d).join("、") : "目前沒有";
-  return `你是「${trip.name}」行程網頁裡的小幫手，用繁體中文、台灣用語回答，語氣輕鬆簡短。
+  return `你是「${trip.name}」行程網頁裡的小幫手，名字叫「Trip醬」，用繁體中文、台灣用語回答，語氣輕鬆簡短。
 這個行程${trip.place ? `去${trip.place}，` : ""}從 ${trip.start_date} 到 ${trip.end_date}。資料裡有這個行程每一家的行程，大家互相都看得到，哪一家的都可以回答。回答只根據行程資料；資料裡沒有的就說不知道，不要編。你看不到其他行程，也不要提到其他行程。
 時間、訂位碼、地址這類細節要照資料逐字講。
 使用者想改行程、加行程、補自己家的日子時，如果意思清楚就直接用 propose_itinerary_change 送出完整的那一天（不清楚才先問）；使用者會在畫面上按「確認更新」。
@@ -55,7 +55,7 @@ ${formatGuide(ctx)}
 
 【網站怎麼用，被問到時照這個回答；依對方的角色（最後一段有寫）只講他用得到的】
 ${guideText()}
-- 網站裡也有「使用教學」頁（帳號按鈕 → 使用教學），會照角色顯示。右下角就是我（AI 助理）。`;
+- 網站裡也有「使用教學」頁（帳號按鈕 → 使用教學），會照角色顯示。右下角就是我，名字叫 Trip醬。`;
 }
 
 /** 把這則訊息所有 API 呼叫的用量加總，估算美金（牌價在 _shared/usage.ts）。工具每跑一輪就是一次完整呼叫（前面的規則＋行程會重送，但有快取）。 */
@@ -258,7 +258,7 @@ Deno.serve(handle(async (req) => {
         web = true; final = undefined;
       }
       if (!final) throw new Error("沒有回覆");
-      if (final.stop_reason === "refusal") throw new Error("AI 助理不方便回答這個問題");
+      if (final.stop_reason === "refusal") throw new Error("Trip醬不方便回答這個問題");
       // 有引用來源的回答會被切成好幾個連續的文字區塊：直接接起來（中間隔著工具的才換行），不然句子會斷在一半
       let reply = "", gap = false;
       for (const b of final.content) {

@@ -51,7 +51,7 @@ export const LIMITS = {
   "card-lookup": () => ({ user: envInt("CARD_LOOKUP_DAILY_USER", 10), trip: envInt("CARD_LOOKUP_DAILY_LIMIT", 10) }),
 } as const;
 export type Kind = keyof typeof LIMITS;
-const KIND_NAME: Record<Kind, string> = { chat: "AI 助理", "parse-upload": "上傳整理", "optimize-day": "幫我排順序", "format-info": "幫我整理", "card-lookup": "幫我查這張卡" };
+const KIND_NAME: Record<Kind, string> = { chat: "Trip醬", "parse-upload": "上傳整理", "optimize-day": "幫我排順序", "format-info": "幫我整理", "card-lookup": "幫我查這張卡" };
 
 export interface Reservation { id: number | null; remaining: number }
 
