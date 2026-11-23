@@ -42,6 +42,7 @@ export function HouseholdPanel() {
   const [ready, setReady] = useState<"loading" | "ok" | "notready" | "error">("loading");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [linking, setLinking] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false); // choosing a friend to add as a family member who has an account
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -67,6 +68,13 @@ export function HouseholdPanel() {
     await peopleApi.savePerson({ id: draft.id, name: draft.name.trim(), kind: draft.kind, age: ageOf(draft), birthday: draft.kind === "child" && draft.birthday ? draft.birthday : null, note: draft.note.trim() });
     setDraft(null);
   }, "已儲存");
+  // a friend with an account joins the list in one step: make the adult, then tie it to their account (undo the first half if the second fails)
+  const addFriend = (f: Person) => run(async () => {
+    const id = await peopleApi.savePerson({ id: null, name: f.name, kind: "adult", age: null, birthday: null, note: "" });
+    try { await peopleApi.linkAdult(id, f.user_id); }
+    catch (e) { await peopleApi.removePerson(id).catch(() => { /* leave it: it shows in the list and can be removed by hand */ }); throw e; }
+    setPicking(false);
+  }, `已經把 ${f.name} 加進來，他現在也能管理這份名單`);
   const accounts = house.people.filter((p) => p.user_id).length;
   const linkable = friends.filter((f) => !house.people.some((p) => p.user_id === f.user_id));
 
@@ -100,7 +108,23 @@ export function HouseholdPanel() {
             <button type="button" className="btn" disabled={busy} onClick={() => setDraft(null)}>取消</button>
           </div>
         </>
-      ) : <button type="button" className="btn primary" onClick={() => setDraft(blank)}>＋ 加一位家人</button>}
+      ) : picking ? (
+        <div className="pickfriend">
+          <p className="note">選一位好友：他會以大人的身分加進名單，之後他也能修改這份名單、勾選這趟誰會去。</p>
+          <div className="chips">
+            {linkable.map((f) => <button key={f.user_id} type="button" className="btn" disabled={busy} onClick={() => addFriend(f)}>{f.name}</button>)}
+          </div>
+          <div className="actions"><button type="button" className="btn" disabled={busy} onClick={() => setPicking(false)}>取消</button></div>
+        </div>
+      ) : (
+        <>
+          <div className="actions">
+            <button type="button" className="btn primary" onClick={() => setDraft(blank)}>＋ 加一位家人</button>
+            {linkable.length > 0 && <button type="button" className="btn" onClick={() => setPicking(true)}>＋ 加入有帳號的家人</button>}
+          </div>
+          {linkable.length === 0 && <p className="note">家裡另一位大人也有帳號？先和他互加好友（下面的「我的好友碼」），這裡就會多一個「加入有帳號的家人」，加進來之後他也能管理這份名單。</p>}
+        </>
+      )}
       {msg && <p className="note" role="status">{msg}</p>}
     </div>
   );

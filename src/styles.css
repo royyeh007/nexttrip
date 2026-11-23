@@ -1097,3 +1097,4 @@ nav.days{scroll-padding-inline:10px}
   .admin .row > .link{justify-self:start}
 }
 @media (max-width:560px){.plantable th:nth-child(-n+3),.plantable td:nth-child(-n+3){white-space:nowrap;overflow-wrap:normal}}
+.pickfriend .chips{display:flex;flex-wrap:wrap;gap:8px;margin-block:8px}
