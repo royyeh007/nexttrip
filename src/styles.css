@@ -1,19 +1,19 @@
-/* Layout: snow-paper page; day picker strip → one day's vertical route (stops joined by transport legs) → tap a stop to open a detail sheet */
+/* Colours: warm cream paper, navy ink, red and butter accents (the same family as the logo). Layout: cream page; day picker strip → one day's vertical route (stops joined by transport legs) → tap a stop to open a detail sheet */
 :root{
-  --paper:#eef2f6; --surface:#ffffff; --ink:#1b2740; --muted:#5b6880; --line:#d5dde7;
-  --ai:#2b4c86; --ai-soft:#e2e9f5; --shu:#c43d26; --shu-soft:#fae6e1; --pine:#2c6a52; --pine-soft:#e0efe8; --amber:#9a5b12; --amber-soft:#f8ecd9;
-  --shadow:0 10px 30px rgba(27,39,64,.12);
+  --paper:#faf4e8; --surface:#fffdf9; --ink:#1b2740; --muted:#6b6254; --line:#e6dcc8;
+  --ai:#2b4c86; --ai-soft:#e2e9f5; --shu:#c43d26; --shu-soft:#fae6e1; --pine:#2c6a52; --pine-soft:#e0efe8; --amber:#9a5b12; --amber-soft:#f6e2bd;
+  --shadow:0 10px 30px rgba(74,52,20,.13);
   --f-display:"Noto Serif TC","Songti TC",serif;
   --f-body:system-ui,-apple-system,"PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --paper:#0e1422; --surface:#172034; --ink:#e5eaf3; --muted:#9aa6bd; --line:#2a3550;
-  --ai:#8fb0ea; --ai-soft:#1e2c4a; --shu:#f0806a; --shu-soft:#3b211d; --pine:#80c9a9; --pine-soft:#173229; --amber:#e8b26a; --amber-soft:#36281a;
+  --paper:#191511; --surface:#241e18; --ink:#f2ebe0; --muted:#b5a996; --line:#3d3329;
+  --ai:#8fb0ea; --ai-soft:#2a3350; --shu:#f0806a; --shu-soft:#3b211d; --pine:#80c9a9; --pine-soft:#173229; --amber:#e8b26a; --amber-soft:#453217;
   --shadow:0 10px 30px rgba(0,0,0,.45); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --paper:#0e1422; --surface:#172034; --ink:#e5eaf3; --muted:#9aa6bd; --line:#2a3550;
-  --ai:#8fb0ea; --ai-soft:#1e2c4a; --shu:#f0806a; --shu-soft:#3b211d; --pine:#80c9a9; --pine-soft:#173229; --amber:#e8b26a; --amber-soft:#36281a;
+  --paper:#191511; --surface:#241e18; --ink:#f2ebe0; --muted:#b5a996; --line:#3d3329;
+  --ai:#8fb0ea; --ai-soft:#2a3350; --shu:#f0806a; --shu-soft:#3b211d; --pine:#80c9a9; --pine-soft:#173229; --amber:#e8b26a; --amber-soft:#453217;
   --shadow:0 10px 30px rgba(0,0,0,.45); color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
@@ -866,8 +866,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 
 /* ---- Logo：小行李箱和紙飛機（和主畫面圖示同一個圖），顏色跟著頁面的淺色／深色走 ---- */
 :root{--butter:#ffe7a8;--logo-red:#e9573f;--logo-trail:#fff}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--butter:#3a2f17;--logo-red:#f0806a;--logo-trail:#8d7b45}}
-:root[data-theme="dark"]{--butter:#3a2f17;--logo-red:#f0806a;--logo-trail:#8d7b45}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--butter:#4a3b1a;--logo-red:#f0806a;--logo-trail:#8d7b45}}
+:root[data-theme="dark"]{--butter:#4a3b1a;--logo-red:#f0806a;--logo-trail:#8d7b45}
 .logo{display:block;flex:none}
 .logo .l-tile{fill:var(--butter)}
 .logo .l-trail{fill:none;stroke:var(--logo-trail);stroke-width:9;stroke-linecap:round;stroke-dasharray:2 20}
@@ -908,3 +908,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 .icongrid label.on{border-color:var(--ai);background:var(--ai-soft);color:var(--ink);font-weight:700}
 .icongrid input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
 .icongrid label:has(input:focus-visible){outline:2px solid var(--ai);outline-offset:2px}
+/* 行程卡片：同一排的卡片一樣高時，文字一律從上面排下來（不要被撐開），角色那一行貼在卡片底部 */
+.tripcard{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.tripcard .tn{padding-right:0}
+.tripcard .td{display:flex;flex-wrap:wrap;gap:0 10px}
+.tripcard .td span{white-space:nowrap}
+.tripcard .tm{margin-top:auto;padding-top:8px}

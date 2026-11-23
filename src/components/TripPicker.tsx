@@ -76,7 +76,7 @@ export function TripPicker() {
               <button key={m.trip_id} type="button" className="tripcard" onClick={() => enterTrip(m.trip_id)}>
                 <TripIcon id={tripIconId(m.trip.settings)} size={48} />
                 <span className="tn">{m.trip.name}</span>
-                <span className="td">{dotDate(m.trip.start_date)} — {dotDate(m.trip.end_date)} ・ {tripLength(m.trip)} 天</span>
+                <span className="td"><span>{dotDate(m.trip.start_date)} — {dotDate(m.trip.end_date)}</span><span>{tripLength(m.trip)} 天</span></span>
                 {m.trip.place && <span className="tp">{m.trip.place}</span>}
                 <span className="tm">
                   {m.role === "admin" && <span className="tag admin">管理員</span>}
