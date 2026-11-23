@@ -42,7 +42,8 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
       const cur = fresh.filter((it): it is Stop => !isLeg(it));
       if (cur.map((s) => s.n).join("|") !== names) return null; // the day changed while we were looking
       const memoOf = new Map(cur.map((s) => [s.n, s.memo])); // keep notes added since the snapshot
-      return res.items.map((it) => (isLeg(it) ? it : { ...it, ...(memoOf.get(it.n)?.length ? { memo: memoOf.get(it.n) } : {}) }));
+      const peopleOf = new Map(cur.map((s) => [s.n, s.people])); // and who takes part
+      return res.items.map((it) => (isLeg(it) ? it : { ...it, ...(memoOf.get(it.n)?.length ? { memo: memoOf.get(it.n) } : {}), ...(peopleOf.get(it.n) ? { people: peopleOf.get(it.n) } : {}) }));
     });
     setBusy(null);
     if (e) { setErr(e.startsWith("這個地點") ? "這一天剛剛被別人改過了，請關掉重新計算" : e); return; }

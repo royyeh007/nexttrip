@@ -73,7 +73,7 @@ function HomeMenu() {
       </summary>
       <div className="list">
         <small>{session?.user.email}</small>
-        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・好友</button>
+        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・家人・好友</button>
         <button type="button" onClick={() => { close(); document.getElementById("guide-home")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><MenuIcon name="guide" />使用教學</button>
         <button type="button" onClick={signOut}><MenuIcon name="signout" />登出</button>
       </div>

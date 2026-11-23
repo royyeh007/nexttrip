@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import { StopPeopleChip } from "./PeopleView";
 import { canEdit, isLeg, isViewer } from "../data";
 import { DayWeatherPanel } from "./Weather";
 import type { WeatherState } from "../useWeather";
@@ -53,7 +54,7 @@ function LegRow({ leg, done, date }: { leg: LinkedLeg; done?: boolean; date?: st
   );
 }
 
-function StopRow({ stop, done, date, onOpen }: { stop: Stop; done?: boolean; date?: string; onOpen: () => void }) {
+function StopRow({ stop, done, date, day, onOpen }: { stop: Stop; done?: boolean; date?: string; day: Day; onOpen: () => void }) {
   const sub = stop.s || stop.book?.[0] || stop.rec?.[0] || "";
   return (
     <li className={`stop${done ? " done" : ""}`}>
@@ -65,6 +66,7 @@ function StopRow({ stop, done, date, onOpen }: { stop: Stop; done?: boolean; dat
         <div className="row">
           {stop.st && <span className={`seal ${stop.st}`}>{SEAL[stop.st]}</span>}
           {stop.who && <span className="who">{stop.who}</span>}
+          <StopPeopleChip stop={stop} day={day} />
           {stop.ref && <span className="tag trip">↗ {stop.ref.name}</span>}
           <CardChip kind={stop.k} date={date} />
           {stop.memo && stop.memo.length > 0 && <span className="memo-n">備註 {stop.memo.length}</span>}
@@ -92,7 +94,7 @@ export function Timeline({ day, onOpen }: { day: Day; onOpen?: (s: Stop, arrive?
           {isLeg(it) ? (
             <LegRow leg={legs.get(i)!} done={isToday && i <= lastDone} date={day.id} />
           ) : (
-            <StopRow stop={it} done={isToday && i <= lastDone} date={day.id} onOpen={() => onOpen?.(it, arrive.get(i))} />
+            <StopRow stop={it} done={isToday && i <= lastDone} date={day.id} day={day} onOpen={() => onOpen?.(it, arrive.get(i))} />
           )}
           {isToday && i === lastDone && line}
         </Fragment>

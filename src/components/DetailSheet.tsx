@@ -13,6 +13,7 @@ import { KIND_NAME, SEAL } from "../labels";
 import { editDayItems, findStop, removeStopAt, sameDayRow, sortByTime } from "../dayEdit";
 import { CardSection } from "./CardPick";
 import { SuitcaseIcon } from "./Logo";
+import { StopPeople } from "./PeopleView";
 
 function Copy({ value }: { value: string }) {
   const [done, setDone] = useState(false);
@@ -340,6 +341,7 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
                 </div>
               )}
               <RefPanel stop={stop} day={day} />
+              <StopPeople day={day} stop={stop} />
               {arrive && <div className="sec"><h4>怎麼去</h4><p>{arrive.txt}</p></div>}
               {(departLeg || nextStop) && (
                 <div className="sec">

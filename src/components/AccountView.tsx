@@ -7,6 +7,7 @@ import { NotReady, friendCodeOf, friendLink, friendsApi, refreshInvitations, use
 import type { Person, Profile, SentInvitation, TripInvitation } from "../friends";
 import { TripIcon, tripIconId } from "../tripIcons";
 import { LogoMark, Wordmark } from "./Logo";
+import { HouseholdPanel } from "./PeopleView";
 
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const PersonLine = ({ p }: { p: Person }) => <span className="pname"><b>{p.name}</b>{p.email && <small>{p.email}</small>}</span>;
@@ -63,7 +64,7 @@ function AccountView() {
 
   return (
     <>
-      <section className="dayhead"><h2>帳號・好友</h2><p className="note">{session?.user.email}</p></section>
+      <section className="dayhead"><h2>帳號・家人・好友</h2><p className="note">{session?.user.email}</p></section>
       {state === "loading" && <p className="note">載入中…</p>}
       {state === "notready" && <div className="panel"><p className="note">好友和帳號設定要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。</p></div>}
       {state === "error" && <div className="panel"><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>再試一次</button></div>}
@@ -77,6 +78,8 @@ function AccountView() {
               <button type="button" className="btn" disabled={busy || name.trim() === profile.name} onClick={() => run(async () => { await friendsApi.setName(name.trim()); return "已儲存"; })}>儲存</button>
             </div>
           </div>
+
+          <HouseholdPanel />
 
           <div className="panel admin">
             <h3>我的好友碼</h3>

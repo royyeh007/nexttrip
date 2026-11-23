@@ -95,7 +95,8 @@ export function TripProvider({ children }: { children: ReactNode }) {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [membershipsLoaded, setMembershipsLoaded] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  // reloading while on the trip picker stays on the picker (the browser keeps this entry's label across a reload)
+  const [pickerOpen, setPickerOpen] = useState(() => !!navMark()?.jpPicker);
   const [invite, setInviteState] = useState<string | null>(() => storedInvite());
   const [trip, setTrip] = useState<TripData>(EMPTY);
   const [tripLoaded, setTripLoaded] = useState(false);

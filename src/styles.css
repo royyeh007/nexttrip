@@ -949,3 +949,23 @@ svg.wordmark .wm-dot{fill:var(--logo-red)}
 .gicon svg{display:block}
 .gbtn .suitcase,.gicon .suitcase,.btn:not(.primary) .suitcase{color:var(--ink)}
 .gbtn:not(.static):hover .suitcase{color:var(--surface)}
+/* ---- 我的家人、這趟誰會去、地點的誰參加 ---- */
+.pname b .tag{margin-left:6px;font-size:.68rem;vertical-align:1px}
+.linkrow{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:6px 0 2px}
+.linkrow .note{margin:0;flex-basis:100%}
+.panel h3 .hc{font-family:var(--f-body);font-weight:400;font-size:.8rem;color:var(--muted);margin-left:10px}
+.pickpeople{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-block:10px}
+.pickpeople label{display:flex !important;flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;color:var(--ink) !important;font-size:.9rem !important}
+.pickpeople label.on{border-color:var(--ai);background:var(--ai-soft)}
+.pickpeople input{width:18px;height:18px;flex:none;accent-color:var(--ai)}
+.pickpeople span{display:grid;line-height:1.25;min-width:0}
+.pickpeople small{color:var(--muted);font-size:.76rem}
+.peoplebanner{display:block;margin:12px 0 0;padding:10px 14px;border-radius:12px;background:var(--butter);color:var(--ink);font-weight:700;font-size:.9rem;text-decoration:none}
+.stoppeople .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.stoppeople .chips small{color:var(--muted);font-size:.76rem;margin-right:2px}
+.chip{all:unset;box-sizing:border-box;font-size:.84rem;padding:4px 11px;border-radius:999px;border:1.5px dashed var(--line);color:var(--muted);text-decoration:line-through}
+button.chip{cursor:pointer}
+.chip.on{border-style:solid;border-color:var(--ai);background:var(--ai-soft);color:var(--ink);text-decoration:none;font-weight:700}
+button.chip:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.copybtn{all:unset;cursor:pointer;font-size:.76rem;color:var(--ai);border:1px solid var(--line);border-radius:6px;padding:1px 8px;margin-left:6px}
+.stoppeople .note{margin:8px 0 0;font-size:.8rem}

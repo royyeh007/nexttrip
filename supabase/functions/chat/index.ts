@@ -149,7 +149,10 @@ Deno.serve(handle(async (req) => {
         families: fams,
         days: sortedDays,
       };
+      // 這趟誰會去（每一家有誰、大人或小孩、旅行第一天幾歲、備註）。資料庫還沒升級時這個函式不存在：當作沒有這份資料。
+      const { data: goers } = await user.rpc("trip_people_list", { p_trip: trip.id });
       const side = {
+        people: ((goers as { family_id: string; name: string; kind: string; age: number | null; note: string }[] | null) ?? []).map((p) => ({ family: p.family_id, name: p.name, kind: p.kind, age: p.age, note: p.note })),
         notes: extrasMap.notes ?? {},
         todos: todos ?? [],
         contacts: contacts ?? [],
@@ -159,7 +162,7 @@ Deno.serve(handle(async (req) => {
       // 看起來要上網查的問題，一開始就掛上網工具；沒猜到的，Claude 會用 lookup_online 要求換模式
       const needsLookup = /https?:\/\//i.test(text) || /(這家|這間|這個地方|哪裡|在哪|怎麼去|怎麼走|營業|幾點開|開到幾點|公休|推薦|好吃|值得|查一下|幫我查|上網|搜尋|評價|排隊|天氣|匯率|門票|價位|多少錢)/.test(text);
       // 省 token：地圖搜尋字 q 和空值不送（確認更新時會自動保留原本的 q）
-      const slim = (k: string, v: unknown) => (k === "q" || k === "ll" || k === "ref" || v == null || v === "" || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      const slim = (k: string, v: unknown) => (k === "q" || k === "ll" || k === "ref" || k === "people" && Array.isArray(v) && typeof v[0] === "string" || v == null || v === "" || (Array.isArray(v) && v.length === 0) ? undefined : v);
       const cache = cacheFor(trip);
 
       const proposals: { id: string; proposal: unknown }[] = [];
@@ -231,7 +234,7 @@ Deno.serve(handle(async (req) => {
           { type: "text", text: rules(guideCtx) },
           // 行程資料：同一個行程的人相同，快取共用（改行程會自動失效）
           { type: "text", text: `目前的行程資料（JSON）：\n${JSON.stringify(context, slim)}`, cache_control: cache },
-          { type: "text", text: `備註、待辦、聯絡資料、「其他資訊」的分頁清單（JSON）：\n${JSON.stringify(side, slim)}`, cache_control: cache },
+          { type: "text", text: `這趟誰會去（people：每個人是哪一家 family、大人 adult 或小孩 child、旅行第一天的年齡 age、備註 note；被問到幾個人、幾大幾小、小孩幾歲、飲食禁忌時用這份，沒有這份就說還沒有人勾選）、備註、待辦、聯絡資料、「其他資訊」的分頁清單（JSON）：\n${JSON.stringify(side, slim)}`, cache_control: cache },
           { type: "text", text: `今天是 ${today}。現在跟你說話的是 ${who}（${fams.find((f) => f.id === member.family_id)?.label ?? member.family_id}${member.role === "admin" ? "，這個行程的管理員" : ""}）。${cardLine}` },
         ],
         // 上網的兩個工具定義就要 6,500 token，一般問題不掛（前置內容少 23%）

@@ -22,6 +22,7 @@ import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
 import { MenuIcon, PaperPlane, PersonIcon } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
 import { AccountPage } from "./components/AccountView";
+import { PeopleBanner, PeopleView } from "./components/PeopleView";
 import { useInvitations, usePendingFriend } from "./friends";
 import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
@@ -38,7 +39,7 @@ const store = {
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } },
 };
 
-const PAGES = ["overview", "todo", "upload", "info", "cards", "admin", "guide"];
+const PAGES = ["overview", "todo", "upload", "info", "cards", "admin", "guide", "people"];
 function currentView(dayIds: string[], dayKey: string, todayId?: string) {
   const h = location.hash.slice(1);
   if (PAGES.includes(h) || dayIds.includes(h)) return h;
@@ -200,7 +201,8 @@ function TripMenu() {
       <div className="list">
         <small>{member?.name ?? member?.email}</small>
         <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />切換行程{pending > 0 && <b className="badge">{pending} 個邀請</b>}</button>
-        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・好友</button>
+        <a href="#people" onClick={close}><MenuIcon name="people" />這趟誰會去</a>
+        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・家人・好友</button>
         {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />管理這個行程</a>}
         <a href="#cards" onClick={close}><MenuIcon name="cards" />我的信用卡</a>
         <a href="#guide" onClick={close}><MenuIcon name="guide" />使用教學</a>
@@ -383,6 +385,7 @@ function Main() {
               <button type="button" className="link" onClick={() => setMode("all")}>看所有家</button>
             </p>
           )}
+          {view !== "people" && <PeopleBanner />}
           {adding && <AddDay family={fam} onDone={(id) => { setAdding(false); if (id) location.hash = `#${id}`; }} />}
           {view === "overview" ? <Overview onOpen={(day, stop, arrive) => setSelected({ day, stop, arrive })} />
             : view === "todo" ? <TodoView />
@@ -391,6 +394,7 @@ function Main() {
             : view === "cards" ? <CardsView />
             : view === "admin" ? <AdminView />
             : view === "guide" ? <GuideView role={member?.role ?? "member"} />
+            : view === "people" ? <PeopleView />
             : cur && mode === "all" ? <AllFamiliesDay dateId={cur.id} onOpen={(day, stop, arrive) => setSelected({ day, stop, arrive })} />
             : cur ? <DayView key={`${cur.id}|${(cur.fam ?? []).join(",")}|${fam.id}`} day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
             : !adding && (
