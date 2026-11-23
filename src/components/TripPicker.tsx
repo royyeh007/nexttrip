@@ -5,6 +5,7 @@ import { dotDate, tripLength } from "../data";
 import { fillTripDays } from "../days";
 import { GuideView } from "./GuideView";
 import { LogoMark } from "./Logo";
+import { TripIcon, tripIconId } from "../tripIcons";
 
 function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
   const { session } = useTrip();
@@ -73,6 +74,7 @@ export function TripPicker() {
           <div className="tripcards">
             {memberships.map((m) => (
               <button key={m.trip_id} type="button" className="tripcard" onClick={() => enterTrip(m.trip_id)}>
+                <TripIcon id={tripIconId(m.trip.settings)} size={48} />
                 <span className="tn">{m.trip.name}</span>
                 <span className="td">{dotDate(m.trip.start_date)} — {dotDate(m.trip.end_date)} ・ {tripLength(m.trip)} 天</span>
                 {m.trip.place && <span className="tp">{m.trip.place}</span>}

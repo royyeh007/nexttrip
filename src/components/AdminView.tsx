@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TRIP_ICONS, TripIcon, tripIconId } from "../tripIcons";
 import { supabase } from "../supabase";
 import { removeTripImages } from "../images";
 import { useTrip } from "../trip";
@@ -236,34 +237,42 @@ function Settings() {
   const [end, setEnd] = useState(current?.end_date ?? "");
   const [place, setPlace] = useState(current?.place ?? "");
   const [tz, setTz] = useState(current?.tz ?? "Asia/Tokyo");
+  const [icon, setIcon] = useState(tripIconId(current?.settings));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [confirmName, setConfirmName] = useState("");
   // What the form was filled from. The trip can change while this page is open (dates widened by confirming a proposal,
   // another admin renaming it): fields the person has not touched follow along, and saving sends only what they changed.
-  const base = useRef({ name: current?.name ?? "", start: current?.start_date ?? "", end: current?.end_date ?? "", place: current?.place ?? "", tz: current?.tz ?? "Asia/Tokyo" });
+  const base = useRef({ name: current?.name ?? "", start: current?.start_date ?? "", end: current?.end_date ?? "", place: current?.place ?? "", tz: current?.tz ?? "Asia/Tokyo", icon: tripIconId(current?.settings) });
   useEffect(() => {
     if (!current) return;
-    const b = base.current, now = { name: current.name, start: current.start_date, end: current.end_date, place: current.place, tz: current.tz || "Asia/Tokyo" };
+    const b = base.current, now = { name: current.name, start: current.start_date, end: current.end_date, place: current.place, tz: current.tz || "Asia/Tokyo", icon: tripIconId(current.settings) };
     if (name === b.name) setName(now.name);
     if (start === b.start) setStart(now.start);
     if (end === b.end) setEnd(now.end);
     if (place === b.place) setPlace(now.place);
     if (tz === b.tz) setTz(now.tz);
+    if (icon === b.icon) setIcon(now.icon);
     base.current = now;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-sync only when the trip itself changes, not on every keystroke
   }, [current]);
   const save = async () => {
     if (!supabase || !current) return;
     const b = base.current;
-    const changes: Record<string, string> = {};
+    const changes: Record<string, unknown> = {};
     if (name.trim() !== b.name) changes.name = name.trim().slice(0, 80);
     if (start !== b.start) changes.start_date = start;
     if (end !== b.end) changes.end_date = end;
     if (place.trim() !== b.place) changes.place = place.trim().slice(0, 200);
     if (tz !== b.tz) changes.tz = tz;
-    if (Object.keys(changes).length === 0) { setMsg("沒有改動"); return; }
+    if (Object.keys(changes).length === 0 && icon === b.icon) { setMsg("沒有改動"); return; }
     setBusy(true); setMsg(null);
+    if (icon !== b.icon) {
+      // the picture lives inside `settings` next to other things (the weather places): read the row again and change only this key
+      const { data: fresh, error: e0 } = await supabase.from("trips").select("settings").eq("id", current.id).single();
+      if (e0) { setMsg(e0.message); setBusy(false); return; }
+      changes.settings = { ...((fresh?.settings as Record<string, unknown> | null) ?? {}), icon };
+    }
     const { error } = await supabase.from("trips").update(changes).eq("id", current.id);
     if (error) { setMsg(error.message); setBusy(false); return; }
     // dates extended → add the missing empty days
@@ -300,6 +309,18 @@ function Settings() {
             <select value={tz} onChange={(e) => setTz(e.target.value)}>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
           </label>
         </div>
+        <fieldset className="iconpick">
+          <legend>行程圖案（顯示在行程名稱旁邊和「我的行程」的卡片上）</legend>
+          <div className="icongrid">
+            {TRIP_ICONS.map((i) => (
+              <label key={i.id} className={i.id === icon ? "on" : undefined}>
+                <input type="radio" name="tripicon" value={i.id} checked={i.id === icon} onChange={() => setIcon(i.id)} />
+                <TripIcon id={i.id} size={56} />
+                <span>{i.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <div className="actions">
           <button type="button" className="btn primary" onClick={save} disabled={busy || !name.trim() || !start || !end || end < start}>{busy ? "儲存中…" : "儲存"}</button>
           {msg && <span className="note" style={{ margin: 0 }}>{msg}</span>}

@@ -19,7 +19,8 @@ import { GuideView } from "./components/GuideView";
 import { CardsView } from "./components/CardsView";
 import { QuickPickFab } from "./components/QuickPick";
 import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
-import { LogoMark, PaperPlane } from "./components/Logo";
+import { PaperPlane } from "./components/Logo";
+import { TripIcon, tripIconId } from "./tripIcons";
 import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
 import { TripPicker } from "./components/TripPicker";
@@ -287,7 +288,7 @@ function Main() {
             {first && last ? `${dotDate(first.id)} — ${dotDate(last.id)} ・ ${famDays.length} 天` : current ? `${dotDate(current.start_date)} — ${dotDate(current.end_date)}` : ""}
             {current?.place && ` ・ ${current.place}`}
           </div>
-          <div className="titlerow"><LogoMark size={44} /><h1>{current?.name ?? "行程"}</h1></div>
+          <div className="titlerow"><TripIcon id={tripIconId(current?.settings)} size={48} /><h1>{current?.name ?? "行程"}</h1></div>
           {route.length > 0 && (
             <div className="route">
               <PaperPlane />

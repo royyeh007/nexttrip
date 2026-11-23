@@ -59,7 +59,8 @@ export function daysFor(days: Day[], f: FamilyId): Day[] {
 export type Role = "member" | "admin" | "viewer";
 export const ROLE_LABEL: Record<Role, string> = { admin: "管理員", member: "成員", viewer: "觀察員" };
 export const isViewer = (m: { role: Role } | null | undefined) => m?.role === "viewer";
-export interface TripSettings { day_places?: Record<string, string[]> }
+/** `icon`: the picture the admin picked for this trip (an id from src/tripIcons.tsx). */
+export interface TripSettings { day_places?: Record<string, string[]>; icon?: string }
 export interface Trip { id: string; name: string; start_date: string; end_date: string; place: string; tz: string; settings: TripSettings; created_by?: string | null; created_at?: string }
 /** One row of `members` (this person in one trip). */
 export interface Member { trip_id: string; user_id: string; email: string | null; family_id: FamilyId; role: Role; name: string | null; last_opened_at?: string | null }
