@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { Backdrop } from "./components/Backdrop";
 import { TripProvider } from "./trip";
 import { captureInvite } from "./supabase";
 import { captureFriend } from "./friends";
@@ -25,6 +26,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <TripProvider>
+      <Backdrop />
       <App />
     </TripProvider>
   </StrictMode>,

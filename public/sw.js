@@ -1,5 +1,5 @@
 // Service worker：讓網站在沒訊號時也打得開（旅行時在店裡、地下鐵、機艙裡）。
-// 只管「這個網站自己的檔案」：頁面、程式、樣式、優惠券的圖和店家清單。Supabase、Google 字型、地圖一律不碰。
+// 只管「這個網站自己的檔案」：頁面、程式、樣式、優惠券的圖和店家清單，加上 Google Fonts 的字型。Supabase、地圖一律不碰。
 // 行程資料的離線版本不在這裡：那是 App 自己存在 localStorage 的（src/trip.tsx）。
 //
 // 策略
@@ -8,8 +8,9 @@
 //   coupons/、圖示       先給存的、背景再更新一次
 // 要讓所有人的快取全部重來：把 VERSION 加一。
 const VERSION = "v1";
+const FONTS = "fonts-v1"; // Google Fonts 的樣式表和字型檔：載過就留著，沒訊號時也是同一個字型
 const PAGE = `page-${VERSION}`, ASSETS = `assets-${VERSION}`, STATIC = `static-${VERSION}`;
-const KEEP = [PAGE, ASSETS, STATIC];
+const KEEP = [PAGE, ASSETS, STATIC, FONTS];
 const SCOPE = new URL(self.registration.scope);
 
 self.addEventListener("install", (e) => {
@@ -66,10 +67,31 @@ async function staleWhileRevalidate(req, name, event) {
   return refresh;
 }
 
+// 別的網站的回應可能是「不透明」的（讀不到狀態）：照存照用；明確失敗的不存
+const usable = (res) => res && (res.ok || res.type === "opaque");
+async function fontCss(req, event) {
+  const cache = await caches.open(FONTS);
+  const hit = await cache.match(req);
+  const refresh = fetch(req).then((res) => { if (usable(res)) cache.put(req, res.clone()); return res; });
+  if (hit) { event.waitUntil(refresh.catch(() => {})); return hit; }
+  return refresh;
+}
+async function fontFile(req) {
+  const cache = await caches.open(FONTS);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (usable(res)) cache.put(req, res.clone());
+  return res;
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // 字型：樣式表先給存的、背景再更新（它列出要下載哪些字型檔）；字型檔本身不會變，存了就直接用
+  if (url.hostname === "fonts.googleapis.com") { e.respondWith(fontCss(req, e)); return; }
+  if (url.hostname === "fonts.gstatic.com") { e.respondWith(fontFile(req)); return; }
   if (url.origin !== SCOPE.origin || !url.pathname.startsWith(SCOPE.pathname)) return;
   const rel = url.pathname.slice(SCOPE.pathname.length);
   if (req.mode === "navigate" || rel === "" || rel === "index.html") e.respondWith(pageFirstNetwork(req));

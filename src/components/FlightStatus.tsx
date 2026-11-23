@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ModeIcon } from "../icons";
 import { invoke } from "../supabase";
 import { useNow } from "../now";
 import { tripRange } from "../data";
@@ -154,7 +155,7 @@ export function FlightCard({ text, date }: { text: string; date?: string }) {
   return (
     <div className={`flightcard ${tone}`}>
       <div className="fc-top">
-        <span className="fc-code">✈ {f.airlineName && f.airlineName !== f.code ? `${f.airlineName} ` : ""}{f.code}</span>
+        <span className="fc-code"><ModeIcon mode="flight" />{f.airlineName && f.airlineName !== f.code ? `${f.airlineName} ` : ""}{f.code}</span>
         {(status || delay) && <span className={`fc-status ${tone}`}>{status}{delay && status !== delay ? `・${delay}` : ""}</span>}
         {!isLive && today && res && res.statuses.length > 0 && <span className="fc-status">今天的即時資料載入中</span>}
       </div>
@@ -166,7 +167,7 @@ export function FlightCard({ text, date }: { text: string; date?: string }) {
         </div>
       )}
       <div className="fc-gate">
-        <span className="fc-big">{gateLabel}</span>
+        <span className={`fc-big${gate ? "" : " quiet"}`}>{gateLabel}</span>
         {dep?.terminal && <span className="fc-mid">T{dep.terminal}</span>}
         {isLive && dep?.counter && <span className="fc-mid">櫃台 {dep.counter}</span>}
         {isLive && arr?.baggage && <span className="fc-mid">行李轉盤 {arr.baggage}</span>}

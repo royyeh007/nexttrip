@@ -19,7 +19,7 @@ import { openForm } from "../form";
 import { supabase } from "../supabase";
 import { whereDay } from "../dayEdit";
 import { useTrip } from "../trip";
-import { toMinutes, useNow, useNowLine } from "../now";
+import { fakeNow, setNowLine, startPreview, toMinutes, useNow, useNowLine } from "../now";
 import { CardChip } from "./CardPick";
 
 function LegRow({ leg, done, date }: { leg: LinkedLeg; done?: boolean; date?: string }) {
@@ -172,6 +172,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   const [editMeta, setEditMeta] = useState(false);
   const [addingStop, setAddingStop] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const now = useNow();
   const menuRef = useRef<HTMLDetailsElement>(null);
   const closeMenu = () => { if (menuRef.current) menuRef.current.open = false; };
   const users = rowFamilies(trip.days, trip.families, day); // the families that see this very row
@@ -218,12 +219,13 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
         <div className="meta">
           <span>{day.d}（{day.w}）</span>
           <span className="hotel">{hotelFor(day, family.id) ? `住 ${hotelFor(day, family.id)}` : ""}</span>
-          {(editable || canDelete) && (
+          {(editable || canDelete || !empty) && (
             <details className="daymenu" ref={menuRef}>
               <summary aria-label="這一天的其他功能" title="改標題、優化順序、刪除"><MenuIcon name="more" size={18} /></summary>
               <div className="list">
                 {editable && <button type="button" onClick={() => { closeMenu(); openMeta(); }}><MenuIcon name="rename" />改標題／城市／住宿</button>}
                 {canOptimize && <button type="button" onClick={() => { closeMenu(); setOptimizing((v) => !v); }}><MenuIcon name="swap" />優化順序</button>}
+                {!fakeNow() && now.date !== day.id && !empty && <button type="button" onClick={() => { closeMenu(); setNowLine(true); startPreview(day.id, now.hhmm, `#${day.id}`); }}><MenuIcon name="eye" />預覽旅行當天的樣子</button>}
                 {canDelete && <button type="button" className="danger" onClick={() => { closeMenu(); remove(); }}><MenuIcon name="leave" />刪除這天</button>}
               </div>
             </details>

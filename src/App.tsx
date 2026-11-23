@@ -254,6 +254,11 @@ function Main() {
   const [selected, setSelected] = useState<Selected | null>(null);
   const [adding, setAdding] = useState(false);
   const wx = useWeather(current, trip.days);
+  // from the day before leaving until the last day: that is when flight status and the "now" line are worth the room
+  const daysApart = (a: string, b: string) => (Date.parse(a + "T00:00:00Z") - Date.parse(b + "T00:00:00Z")) / 86_400_000;
+  const travelling = !!current && daysApart(todayId, current.start_date) >= -1 && daysApart(todayId, current.end_date) <= 0;
+  const [flightsPick, setFlightsOpen] = useState<boolean | null>(null);
+  const flightsOpen = flightsPick ?? travelling;
 
   useEffect(() => {
     const onHash = () => { setSelected(null); setAdding(false); setView(currentView(idsRef.current, dayKey)); window.scrollTo({ top: 0 }); };
@@ -286,12 +291,13 @@ function Main() {
 
   const close = useCallback(() => setSelected(null), []);
   const cur = days.find((d) => d.id === view);
+  const othersToday = cur ? othersOwn.filter(({ ds }) => ds.includes(cur.d)).map(({ f }) => trip.families.find((x) => x.id === f)?.label ?? f) : [];
   const first = famDays[0], last = famDays[famDays.length - 1];
 
   return (
     <>
       <div className="wrap">
-        <header className="hero">
+        <header className={`hero${PAGES.includes(view) ? " compact" : ""}`}>
           <div className="fambar">
             <span className="fampill">{fam.label}</span>
             <select className="famselect" value={viewFam} aria-label="看哪一家的行程" onChange={(e) => setViewFam(e.target.value as FamilyId)}>
@@ -317,8 +323,9 @@ function Main() {
               ? fam.flights.map((f) => <span key={f} className="flight">{f}</span>)
               : <span className="flight muted">去回航班待補</span>}
             {trip.notes.shared && <span className="flight">{trip.notes.shared}</span>}
+            {fam.flights.length > 0 && <button type="button" className="link flighttoggle" aria-expanded={flightsOpen} onClick={() => setFlightsOpen(!flightsOpen)}>{flightsOpen ? "收起航班狀態" : "航班狀態"}<span aria-hidden="true">{flightsOpen ? " ▴" : " ▾"}</span></button>}
           </div>
-          {fam.flights.length > 0 && (
+          {fam.flights.length > 0 && flightsOpen && (
             <div className="flightlive">
               {fam.flights.map((f) => <FlightStatus key={f} text={f} />)}
             </div>
@@ -367,7 +374,7 @@ function Main() {
                 <button type="button" className={mode === "one" ? "on" : ""} onClick={() => setMode("one")}>只看 {fam.label}</button>
                 <button type="button" className={mode === "all" ? "on" : ""} onClick={() => setMode("all")}>看所有家</button>
               </div>
-              <div className="nowctl">
+              {(travelling || !!fakeNow()) && <div className="nowctl">
                 <label className="switch" title="旅行當天打開時，行程上會有一條標示現在時間的線">
                   <input type="checkbox" checked={nowLine} onChange={(e) => setNowLine(e.target.checked)} />
                   <span className="track" aria-hidden="true" />
@@ -376,12 +383,12 @@ function Main() {
                 {nowLine && !fakeNow() && cur && todayId !== cur.id && (
                   <button type="button" className="link" onClick={() => startPreview(cur.id, now.hhmm, `#${cur.id}`)}>旅行當天才會出現・預覽</button>
                 )}
-              </div>
+              </div>}
             </div>
           )}
-          {!PAGES.includes(view) && mode === "one" && othersOwn.length > 0 && (
+          {!PAGES.includes(view) && mode === "one" && cur && othersToday.length > 0 && (
             <p className="note othersown">
-              {othersOwn.map(({ f, ds }) => `${trip.families.find((x) => x.id === f)?.label ?? f}在 ${ds.join("、")} 有自己的版本`).join("；")}。
+              {othersToday.join("、")}這一天有自己的版本。
               <button type="button" className="link" onClick={() => setMode("all")}>看所有家</button>
             </p>
           )}

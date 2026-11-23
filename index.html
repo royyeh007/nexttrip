@@ -14,14 +14,14 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!--
-      字型：內文用手機內建的中文字型（iPhone 的蘋方、Android 的思源黑體），不下載。
-      只有標題用的 Noto Serif TC 和數字用的 IBM Plex Mono 從 Google Fonts 載，而且不擋住畫面：
-      先用內建字型顯示，字型到了再換上。（原本連內文的 Noto Sans TC 三個字重都下載，樣式表本身就 600 多 KB，還會擋住第一次顯示。）
+      字型：全站用圓體「Chiron GoRound TC」（昭源圓體，繁體中文，和 logo 的圓頭線條同一種感覺），從 Google Fonts 載。
+      它是可變字重的一套檔案（細到粗都在裡面），而且切成一百多塊，只下載頁面上用到的字那幾塊。
+      不擋住畫面：先用手機內建的字型顯示，字型到了再換上。載過之後 service worker 會留一份，沒訊號時也是圓體。
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=IBM+Plex+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'" />
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=IBM+Plex+Mono:wght@500;600&display=swap" /></noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@200..900&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@200..900&display=swap" /></noscript>
     <title>Next Trip</title>
   </head>
   <body>

@@ -8,6 +8,7 @@ import type { Person, Profile, SentInvitation, TripInvitation } from "../friends
 import { TripIcon, tripIconId } from "../tripIcons";
 import { LogoMark, Wordmark } from "./Logo";
 import { HouseholdPanel } from "./PeopleView";
+import { setBackdropOn, useBackdropOn } from "./Backdrop";
 
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const PersonLine = ({ p }: { p: Person }) => <span className="pname"><b>{p.name}</b>{p.email && <small>{p.email}</small>}</span>;
@@ -32,6 +33,7 @@ export function AccountPage() {
 /** 帳號・好友的內容：顯示名稱、好友碼、好友清單、同行的人。 */
 function AccountView() {
   const { session } = useTrip();
+  const backdropOn = useBackdropOn();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [friends, setFriends] = useState<Person[]>([]);
   const [others, setOthers] = useState<Person[]>([]);
@@ -80,6 +82,14 @@ function AccountView() {
           </div>
 
           <HouseholdPanel />
+
+          <div className="panel admin">
+            <h3>外觀</h3>
+            <label className="setrow">
+              <span><b>會動的背景</b><small>頁面最上面那一幅小風景，依行程的地點和季節自動換。只影響這支手機。</small></span>
+              <span className="switch"><input type="checkbox" checked={backdropOn} onChange={(e) => setBackdropOn(e.target.checked)} /><span className="track" aria-hidden="true" /></span>
+            </label>
+          </div>
 
           <div className="panel admin">
             <h3>我的好友碼</h3>
