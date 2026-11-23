@@ -14,7 +14,7 @@ export const ROLE_SUMMARY: Record<GuideRole, string> = {
 };
 /** The handful of things each role will press most often, shown at the top of the guide. */
 export const QUICK_START: Record<GuideRole, GuideAction[]> = {
-  admin: [{ target: "admin", label: "⚙ 管理行程" }, { target: "upload", label: "↑ 上傳行程" }, { target: "chat", label: "🧳 Trip醬" }, { target: "overview", label: "☷ 總覽" }],
+  admin: [{ target: "admin", label: "⚙ 管理這個行程" }, { target: "upload", label: "↑ 上傳行程" }, { target: "chat", label: "🧳 Trip醬" }, { target: "overview", label: "☷ 總覽" }],
   member: [{ target: "overview", label: "☷ 總覽" }, { target: "upload", label: "↑ 上傳行程" }, { target: "chat", label: "🧳 Trip醬" }, { target: "todo", label: "✓ 待辦・聯絡" }],
   viewer: [{ target: "overview", label: "☷ 總覽" }, { target: "todo", label: "✓ 待辦・聯絡" }],
 };
@@ -79,7 +79,7 @@ export const GUIDE: GuideSection[] = [
     { text: "問到「其他資訊」裡的主題（退稅、入境……）時，它會先去讀那一頁再回答；有用的回答可以按「存到其他資訊」留下來。" },
     { text: "送出問題後切去別的 App 沒關係，回覆會留在對話裡；「清除對話」只清自己在這個行程的紀錄。" },
   ] },
-  { id: "admin", icon: "⚙", title: "管理行程", lead: "只有管理員看得到這一頁。", roles: ["admin"], items: [
+  { id: "admin", icon: "⚙", title: "管理這個行程", lead: "只有管理員看得到這一頁。", roles: ["admin"], items: [
     { text: "[[admin|⚙ 管理]] → 團員：改每個人的家庭和角色（管理員／成員／觀察員），或移除。每個行程至少要有一位管理員。" },
     { text: "[[admin|⚙ 管理]] → 行程設定 → 行程圖案：挑一個代表這趟旅行的圖案（行李箱、富士山、郵輪、珍奶……），會出現在行程名稱旁邊和「我的行程」的卡片上。" },
     { text: "邀請好友：[[admin|⚙ 管理]] → 邀請好友，直接點好友的名字邀請，不用傳連結。對方打開網站會在「我的行程」那一頁看到邀請，可以選加入或不加入；他選了不加入你會看到，可以再邀一次或清掉。要先互為好友（帳號按鈕 → 帳號・好友）。" },

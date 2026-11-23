@@ -12,6 +12,7 @@ import { ModeIcon, PinIcon } from "../icons";
 import { KIND_NAME, SEAL } from "../labels";
 import { editDayItems, findStop, removeStopAt, sameDayRow, sortByTime } from "../dayEdit";
 import { CardSection } from "./CardPick";
+import { SuitcaseIcon } from "./Logo";
 
 function Copy({ value }: { value: string }) {
   const [done, setDone] = useState(false);
@@ -367,7 +368,7 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
               <Memos day={day} stop={stop} />
               {!isViewer(member) && (
                 <div className="sec askrow">
-                  <button type="button" className="btn" onClick={ask}>🧳 Trip醬：查這個地點</button>
+                  <button type="button" className="btn" onClick={ask}><SuitcaseIcon size={20} />Trip醬：查這個地點</button>
                   <span className="note">資料不夠的話，讓它上網查營業時間、怎麼去、推薦。</span>
                 </div>
               )}

@@ -343,11 +343,11 @@ function Settings() {
 export function AdminView() {
   const { member } = useTrip();
   if (member?.role !== "admin") {
-    return <section className="dayhead"><h2>管理行程</h2><p className="note">只有這個行程的管理員可以進來。</p></section>;
+    return <section className="dayhead"><h2>管理這個行程</h2><p className="note">只有這個行程的管理員可以進來。</p></section>;
   }
   return (
     <>
-      <section className="dayhead"><h2>管理行程</h2><p className="note">團員、邀請連結、家庭和行程設定。</p></section>
+      <section className="dayhead"><h2>管理這個行程</h2><p className="note">團員、邀請連結、家庭和行程設定。</p></section>
       <Members />
       <Invites />
       <InviteFriends />

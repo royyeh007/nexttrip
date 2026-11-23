@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { dotDate, tripLength } from "../data";
 import { fillTripDays } from "../days";
 import { GuideView } from "./GuideView";
-import { LogoMark, MenuIcon, Wordmark } from "./Logo";
+import { LogoMark, MenuIcon, PersonIcon, Wordmark } from "./Logo";
 import { MyInvitations } from "./AccountView";
 import { TripIcon, tripIconId } from "../tripIcons";
 
@@ -52,8 +52,37 @@ function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; 
 }
 
 /** After sign-in: the trips this person is in, plus "create" and "join with a code". */
+/** The same account button as inside a trip, with what makes sense before a trip is picked. */
+function HomeMenu() {
+  const { session, openAccount, signOut } = useTrip();
+  const ref = useRef<HTMLDetailsElement>(null);
+  const close = () => { if (ref.current) ref.current.open = false; };
+  // tapping anywhere else closes it
+  useEffect(() => {
+    const away = (e: Event) => { if (ref.current?.open && !ref.current.contains(e.target as Node)) ref.current.open = false; };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, []);
+  const full: string = session?.user.user_metadata?.full_name ?? session?.user.email?.split("@")[0] ?? "我";
+  return (
+    <details className="menu" ref={ref}>
+      <summary aria-label="帳號選單" title="帳號・好友、登出">
+        <PersonIcon />
+        <span className="mname">{full.split(/\s+/)[0]}</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </summary>
+      <div className="list">
+        <small>{session?.user.email}</small>
+        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・好友</button>
+        <button type="button" onClick={() => { close(); document.getElementById("guide-home")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><MenuIcon name="guide" />使用教學</button>
+        <button type="button" onClick={signOut}><MenuIcon name="signout" />登出</button>
+      </div>
+    </details>
+  );
+}
+
 export function TripPicker() {
-  const { session, memberships, enterTrip, setInvite, refreshMemberships, signOut, openAccount } = useTrip();
+  const { memberships, enterTrip, setInvite, refreshMemberships } = useTrip();
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState("");
 
@@ -61,10 +90,9 @@ export function TripPicker() {
     <div className="wrap pick">
       <header className="hero">
         <div className="fambar">
-          <span className="eyebrow">{session?.user.email}</span>
-          <span className="topacts"><button type="button" className="btn small" onClick={openAccount}><MenuIcon name="friends" />帳號・好友</button><button type="button" className="link who-am-i" onClick={signOut}>登出</button></span>
+          <h1 className="brand"><LogoMark size={48} /><Wordmark height={26} /></h1>
+          <HomeMenu />
         </div>
-        <h1 className="brand"><LogoMark size={56} /><Wordmark /></h1>
         <p className="note">{memberships.length ? "選一個行程進去，或建立新的、加入別人的。" : "這個網站只給被邀請的人用。輸入家人傳給你的邀請碼加入他們的行程；加入之後就可以建立自己的行程。"}</p>
       </header>
 
@@ -104,7 +132,7 @@ export function TripPicker() {
           </div>
         </div>
       )}
-      <h2>使用教學</h2>
+      <h2 id="guide-home">使用教學</h2>
       <GuideView role="member" compact />
     </div>
   );

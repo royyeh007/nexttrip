@@ -19,7 +19,7 @@ import { GuideView } from "./components/GuideView";
 import { CardsView } from "./components/CardsView";
 import { QuickPickFab } from "./components/QuickPick";
 import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
-import { MenuIcon, PaperPlane } from "./components/Logo";
+import { MenuIcon, PaperPlane, PersonIcon } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
 import { AccountPage } from "./components/AccountView";
 import { useInvitations, usePendingFriend } from "./friends";
@@ -192,7 +192,7 @@ function TripMenu() {
     {leaving && <LeaveDialog onClose={() => setLeaving(false)} />}
     <details className="menu" ref={ref}>
       <summary aria-label="帳號與行程選單" title="切換行程、管理、登出">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+        <PersonIcon />
         <span className="mname">{short}</span>
         {pending > 0 && <span className="dot" aria-label={`有 ${pending} 個行程邀請`} />}
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
@@ -201,7 +201,7 @@ function TripMenu() {
         <small>{member?.name ?? member?.email}</small>
         <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />切換行程{pending > 0 && <b className="badge">{pending} 個邀請</b>}</button>
         <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・好友</button>
-        {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />管理行程</a>}
+        {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />管理這個行程</a>}
         <a href="#cards" onClick={close}><MenuIcon name="cards" />我的信用卡</a>
         <a href="#guide" onClick={close}><MenuIcon name="guide" />使用教學</a>
         <button type="button" onClick={rename}><MenuIcon name="rename" />改我的名字</button>

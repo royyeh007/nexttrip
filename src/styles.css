@@ -941,3 +941,11 @@ svg.wordmark .wm-dot{fill:var(--logo-red)}
 .btn.small{padding:6px 12px;font-size:.84rem;min-height:0}
 .topacts{display:inline-flex;align-items:center;gap:12px}
 .btn .micon{margin-right:2px}
+/* 選行程頁最上面：左邊 logo、右邊帳號按鈕（和行程裡同一個） */
+.pick .fambar .brand{margin:0}
+.pick .menu{position:relative}
+/* 使用教學裡的按鈕用和真的按鈕一樣的圖示 */
+.gbtn svg{flex:none}
+.gicon svg{display:block}
+.gbtn .suitcase,.gicon .suitcase,.btn:not(.primary) .suitcase{color:var(--ink)}
+.gbtn:not(.static):hover .suitcase{color:var(--surface)}

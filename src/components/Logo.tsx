@@ -89,7 +89,7 @@ const MENU_ICONS = {
   switch: <><path d="M9 8V6.2A1.7 1.7 0 0 1 10.7 4.5h2.6A1.7 1.7 0 0 1 15 6.2V8" /><rect x="3.5" y="8" width="17" height="11.5" rx="3.2" fill="#e9573f" /><path d="M9.5 13.2h.01M14.5 13.2h.01" strokeWidth="2.6" /></>,
   // 帳號・好友：兩個人
   friends: <><circle cx="16.6" cy="9.4" r="2.6" fill="#7cc4e8" /><path d="M14.6 19.5h6.2a4.3 4.3 0 0 0-5-4.6" fill="#7cc4e8" /><circle cx="9" cy="8.4" r="3.2" fill="#ffd257" /><path d="M3.2 19.5a5.8 5.8 0 0 1 11.6 0Z" fill="#ffd257" /></>,
-  // 管理行程：齒輪
+  // 管理這個行程：齒輪
   admin: <><path d="M12 3.2l1.7 2.3 2.8-.6.6 2.8 2.5 1.4-1.2 2.6 1.2 2.6-2.5 1.4-.6 2.8-2.8-.6L12 20.8l-1.7-2.3-2.8.6-.6-2.8-2.5-1.4 1.2-2.6-1.2-2.6 2.5-1.4.6-2.8 2.8.6Z" fill="#7cc4e8" /><circle cx="12" cy="12" r="2.7" fill="#fff" /></>,
   // 我的信用卡
   cards: <><rect x="3" y="5.5" width="18" height="13" rx="3" fill="#ffd257" /><path d="M3 10.2h18M6.8 14.6h3.4" /></>,
@@ -103,10 +103,19 @@ const MENU_ICONS = {
   signout: <><path d="M12 3.8v7.4" /><path d="M7.2 7.2a7 7 0 1 0 9.6 0" /></>,
 };
 /** Small menu pictures drawn like the icon: round navy line, flat fills in the suitcase's colours. */
-export function MenuIcon({ name }: { name: keyof typeof MENU_ICONS }) {
+export function MenuIcon({ name, size = 22 }: { name: keyof typeof MENU_ICONS; size?: number }) {
   return (
-    <svg className="micon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <svg className="micon" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       {MENU_ICONS[name]}
+    </svg>
+  );
+}
+
+/** The person outline on the account button (top right of every page). */
+export function PersonIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg className="micon" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
     </svg>
   );
 }
