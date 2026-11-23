@@ -8,7 +8,8 @@ import { NewStopSheet } from "./DetailSheet";
 import { canEdit, famNames, hotelFor, isLeg, isViewer } from "../data";
 import { DayWeatherPanel } from "./Weather";
 import type { WeatherState } from "../useWeather";
-import type { Day, Family, Stop } from "../data";
+import type { Day, Family, Leg, Stop } from "../data";
+import { LegSheet } from "./LegSheet";
 import { MODE, dayRouteURL, dirURL, linkLegs } from "../maps";
 import type { LinkedLeg } from "../maps";
 import { DownloadIcon, ModeIcon, RouteIcon } from "../icons";
@@ -22,14 +23,17 @@ import { useTrip } from "../trip";
 import { fakeNow, setNowLine, startPreview, toMinutes, useNow, useNowLine } from "../now";
 import { CardChip } from "./CardPick";
 
-function LegRow({ leg, done, date }: { leg: LinkedLeg; done?: boolean; date?: string }) {
+function LegRow({ leg, done, date, onEdit }: { leg: LinkedLeg; done?: boolean; date?: string; onEdit?: () => void }) {
   const { travel, label } = MODE[leg.leg];
   if (leg.leg === "flight") {
     return (
       <li className={`leg flight${done ? " done" : ""}`}>
         <span />
         <span className="rail" />
-        <FlightCard text={leg.txt} date={date} />
+        <div className="flightwrap">
+          <FlightCard text={leg.txt} date={date} />
+          {onEdit && <button type="button" className="link legflightedit" onClick={onEdit}><MenuIcon name="rename" size={14} />改這段交通</button>}
+        </div>
       </li>
     );
   }
@@ -47,7 +51,13 @@ function LegRow({ leg, done, date }: { leg: LinkedLeg; done?: boolean; date?: st
     <li className={`leg${done ? " done" : ""}`}>
       <span />
       <span className="rail" />
-      {canLink ? (
+      {onEdit ? (
+        // editable: the text opens the editor, the route link stays a link of its own
+        <span className="legbox legrow">
+          <button type="button" className="legedit" onClick={onEdit} aria-label={`改交通：${leg.txt}`}>{inner}</button>
+          {canLink && <a className="go" href={dirURL(leg.from!, leg.to!, travel)} target="_blank" rel="noopener" aria-label={`${label}路線：${leg.txt}`}>路線 ↗</a>}
+        </span>
+      ) : canLink ? (
         <a href={dirURL(leg.from!, leg.to!, travel)} target="_blank" rel="noopener" aria-label={`${label}路線：${leg.txt}`}>
           {inner}
           <span className="go">路線 ↗</span>
@@ -84,7 +94,8 @@ function StopRow({ stop, done, date, day, split, onOpen }: { stop: Stop; done?: 
 }
 
 /** Read-only timeline used by the day page and by the proposal preview. On the current day it dims what is past and draws a "now" line. */
-export function Timeline({ day, onOpen }: { day: Day; onOpen?: (s: Stop, arrive?: LinkedLeg) => void }) {
+/** `onLeg` (only where the day can be edited): tapping a leg, or the "add transport" gap between two stops, calls it with the leg (or null) and the stop it leads to. */
+export function Timeline({ day, onOpen, onLeg }: { day: Day; onOpen?: (s: Stop, arrive?: LinkedLeg) => void; onLeg?: (leg: Leg | null, next: Stop) => void }) {
   const { legs, arrive } = useMemo(() => linkLegs(day), [day]);
   const now = useNow();
   const isToday = useNowLine() && now.date === day.id;
@@ -114,6 +125,7 @@ export function Timeline({ day, onOpen }: { day: Day; onOpen?: (s: Stop, arrive?
     }
     return out;
   }, [day.items]);
+  const nextStop = (i: number) => day.items.slice(i + 1).find((x): x is Stop => !isLeg(x));
   const line = <li className="nowline" key="now" aria-label={`現在 ${now.hhmm}`}><span className="lbl">現在 {now.hhmm}</span></li>;
   return (
     <ol className="tl">
@@ -124,9 +136,13 @@ export function Timeline({ day, onOpen }: { day: Day; onOpen?: (s: Stop, arrive?
           return (
             <Fragment key={i}>
               {isLeg(it) ? (
-                <LegRow leg={legs.get(i)!} done={isToday && i <= lastDone} date={day.id} />
+                <LegRow leg={legs.get(i)!} done={isToday && i <= lastDone} date={day.id} onEdit={onLeg && nextStop(i) ? () => onLeg(it, nextStop(i)!) : undefined} />
               ) : (
                 <StopRow stop={it} done={isToday && i <= lastDone} date={day.id} day={day} split={!!seg.par} onOpen={() => onOpen?.(it, arrive.get(i))} />
+              )}
+              {/* two stops in a row with nothing between them: offer to say how to get there */}
+              {onLeg && !isLeg(it) && day.items[i + 1] && !isLeg(day.items[i + 1]) && (
+                <li className="leg addleg"><span /><span className="rail" /><button type="button" className="legadd" onClick={() => onLeg(null, day.items[i + 1] as Stop)}>＋ 加交通</button></li>
               )}
               {isToday && i === lastDone && line}
             </Fragment>
@@ -172,6 +188,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   const [editMeta, setEditMeta] = useState(false);
   const [addingStop, setAddingStop] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [legEdit, setLegEdit] = useState<{ leg: Leg | null; next: Stop } | null>(null);
   const now = useNow();
   const menuRef = useRef<HTMLDetailsElement>(null);
   const closeMenu = () => { if (menuRef.current) menuRef.current.open = false; };
@@ -281,10 +298,11 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
       ) : (
         <>
           {optimizing && <OptimizeDay key={day.id + (day.fam ?? []).join(",")} day={day} onClose={() => setOptimizing(false)} />}
-          <Timeline day={day} onOpen={onOpen} />
+          <Timeline day={day} onOpen={onOpen} onLeg={editable ? (leg, next) => setLegEdit({ leg, next }) : undefined} />
         </>
       )}
       {addingStop && <NewStopSheet day={day} onClose={() => setAddingStop(false)} />}
+      {legEdit && <LegSheet day={day} leg={legEdit.leg} next={legEdit.next} onClose={() => setLegEdit(null)} />}
     </>
   );
 }

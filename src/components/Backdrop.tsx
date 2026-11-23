@@ -191,7 +191,11 @@ export function Art({ scene, phase = "day", season = "summer", weather = null, c
           <rect className="bd-o" x="-6" y="8" width="12" height="5" rx="2" fill="#ffd257" />
         </g>
       ))}
-      {wet ? scatter(70, "bd-fall", 1.5, () => <path className="bd-rain" d="M0 0 l-7 24" />)
+      {wet ? Array.from({ length: 90 }, (_, i) => {
+        // each streak falls along its own slant (the line leans the way it moves), at its own speed and starting point
+        const dur = 0.85 + (i % 6) * 0.11;
+        return <g key={i} className="bd-rainfall" style={{ animationDuration: `${dur}s`, animationDelay: `${-(((i * 0.618) % 1) * dur)}s` }} transform={`translate(${LEFT + ((i * 173) % (WIDTH + 280))} 0)`}><path className="bd-rain" d={`M0 0 l${-5 - (i % 3)} ${17 + (i % 3) * 3.4}`} /></g>;
+      })
         : snowing ? scatter(64, "bd-fall", 22, (i) => <circle className="bd-o" r={2.6 + (i % 3)} fill="#fff" />)
         : season === "spring" ? scatter(30, "bd-fall", 24, (i) => <ellipse className="bd-o bd-spin" rx={4 + (i % 2)} ry="2.8" fill="#ffc2d1" />)
         : season === "autumn" ? scatter(30, "bd-fall", 20, (i) => <path className="bd-o bd-spin" fill={i % 2 ? "#f2a65a" : "#e9573f"} d="M0 -6 Q6 0 0 7 Q-6 0 0 -6 Z" />)

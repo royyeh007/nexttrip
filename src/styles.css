@@ -1183,3 +1183,30 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 .bd-twinkle{transform-box:fill-box;transform-origin:center;animation:bd-twinkle 3.2s ease-in-out infinite}
 @keyframes bd-twinkle{50%{opacity:.35;scale:.7}}
 .backdrop[data-phase="night"]{opacity:.38}
+
+/* ================= 直接寫在底色上的字：背景圖在後面時也要看得清楚 ================= */
+/* 交通那一段：字原本是淡灰色、沒有底，剛好壓在背景的山或地標上就看不清楚。
+   給它一塊和頁面同色、微微透明的底，字的顏色也加深一點。 */
+.leg a,.leg span.legbox{background:color-mix(in srgb,var(--paper) 88%,transparent);border-radius:10px;padding:6px 8px;margin-block:2px;color:color-mix(in srgb,var(--ink) 72%,var(--muted))}
+.leg .go{color:var(--ai);font-weight:700}
+/* 其他沒有卡片襯底的字（日期那一行、說明文字、頁首的日期和路線）：字的周圍加一圈頁面底色的光暈 */
+.dayhead .meta,.dayhead .note,main > .note,.othersown,.eyebrow,.route,.splitfoot,.toolbar,.pick .note{text-shadow:0 0 3px var(--paper),0 0 6px var(--paper),0 0 10px var(--paper)}
+.dayhead h2,.titlerow h1{text-shadow:0 0 6px var(--paper),0 0 12px var(--paper)}
+/* ---- 交通可以直接點開來改；兩站之間沒有交通的地方有「＋ 加交通」 ---- */
+.leg .legrow{display:flex;align-items:center;gap:8px}
+.legedit{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;border-radius:8px}
+.legedit:hover .lt{color:var(--ai)}
+.legedit:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.leg .legrow .go{text-decoration:none;padding:6px 2px;white-space:nowrap}
+.leg.addleg .rail{min-height:26px}
+.legadd{all:unset;box-sizing:border-box;cursor:pointer;justify-self:start;font-size:.78rem;color:var(--ai);background:color-mix(in srgb,var(--paper) 88%,transparent);border:1px dashed var(--line);border-radius:999px;padding:3px 12px;margin-block:3px}
+.legadd:hover{border-color:var(--ai)}
+.legadd:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.flightwrap{display:grid;gap:2px;min-width:0}
+.legflightedit{justify-self:start;font-size:.78rem;margin:0 0 4px 4px}
+.famcol .legadd{display:none}
+@media print{.legadd,.legflightedit{display:none}}
+/* 雨：每一絲沿著自己傾斜的方向落下（原本線往左下斜、卻往右下移動，看起來像在橫著飄） */
+.bd-rain{stroke-width:3;opacity:.85}
+.bd-rainfall{animation:bd-rainfall linear infinite}
+@keyframes bd-rainfall{from{translate:84px -40px}to{translate:-196px 912px}}
