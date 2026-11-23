@@ -990,3 +990,29 @@ li.split > ol.tl{margin:0;padding:0}
 .btn .micon,.menu .list .micon,.gbtn .micon,.cardfab .micon,.gicon .micon,summary .micon{margin-right:0}
 .who .micon,.tag .micon,.cardpick .micon{margin-right:.25em}
 .gicon{color:var(--ink)}
+/* ---- 這一天的版本：標籤本身是入口；不常用的功能收在「⋯」裡 ---- */
+.tag.versionbtn{all:unset;box-sizing:border-box;cursor:pointer;font-size:.72rem;font-weight:700;border-radius:4px;padding:2px 8px;line-height:1.5}
+.tag.versionbtn.shared{background:var(--pine-soft);color:var(--pine)}
+.tag.versionbtn.own{background:var(--ai-soft);color:var(--ai)}
+.tag.versionbtn:hover{filter:brightness(.96)}
+.tag.versionbtn:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.daymenu{position:relative;margin-left:auto}
+.daymenu summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:34px;height:30px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+.daymenu summary::-webkit-details-marker{display:none}
+.daymenu .micon{margin-right:0}
+.daymenu .list{position:absolute;right:0;top:36px;z-index:8;min-width:210px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);display:grid;padding:6px}
+.daymenu .list button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:.9rem;color:var(--ink)}
+.daymenu .list button:hover,.daymenu .list button:focus-visible{background:var(--paper)}
+.daymenu .list .danger{color:var(--shu)}
+.dayshare{margin-top:10px}
+.sharechoices{display:grid;gap:8px;margin-block:8px}
+.sharechoices label{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer}
+.sharechoices label.on{border-color:var(--ai);background:var(--ai-soft)}
+.sharechoices input{width:18px;height:18px;flex:none;accent-color:var(--ai)}
+.sharechoices span{display:grid;line-height:1.3}
+.sharechoices small{color:var(--muted);font-size:.78rem}
+.dayshare .chips{display:flex;flex-wrap:wrap;gap:6px;margin-block:4px 8px}
+.dayshare .chip.fixed{border-color:var(--line);background:var(--paper);color:var(--muted);font-weight:400}
+.dayshare .chip.off{text-decoration:none;border-style:dashed;color:var(--ai)}
+.basepick{display:grid;gap:4px;font-size:.84rem;color:var(--muted);margin-bottom:8px}
+.basepick select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 10px}

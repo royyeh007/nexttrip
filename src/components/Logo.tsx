@@ -117,6 +117,8 @@ const MENU_ICONS = {
   eye: <><path d="M2.6 12S6 5.8 12 5.8 21.4 12 21.4 12 18 18.2 12 18.2 2.6 12 2.6 12Z" fill="#fff" /><circle cx="12" cy="12" r="3" fill="#7cc4e8" /></>,
   // 常見問題
   question: <><circle cx="12" cy="12" r="8.6" fill="#ffd257" /><path d="M9.6 9.6a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.3 1-1.3 2" /><path d="M12 16.9h.01" strokeWidth="2.8" /></>,
+  // 更多：三個點
+  more: <><circle cx="5.2" cy="12" r="2.1" fill="#e9573f" /><circle cx="12" cy="12" r="2.1" fill="#ffd257" /><circle cx="18.8" cy="12" r="2.1" fill="#7cc4e8" /></>,
   // 這趟誰會去：兩個大人中間一個小孩
   people: <><circle cx="6.6" cy="7.6" r="2.6" fill="#ffd257" /><path d="M2.4 18.5v-2.2a4.2 4.2 0 0 1 6.6-3.4" fill="#ffd257" /><circle cx="17.4" cy="7.6" r="2.6" fill="#7cc4e8" /><path d="M21.6 18.5v-2.2a4.2 4.2 0 0 0-6.6-3.4" fill="#7cc4e8" /><circle cx="12" cy="12.6" r="2.2" fill="#e9573f" /><path d="M8.2 20a3.8 3.8 0 0 1 7.6 0Z" fill="#e9573f" /></>,
   // 管理這個行程：齒輪

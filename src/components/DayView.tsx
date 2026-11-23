@@ -1,4 +1,5 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { DayShare } from "./DayShare";
 import { StopPeopleChip } from "./PeopleView";
 import { SharedChip, rowFamilies } from "./SharedPanel";
 import { MenuIcon } from "./Logo";
@@ -170,6 +171,9 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   // title / city / hotel of this day, edited in place
   const [editMeta, setEditMeta] = useState(false);
   const [addingStop, setAddingStop] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const closeMenu = () => { if (menuRef.current) menuRef.current.open = false; };
   const users = rowFamilies(trip.days, trip.families, day); // the families that see this very row
   const joint = users.length > 1;
   const [meta, setMeta] = useState({ title: day.title, city: day.city, hotel: hotelFor(day, family.id) });
@@ -194,15 +198,9 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   const mayWriteForFamily = canEdit([family.id], member);
   const hasSharedVersion = trip.days.some((d) => d.id === day.id && !d.fam);
   const empty = day.items.length === 0;
-
-  // Copy the shared day into this family's own version so they can change hotel, meals, times without touching the others
-  const fork = async () => {
-    if (!supabase) return;
-    setBusy(true);
-    const { error } = await supabase.from("days").insert({ trip_id: current!.id, date_id: day.id, fam: [family.id], d: day.d, w: day.w, city: day.city, title: day.title, hotel: hotelFor(day, family.id), items: day.items });
-    if (error) alert(error.message); else await reload();
-    setBusy(false);
-  };
+  const versionLabel = shared ? "大家一起的版本" : day.fam!.length > 1 ? `${famNames(day.fam!, labelOf)}一起的版本` : `${family.label}自己的版本`;
+  // "delete this day" only when there is nothing to fall back to; with an everyone version, going back to it is done from the label above
+  const canDelete = own && mayWriteForFamily && !hasSharedVersion;
 
   const remove = async () => {
     const msg = hasSharedVersion ? `要把 ${family.label}自己的 ${day.d} 版本刪掉，改回大家一起的版本嗎？` : `要把 ${day.d} 從${family.label}的行程拿掉嗎？`;
@@ -220,11 +218,22 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
         <div className="meta">
           <span>{day.d}（{day.w}）</span>
           <span className="hotel">{hotelFor(day, family.id) ? `住 ${hotelFor(day, family.id)}` : ""}</span>
-          <span className={`tag ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`}>{shared ? "大家一起的版本" : day.fam!.length > 1 ? `${famNames(day.fam!, labelOf)}一起的版本` : `${family.label}自己的版本`}</span>
-          {editable && !editMeta && <button type="button" className="link" onClick={openMeta} disabled={busy}><MenuIcon name="rename" size={14} />改標題／城市／住宿</button>}
-          {shared && mayWriteForFamily && <button type="button" className="link" onClick={fork} disabled={busy}>做一份我們家的版本</button>}
-          {own && mayWriteForFamily && <button type="button" className="link" onClick={remove} disabled={busy}>{hasSharedVersion ? "改回大家一起的版本" : "刪除這天"}</button>}
+          {/* one way in for everything about "whose version is this": tap the label */}
+          {mayWriteForFamily && trip.families.length > 1
+            ? <button type="button" className={`tag versionbtn ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`} aria-expanded={sharing} onClick={() => setSharing((v) => !v)} disabled={busy} title="這一天和誰一起">{versionLabel}<span aria-hidden="true"> ▾</span></button>
+            : <span className={`tag ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`}>{versionLabel}</span>}
+          {(editable || canDelete) && (
+            <details className="daymenu" ref={menuRef}>
+              <summary aria-label="這一天的其他功能" title="改標題、優化順序、刪除"><MenuIcon name="more" size={18} /></summary>
+              <div className="list">
+                {editable && <button type="button" onClick={() => { closeMenu(); openMeta(); }}><MenuIcon name="rename" />改標題／城市／住宿</button>}
+                {canOptimize && <button type="button" onClick={() => { closeMenu(); setOptimizing((v) => !v); }}><MenuIcon name="swap" />優化順序</button>}
+                {canDelete && <button type="button" className="danger" onClick={() => { closeMenu(); remove(); }}><MenuIcon name="leave" />刪除這天</button>}
+              </div>
+            </details>
+          )}
         </div>
+        {sharing && <DayShare key={`${day.rowId}|${(day.fam ?? []).join(",")}`} day={day} family={family} onClose={() => setSharing(false)} />}
         {editMeta ? (
           <div className="daymeta-edit">
             <div className="formgrid">
@@ -246,7 +255,6 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
             <a className="btn primary" href={dayRouteURL(day)} target="_blank" rel="noopener">
               <RouteIcon />開啟今天的 Google 地圖路線
             </a>
-            {canOptimize && <button type="button" className="btn" onClick={() => setOptimizing((v) => !v)} aria-expanded={optimizing}><MenuIcon name="swap" size={18} />優化順序</button>}
             {editable && <button type="button" className="btn" onClick={() => setAddingStop(true)}>＋ 加一站</button>}
           </div>
         )}
