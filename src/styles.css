@@ -1135,15 +1135,15 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 }
 
 /* ================= 會動的背景（頁面最上面那一幅小風景）================= */
-.backdrop{position:absolute;top:0;left:0;right:0;height:300px;z-index:0;overflow:hidden;pointer-events:none;opacity:.48;
-  -webkit-mask-image:linear-gradient(#000 58%,transparent);mask-image:linear-gradient(#000 58%,transparent)}
-.backdrop svg{display:block;width:100%;height:100%;min-width:400px}
+/* 固定在畫面後面：內容往下滑的時候它不動。卡片是不透明的，會蓋在它上面；直接寫在底色上的字靠它夠淡來保持好讀。 */
+.backdrop{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;opacity:.36}
+.backdrop svg{display:block;width:100%;height:100%}
 .wrap{position:relative;z-index:1}
 .bd-o{stroke:#1b2740;stroke-opacity:.28;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
 .bd-trail{fill:none;stroke:#1b2740;stroke-opacity:.3;stroke-width:3;stroke-linecap:round;stroke-dasharray:1 11;animation:bd-march 2.4s linear infinite}
 .bd-plane{animation:bd-float 5s ease-in-out infinite}
-.bd-cloud.a{animation:bd-drift 46s linear infinite}
-.bd-cloud.b{animation:bd-drift 64s linear infinite reverse}
+.bd-cloud.a{animation:bd-drift 38s ease-in-out infinite alternate}
+.bd-cloud.b{animation:bd-drift 52s ease-in-out infinite alternate-reverse}
 .bd-sun{transform-origin:center;transform-box:fill-box;animation:bd-pulse 7s ease-in-out infinite}
 .bd-fall{animation:bd-fall linear infinite}
 .bd-spin{animation:bd-spin 3.6s linear infinite;transform-box:fill-box;transform-origin:center}
@@ -1155,11 +1155,11 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 /* 這些動畫都寫成「在原本的位置上再移動」，所以用獨立的 translate／rotate／scale，不會蓋掉元素自己的 transform */
 @keyframes bd-march{to{stroke-dashoffset:-24}}
 @keyframes bd-float{50%{translate:0 -7px;rotate:-3deg}}
-@keyframes bd-drift{from{translate:-90px 0}to{translate:430px 0}}
+@keyframes bd-drift{from{translate:-160px 0}to{translate:160px 0}}
 @keyframes bd-pulse{50%{scale:1.07}}
-@keyframes bd-fall{from{translate:0 -20px}to{translate:26px 320px}}
+@keyframes bd-fall{from{translate:0 -20px}to{translate:40px 890px}}
 @keyframes bd-spin{to{rotate:360deg}}
-@keyframes bd-rise{from{translate:0 330px}to{translate:-22px -40px}}
+@keyframes bd-rise{from{translate:0 900px}to{translate:-40px -60px}}
 @keyframes bd-bob{50%{translate:0 5px;rotate:-2deg}}
 @keyframes bd-wave{from{translate:0 0}to{translate:80px 0}}
 @media (prefers-reduced-motion:reduce){.backdrop *{animation:none !important}}

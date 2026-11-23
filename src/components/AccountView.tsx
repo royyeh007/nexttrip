@@ -86,7 +86,7 @@ function AccountView() {
           <div className="panel admin">
             <h3>外觀</h3>
             <label className="setrow">
-              <span><b>會動的背景</b><small>頁面最上面那一幅小風景，依行程的地點和季節自動換。只影響這支手機。</small></span>
+              <span><b>會動的背景</b><small>畫面後面那一幅風景，依行程的地點和季節自動換。只影響這支手機。</small></span>
               <span className="switch"><input type="checkbox" checked={backdropOn} onChange={(e) => setBackdropOn(e.target.checked)} /><span className="track" aria-hidden="true" /></span>
             </label>
           </div>
