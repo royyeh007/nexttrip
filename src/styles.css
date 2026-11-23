@@ -931,3 +931,13 @@ svg.wordmark .wm-dot{fill:var(--logo-red)}
 .startrow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:stretch;padding-block:14px}
 .startrow > .btn.primary{margin-top:0}
 .startrow .addrow{flex:1 1 280px;margin-top:0}
+/* 帳號選單：每一項前面一個小圖示（和 logo 同一種畫法） */
+.menu .list button,.menu .list a{display:flex;align-items:center;gap:10px}
+.menu .list .micon{flex:none}
+.menu .list .badge{margin-left:auto}
+/* 帳號・好友的獨立頁面 */
+.acctpage{padding-block:0 64px}
+.acctpage .fambar{justify-content:space-between}
+.btn.small{padding:6px 12px;font-size:.84rem;min-height:0}
+.topacts{display:inline-flex;align-items:center;gap:12px}
+.btn .micon{margin-right:2px}

@@ -4,8 +4,8 @@ import { useTrip } from "../trip";
 import { dotDate, tripLength } from "../data";
 import { fillTripDays } from "../days";
 import { GuideView } from "./GuideView";
-import { LogoMark, Wordmark } from "./Logo";
-import { AccountView, MyInvitations } from "./AccountView";
+import { LogoMark, MenuIcon, Wordmark } from "./Logo";
+import { MyInvitations } from "./AccountView";
 import { TripIcon, tripIconId } from "../tripIcons";
 
 function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
@@ -53,9 +53,8 @@ function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; 
 
 /** After sign-in: the trips this person is in, plus "create" and "join with a code". */
 export function TripPicker() {
-  const { session, memberships, enterTrip, setInvite, refreshMemberships, signOut } = useTrip();
+  const { session, memberships, enterTrip, setInvite, refreshMemberships, signOut, openAccount } = useTrip();
   const [creating, setCreating] = useState(false);
-  const [account, setAccount] = useState(false);
   const [code, setCode] = useState("");
 
   return (
@@ -63,7 +62,7 @@ export function TripPicker() {
       <header className="hero">
         <div className="fambar">
           <span className="eyebrow">{session?.user.email}</span>
-          <button type="button" className="link who-am-i" onClick={signOut}>登出</button>
+          <span className="topacts"><button type="button" className="btn small" onClick={openAccount}><MenuIcon name="friends" />帳號・好友</button><button type="button" className="link who-am-i" onClick={signOut}>登出</button></span>
         </div>
         <h1 className="brand"><LogoMark size={56} /><Wordmark /></h1>
         <p className="note">{memberships.length ? "選一個行程進去，或建立新的、加入別人的。" : "這個網站只給被邀請的人用。輸入家人傳給你的邀請碼加入他們的行程；加入之後就可以建立自己的行程。"}</p>
@@ -103,13 +102,6 @@ export function TripPicker() {
             <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="有邀請碼？貼在這裡" aria-label="邀請碼" autoCapitalize="none" autoCorrect="off" onKeyDown={(e) => e.key === "Enter" && code.trim() && setInvite(code.trim())} />
             <button type="button" className="btn" onClick={() => setInvite(code.trim())} disabled={!code.trim()}>用邀請碼加入</button>
           </div>
-        </div>
-      )}
-      <h2>帳號・好友</h2>
-      {account ? <AccountView embedded /> : (
-        <div className="panel">
-          <p className="note">改顯示名稱、加好友。加了好友之後，邀他加入行程不用再傳連結。</p>
-          <button type="button" className="btn" onClick={() => setAccount(true)}>打開帳號・好友</button>
         </div>
       )}
       <h2>使用教學</h2>

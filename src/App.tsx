@@ -19,9 +19,9 @@ import { GuideView } from "./components/GuideView";
 import { CardsView } from "./components/CardsView";
 import { QuickPickFab } from "./components/QuickPick";
 import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
-import { PaperPlane } from "./components/Logo";
+import { MenuIcon, PaperPlane } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
-import { AccountView } from "./components/AccountView";
+import { AccountPage } from "./components/AccountView";
 import { useInvitations, usePendingFriend } from "./friends";
 import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
@@ -38,7 +38,7 @@ const store = {
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } },
 };
 
-const PAGES = ["overview", "todo", "upload", "info", "cards", "admin", "guide", "account"];
+const PAGES = ["overview", "todo", "upload", "info", "cards", "admin", "guide"];
 function currentView(dayIds: string[], dayKey: string, todayId?: string) {
   const h = location.hash.slice(1);
   if (PAGES.includes(h) || dayIds.includes(h)) return h;
@@ -87,7 +87,7 @@ function SyncBar() {
 
 export default function App() {
   const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip, session } = useTrip();
-  usePendingFriend(phase === "ready" || phase === "pick" ? session?.user.id : undefined);
+  usePendingFriend(phase === "ready" || phase === "pick" || phase === "account" ? session?.user.id : undefined);
   if (phase === "noconfig") {
     return (
       <Notice title="還沒接上 Supabase">
@@ -108,6 +108,7 @@ export default function App() {
   if (phase === "join" && invite) {
     return <JoinTrip code={invite} onDone={async (tripId) => { setInvite(null); await refreshMemberships(); enterTrip(tripId); }} onCancel={() => setInvite(null)} />;
   }
+  if (phase === "account") return <AccountPage />;
   if (phase === "pick") return <TripPicker />;
   return <Main />;
 }
@@ -166,7 +167,7 @@ function LeaveDialog({ onClose }: { onClose: () => void }) {
 
 /** The account menu in the hero: switch trip, admin, rename, leave, sign out. */
 function TripMenu() {
-  const { current, member, leaveToPicker, refreshMemberships, signOut } = useTrip();
+  const { current, member, leaveToPicker, openAccount, refreshMemberships, signOut } = useTrip();
   const ref = useRef<HTMLDetailsElement>(null);
   const [leaving, setLeaving] = useState(false);
   const close = () => { if (ref.current) ref.current.open = false; };
@@ -198,14 +199,14 @@ function TripMenu() {
       </summary>
       <div className="list">
         <small>{member?.name ?? member?.email}</small>
-        <button type="button" onClick={() => { close(); leaveToPicker(); }}>切換行程{pending > 0 && <b className="badge">{pending} 個邀請</b>}</button>
-        <a href="#account" onClick={close}>帳號・好友</a>
-        {member?.role === "admin" && <a href="#admin" onClick={close}>管理行程</a>}
-        <a href="#cards" onClick={close}>我的信用卡</a>
-        <a href="#guide" onClick={close}>使用教學</a>
-        <button type="button" onClick={rename}>改我的名字</button>
-        <button type="button" className="danger" onClick={leave}>退出這個行程</button>
-        <button type="button" onClick={signOut}>登出</button>
+        <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />切換行程{pending > 0 && <b className="badge">{pending} 個邀請</b>}</button>
+        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・好友</button>
+        {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />管理行程</a>}
+        <a href="#cards" onClick={close}><MenuIcon name="cards" />我的信用卡</a>
+        <a href="#guide" onClick={close}><MenuIcon name="guide" />使用教學</a>
+        <button type="button" onClick={rename}><MenuIcon name="rename" />改我的名字</button>
+        <button type="button" className="danger" onClick={leave}><MenuIcon name="leave" />退出這個行程</button>
+        <button type="button" onClick={signOut}><MenuIcon name="signout" />登出</button>
       </div>
     </details>
     </>
@@ -390,7 +391,6 @@ function Main() {
             : view === "cards" ? <CardsView />
             : view === "admin" ? <AdminView />
             : view === "guide" ? <GuideView role={member?.role ?? "member"} />
-            : view === "account" ? <AccountView />
             : cur && mode === "all" ? <AllFamiliesDay dateId={cur.id} onOpen={(day, stop, arrive) => setSelected({ day, stop, arrive })} />
             : cur ? <DayView key={`${cur.id}|${(cur.fam ?? []).join(",")}|${fam.id}`} day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
             : !adding && (

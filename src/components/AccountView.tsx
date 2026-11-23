@@ -6,12 +6,30 @@ import { supabase } from "../supabase";
 import { NotReady, friendCodeOf, friendLink, friendsApi, refreshInvitations, useInvitations } from "../friends";
 import type { Person, Profile, SentInvitation, TripInvitation } from "../friends";
 import { TripIcon, tripIconId } from "../tripIcons";
+import { LogoMark, Wordmark } from "./Logo";
 
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const PersonLine = ({ p }: { p: Person }) => <span className="pname"><b>{p.name}</b>{p.email && <small>{p.email}</small>}</span>;
 
-/** 帳號・好友：顯示名稱、好友碼、好友清單、同行的人。行程裡是一個分頁（#account），選行程頁也放一份。 */
-export function AccountView({ embedded = false }: { embedded?: boolean }) {
+/** 帳號・好友的獨立頁面：不屬於任何行程，從帳號選單或選行程頁進來，「返回」回到原本那一頁。 */
+export function AccountPage() {
+  const { closeAccount, signOut } = useTrip();
+  return (
+    <div className="wrap acctpage">
+      <header className="hero">
+        <div className="fambar">
+          <button type="button" className="btn small" onClick={closeAccount}>‹ 返回</button>
+          <button type="button" className="link who-am-i" onClick={signOut}>登出</button>
+        </div>
+        <h1 className="brand"><LogoMark size={44} /><Wordmark height={26} /></h1>
+      </header>
+      <AccountView />
+    </div>
+  );
+}
+
+/** 帳號・好友的內容：顯示名稱、好友碼、好友清單、同行的人。 */
+function AccountView() {
   const { session } = useTrip();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [friends, setFriends] = useState<Person[]>([]);
@@ -45,8 +63,7 @@ export function AccountView({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <>
-      {/* on the trip picker the page already has this heading and shows the email at the top */}
-      {!embedded && <section className="dayhead"><h2>帳號・好友</h2><p className="note">{session?.user.email}</p></section>}
+      <section className="dayhead"><h2>帳號・好友</h2><p className="note">{session?.user.email}</p></section>
       {state === "loading" && <p className="note">載入中…</p>}
       {state === "notready" && <div className="panel"><p className="note">好友和帳號設定要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。</p></div>}
       {state === "error" && <div className="panel"><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>再試一次</button></div>}
@@ -107,7 +124,7 @@ export function AccountView({ embedded = false }: { embedded?: boolean }) {
 
 /** 管理頁：直接邀請好友加入這個行程；對方在「我的行程」那一頁選加入或不加入。 */
 export function InviteFriends() {
-  const { current } = useTrip();
+  const { current, openAccount } = useTrip();
   const [friends, setFriends] = useState<Person[] | null>(null);
   const [sent, setSent] = useState<SentInvitation[]>([]);
   const [inTrip, setInTrip] = useState<Set<string>>(new Set());
@@ -137,7 +154,7 @@ export function InviteFriends() {
   return (
     <div className="panel admin">
       <h3>邀請好友</h3>
-      <p className="note">不用傳連結：對方打開網站，在「我的行程」那一頁會看到邀請，可以選加入或不加入。要先互為好友（<a href="#account">帳號・好友</a>）。</p>
+      <p className="note">不用傳連結：對方打開網站，在「我的行程」那一頁會看到邀請，可以選加入或不加入。要先互為好友（<button type="button" className="link" onClick={openAccount}>帳號・好友</button>）。</p>
       {sent.map((s) => (
         <div key={s.id} className="invite person">
           <PersonLine p={s} />
