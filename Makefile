@@ -112,6 +112,7 @@ fn-deploy:
 	supabase functions deploy optimize-day --no-verify-jwt
 	supabase functions deploy format-info --no-verify-jwt
 	supabase functions deploy card-lookup --no-verify-jwt
+	supabase functions deploy match-place --no-verify-jwt
 
 ## Store the Claude API key for the Edge Functions. Asks for the key instead of taking it on the command line,
 ## so it does not end up in the terminal scrollback or the shell history; an empty answer changes nothing.

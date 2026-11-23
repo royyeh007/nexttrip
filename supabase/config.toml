@@ -43,3 +43,6 @@ verify_jwt = false
 
 [functions.card-lookup]
 verify_jwt = false
+
+[functions.match-place]
+verify_jwt = false

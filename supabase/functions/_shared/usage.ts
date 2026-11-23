@@ -49,9 +49,11 @@ export const LIMITS = {
   "optimize-day": () => ({ user: envInt("OPTIMIZE_DAILY_USER", 30), trip: envInt("OPTIMIZE_DAILY_TRIP", 60) }),
   "format-info": () => ({ user: envInt("INFO_FORMAT_DAILY_USER", 10), trip: envInt("INFO_FORMAT_DAILY_LIMIT", 10) }),
   "card-lookup": () => ({ user: envInt("CARD_LOOKUP_DAILY_USER", 10), trip: envInt("CARD_LOOKUP_DAILY_LIMIT", 10) }),
+  // 背景地標配對：一個城市只會問一次（結果所有人共用），一趟行程頂多十幾個城市
+  "match-place": () => ({ user: envInt("MATCH_PLACE_DAILY_USER", 30), trip: envInt("MATCH_PLACE_DAILY_TRIP", 40) }),
 } as const;
 export type Kind = keyof typeof LIMITS;
-const KIND_NAME: Record<Kind, string> = { chat: "Trip醬", "parse-upload": "上傳整理", "optimize-day": "幫我排順序", "format-info": "幫我整理", "card-lookup": "幫我查這張卡" };
+const KIND_NAME: Record<Kind, string> = { chat: "Trip醬", "parse-upload": "上傳整理", "optimize-day": "幫我排順序", "format-info": "幫我整理", "card-lookup": "幫我查這張卡", "match-place": "背景配對" };
 
 export interface Reservation { id: number | null; remaining: number }
 

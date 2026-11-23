@@ -1136,15 +1136,17 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 
 /* ================= 會動的背景（頁面最上面那一幅小風景）================= */
 /* 固定在畫面後面：內容往下滑的時候它不動。卡片是不透明的，會蓋在它上面；直接寫在底色上的字靠它夠淡來保持好讀。 */
-.backdrop{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;opacity:.36}
+.backdrop{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;opacity:.3}
 .backdrop svg{display:block;width:100%;height:100%}
 .wrap{position:relative;z-index:1}
-.bd-o{stroke:#1b2740;stroke-opacity:.28;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
-.bd-trail{fill:none;stroke:#1b2740;stroke-opacity:.3;stroke-width:3;stroke-linecap:round;stroke-dasharray:1 11;animation:bd-march 2.4s linear infinite}
+/* 和 logo 一樣：深藍的粗外框、圓角。整幅背景再用透明度調淡，所以線本身不用淡 */
+.bd-o{stroke:#1b2740;stroke-width:4.6;stroke-linejoin:round;stroke-linecap:round}
+.bd-trail{fill:none;stroke:#1b2740;stroke-width:4.6;stroke-linecap:round;stroke-dasharray:1 11;animation:bd-march 2.4s linear infinite}
 .bd-plane{animation:bd-float 5s ease-in-out infinite}
 .bd-cloud.a{animation:bd-drift 38s ease-in-out infinite alternate}
 .bd-cloud.b{animation:bd-drift 52s ease-in-out infinite alternate-reverse}
 .bd-sun{transform-origin:center;transform-box:fill-box;animation:bd-pulse 7s ease-in-out infinite}
+.bd-fall .bd-o{stroke-width:2.6}
 .bd-fall{animation:bd-fall linear infinite}
 .bd-spin{animation:bd-spin 3.6s linear infinite;transform-box:fill-box;transform-origin:center}
 .bd-rise{animation:bd-rise linear infinite}
@@ -1170,3 +1172,14 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 .setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0}
 .setrow > span{display:grid;line-height:1.3}
 .setrow small{color:var(--muted);font-size:.78rem}
+/* 地標換的時候淡入；溫泉的蒸氣往上飄 */
+.bd-in{animation:bd-in .7s ease-out both}
+@keyframes bd-in{from{opacity:0;translate:0 14px}}
+.bd-steam{animation:bd-steam 3.8s ease-in-out infinite}
+@keyframes bd-steam{0%{opacity:0;translate:0 10px}40%{opacity:1}100%{opacity:0;translate:0 -16px}}
+/* 背景跟著季節、天氣、時間：樹的顏色、雨、星星 */
+.bd-treetop{fill:var(--bd-tree,#7ccf9b)}
+.bd-rain{fill:none;stroke:#5aa9d6;stroke-width:3.6;stroke-linecap:round}
+.bd-twinkle{transform-box:fill-box;transform-origin:center;animation:bd-twinkle 3.2s ease-in-out infinite}
+@keyframes bd-twinkle{50%{opacity:.35;scale:.7}}
+.backdrop[data-phase="night"]{opacity:.38}
