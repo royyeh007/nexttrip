@@ -36,9 +36,8 @@ export function Login({ invite }: { invite: string | null }) {
   return (
     <div className="wrap pick">
       <header className="hero">
-        <div className="brand"><LogoMark size={56} /><Wordmark /></div>
+        <h1 className="brand"><LogoMark size={56} /><Wordmark /></h1>
         <div className="eyebrow">家庭旅行・一起排行程</div>
-        <h1>我們的行程</h1>
         {invite && info === undefined && <p className="note">確認邀請中…</p>}
         {invite && info && <p className="note">你收到「<b>{info.name}</b>」（{dotDate(info.start_date)} — {dotDate(info.end_date)}）的邀請。用 Google 登入後選一下你是哪一家就加入了。</p>}
         {invite && info === null && <p className="note err">這個邀請連結不對或已經用完，跟邀請你的人再要一個。登入後也可以在下面重新輸入邀請碼。</p>}

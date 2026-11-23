@@ -65,8 +65,7 @@ export function TripPicker() {
           <span className="eyebrow">{session?.user.email}</span>
           <button type="button" className="link who-am-i" onClick={signOut}>登出</button>
         </div>
-        <div className="brand"><LogoMark size={56} /><Wordmark /></div>
-        <h1>我們的行程</h1>
+        <h1 className="brand"><LogoMark size={56} /><Wordmark /></h1>
         <p className="note">{memberships.length ? "選一個行程進去，或建立新的、加入別人的。" : "這個網站只給被邀請的人用。輸入家人傳給你的邀請碼加入他們的行程；加入之後就可以建立自己的行程。"}</p>
       </header>
 
@@ -95,15 +94,17 @@ export function TripPicker() {
       )}
 
       <h2>{memberships.length ? "建立或加入" : "加入"}</h2>
-      {memberships.length > 0 && (creating ? (
+      {creating ? (
         <CreateTrip onCreated={async (id) => { await refreshMemberships(); enterTrip(id); }} onCancel={() => setCreating(false)} />
       ) : (
-        <div className="panel">
-          <h3>建立新行程</h3>
-          <p className="note">自己當管理員，再把家人邀進來。</p>
-          <button type="button" className="btn primary" onClick={() => setCreating(true)}>＋ 建立新行程</button>
+        <div className="panel startrow">
+          {memberships.length > 0 && <button type="button" className="btn primary" onClick={() => setCreating(true)}>＋ 建立新行程</button>}
+          <div className="addrow pair">
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="有邀請碼？貼在這裡" aria-label="邀請碼" autoCapitalize="none" autoCorrect="off" onKeyDown={(e) => e.key === "Enter" && code.trim() && setInvite(code.trim())} />
+            <button type="button" className="btn" onClick={() => setInvite(code.trim())} disabled={!code.trim()}>用邀請碼加入</button>
+          </div>
         </div>
-      ))}
+      )}
       <h2>帳號・好友</h2>
       {account ? <AccountView embedded /> : (
         <div className="panel">
@@ -113,14 +114,6 @@ export function TripPicker() {
       )}
       <h2>使用教學</h2>
       <GuideView role="member" compact />
-      <div className="panel">
-        <h3>用邀請碼加入</h3>
-        <p className="note">家人傳給你的邀請連結點開會自動帶入；也可以把邀請碼貼在這裡。</p>
-        <div className="addrow pair">
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="邀請碼，例：abc123" autoCapitalize="none" autoCorrect="off" onKeyDown={(e) => e.key === "Enter" && code.trim() && setInvite(code.trim())} />
-          <button type="button" className="btn primary" onClick={() => setInvite(code.trim())} disabled={!code.trim()}>加入</button>
-        </div>
-      </div>
     </div>
   );
 }
