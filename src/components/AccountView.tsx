@@ -11,7 +11,7 @@ const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const PersonLine = ({ p }: { p: Person }) => <span className="pname"><b>{p.name}</b>{p.email && <small>{p.email}</small>}</span>;
 
 /** 帳號・好友：顯示名稱、好友碼、好友清單、同行的人。行程裡是一個分頁（#account），選行程頁也放一份。 */
-export function AccountView() {
+export function AccountView({ embedded = false }: { embedded?: boolean }) {
   const { session } = useTrip();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [friends, setFriends] = useState<Person[]>([]);
@@ -45,7 +45,8 @@ export function AccountView() {
 
   return (
     <>
-      <section className="dayhead"><h2>帳號・好友</h2><p className="note">{session?.user.email}</p></section>
+      {/* on the trip picker the page already has this heading and shows the email at the top */}
+      {!embedded && <section className="dayhead"><h2>帳號・好友</h2><p className="note">{session?.user.email}</p></section>}
       {state === "loading" && <p className="note">載入中…</p>}
       {state === "notready" && <div className="panel"><p className="note">好友和帳號設定要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。</p></div>}
       {state === "error" && <div className="panel"><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>再試一次</button></div>}

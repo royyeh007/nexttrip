@@ -105,7 +105,7 @@ export function TripPicker() {
         </div>
       ))}
       <h2>帳號・好友</h2>
-      {account ? <AccountView /> : (
+      {account ? <AccountView embedded /> : (
         <div className="panel">
           <p className="note">改顯示名稱、加好友。加了好友之後，邀他加入行程不用再傳連結。</p>
           <button type="button" className="btn" onClick={() => setAccount(true)}>打開帳號・好友</button>
