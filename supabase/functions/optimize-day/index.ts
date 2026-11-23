@@ -19,7 +19,7 @@ const isLeg = (i: Item): i is Leg => "leg" in i;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
-const UA = "family-trip-planner/1.0 (+https://github.com/royyeh007/trip-planner)";
+const UA = "nexttrip/1.0 (+https://github.com/royyeh007/nexttrip)";
 const MAX_STOPS = 40;         // 一天不會有這麼多站；擋住亂送的大請求（排序的記憶體用量跟站數成正比）
 const GEOCODE_BUDGET_MS = 95_000; // 整個函式最多 150 秒：定位做到這裡就停，剩下的當作「找不到座標」
 /** 真的像座標才收（模型或定位服務偶爾會回 NaN、把經緯度放反、或回 0,0） */
