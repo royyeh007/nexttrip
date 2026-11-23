@@ -1,6 +1,6 @@
 {
-  "name": "我們的行程",
-  "short_name": "行程",
+  "name": "Next Trip",
+  "short_name": "Next Trip",
   "description": "家庭旅行行程，一起排、一起看",
   "lang": "zh-Hant",
   "start_url": ".",

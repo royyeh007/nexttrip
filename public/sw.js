@@ -74,5 +74,5 @@ self.addEventListener("fetch", (e) => {
   const rel = url.pathname.slice(SCOPE.pathname.length);
   if (req.mode === "navigate" || rel === "" || rel === "index.html") e.respondWith(pageFirstNetwork(req));
   else if (rel.startsWith("assets/")) e.respondWith(cacheFirst(req, ASSETS));
-  else if (rel.startsWith("coupons/") || /^(icon-\d+\.png|apple-touch-icon\.png|manifest\.webmanifest)$/.test(rel)) e.respondWith(staleWhileRevalidate(req, STATIC, e));
+  else if (rel.startsWith("coupons/") || /^(icon-\d+\.png|icon\.svg|apple-touch-icon\.png|manifest\.webmanifest)$/.test(rel)) e.respondWith(staleWhileRevalidate(req, STATIC, e));
 });
