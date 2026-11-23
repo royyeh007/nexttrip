@@ -4,6 +4,7 @@ import { useTrip } from "../trip";
 import { dotDate, tripLength } from "../data";
 import { fillTripDays } from "../days";
 import { GuideView } from "./GuideView";
+import { LogoMark } from "./Logo";
 
 function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
   const { session } = useTrip();
@@ -61,6 +62,7 @@ export function TripPicker() {
           <span className="eyebrow">{session?.user.email}</span>
           <button type="button" className="link who-am-i" onClick={signOut}>登出</button>
         </div>
+        <div className="brand"><LogoMark size={56} /><span className="wordmark">Next Trip</span></div>
         <h1>我們的行程</h1>
         <p className="note">{memberships.length ? "選一個行程進去，或建立新的、加入別人的。" : "這個網站只給被邀請的人用。輸入家人傳給你的邀請碼加入他們的行程；加入之後就可以建立自己的行程。"}</p>
       </header>

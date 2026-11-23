@@ -19,6 +19,7 @@ import { GuideView } from "./components/GuideView";
 import { CardsView } from "./components/CardsView";
 import { QuickPickFab } from "./components/QuickPick";
 import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
+import { LogoMark, PaperPlane } from "./components/Logo";
 import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
 import { TripPicker } from "./components/TripPicker";
@@ -286,11 +287,12 @@ function Main() {
             {first && last ? `${dotDate(first.id)} — ${dotDate(last.id)} ・ ${famDays.length} 天` : current ? `${dotDate(current.start_date)} — ${dotDate(current.end_date)}` : ""}
             {current?.place && ` ・ ${current.place}`}
           </div>
-          <h1>{current?.name ?? "行程"}</h1>
+          <div className="titlerow"><LogoMark size={44} /><h1>{current?.name ?? "行程"}</h1></div>
           {route.length > 0 && (
             <div className="route">
+              <PaperPlane />
               {route.map((c, i) => (
-                <span key={i}>{i > 0 && <i>→ </i>}{c}</span>
+                <span key={i}>{i > 0 && <i className="trail" aria-hidden="true" />}{c}</span>
               ))}
             </div>
           )}

@@ -863,3 +863,30 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
   html{-webkit-tap-highlight-color:transparent}
   button,.btn,.daysbar a{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 }
+
+/* ---- Logo：小行李箱和紙飛機（和主畫面圖示同一個圖），顏色跟著頁面的淺色／深色走 ---- */
+:root{--butter:#ffe7a8;--logo-red:#e9573f;--logo-trail:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--butter:#3a2f17;--logo-red:#f0806a;--logo-trail:#8d7b45}}
+:root[data-theme="dark"]{--butter:#3a2f17;--logo-red:#f0806a;--logo-trail:#8d7b45}
+.logo{display:block;flex:none}
+.logo .l-tile{fill:var(--butter)}
+.logo .l-trail{fill:none;stroke:var(--logo-trail);stroke-width:9;stroke-linecap:round;stroke-dasharray:2 20}
+.logo .l-line{stroke:var(--ink);stroke-width:13;stroke-linejoin:round;stroke-linecap:round}
+.logo .l-plane{stroke-width:10;fill:var(--surface)}
+.logo .l-ink{fill:var(--ink)}
+.logo .l-none{fill:none}
+.logo .l-case{fill:var(--logo-red)}
+.logo .l-dot{fill:#7cc4e8;stroke-width:8}
+.logo .l-star{fill:#ffd257;stroke-width:8}
+.logo .l-cheek{fill:#ffab98;stroke:none}
+.logo .l-eye{fill:var(--ink);stroke:none}
+.logo .l-smile{stroke-width:9}
+/* 登入頁、選行程頁：圖示＋名稱 */
+.brand{display:flex;align-items:center;gap:12px}
+.brand .wordmark{font-family:var(--f-display);font-weight:900;font-size:1.3rem;letter-spacing:.01em}
+/* 行程頁：圖示在行程名稱左邊 */
+.titlerow{display:flex;align-items:center;gap:12px}
+.titlerow h1{min-width:0}
+/* 城市路線：開頭一架紙飛機，城市之間是飛過的虛線（取代箭頭） */
+.route .plane{margin-right:2px}
+.route i.trail{display:inline-block;width:20px;height:0;border-bottom:3px dotted var(--muted);opacity:.7;vertical-align:middle;margin-right:6px}
