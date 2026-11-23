@@ -914,3 +914,16 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 .tripcard .td{display:flex;flex-wrap:wrap;gap:0 10px}
 .tripcard .td span{white-space:nowrap}
 .tripcard .tm{margin-top:auto;padding-top:8px}
+/* 「Next Trip」字樣：和圖示同一種圓頭粗線，i 的點是行李箱的紅色 */
+svg.wordmark{display:block;color:var(--ink);overflow:visible}
+svg.wordmark .wm-dot{fill:var(--logo-red)}
+/* ---- 帳號・好友、行程邀請 ---- */
+.invite.person{justify-content:space-between}
+.pname{display:grid;line-height:1.3;min-width:0;margin-right:auto}
+.pname small{color:var(--muted);font-size:.76rem;word-break:break-all}
+.invitation{border-color:var(--ai)}
+.invhead{display:flex;gap:12px;align-items:flex-start}
+.invhead .note{margin:2px 0 0}
+.menu summary{position:relative}
+.menu summary .dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--shu);border:2px solid var(--paper)}
+.menu .list .badge{margin-left:8px;font-size:.72rem;color:var(--surface);background:var(--shu);border-radius:999px;padding:1px 8px}

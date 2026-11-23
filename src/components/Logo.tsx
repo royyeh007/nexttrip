@@ -61,3 +61,25 @@ export function SuitcaseIcon({ size = 26 }: { size?: number }) {
     </svg>
   );
 }
+
+/**
+ * "Next Trip" written the way the icon is drawn: one round navy line, with the dot of the i as the suitcase's red.
+ * Hand-built letters (no font to download), so it looks the same everywhere.
+ */
+export function Wordmark({ height = 30 }: { height?: number }) {
+  return (
+    <svg className="wordmark" viewBox="0 4 232 64" height={height} width={(height * 232) / 64} role="img" aria-label="Next Trip">
+      <g fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 52 V16 L32 52 V16" />
+        <path d="M45 41 H65 A10.5 12 0 1 0 61 50" />
+        <path d="M76 29 L94 52 M94 29 L76 52" />
+        <path d="M108 16 V44 Q108 52 116 52 M100 29 H117" />
+        <path d="M134 16 H164 M149 16 V52" />
+        <path d="M174 29 V52 M174 40 Q176 29 188 29" />
+        <path d="M199 31 V52" />
+        <path d="M212 29 V64 M212 40.5 a10.5 11.5 0 1 1 21 0 a10.5 11.5 0 1 1 -21 0" />
+      </g>
+      <circle className="wm-dot" cx="199" cy="17" r="6" />
+    </svg>
+  );
+}

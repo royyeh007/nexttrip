@@ -3,9 +3,11 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { TripProvider } from "./trip";
 import { captureInvite } from "./supabase";
+import { captureFriend } from "./friends";
 import "./styles.css";
 
 captureInvite();
+captureFriend();
 
 // Offline support (production build only): the worker keeps the page, the app's files and the coupon pictures on the phone.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

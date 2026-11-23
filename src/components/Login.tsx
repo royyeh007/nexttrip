@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { setStoredInvite, supabase } from "../supabase";
 import { dotDate } from "../data";
-import { LogoMark } from "./Logo";
+import { LogoMark, Wordmark } from "./Logo";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
@@ -36,7 +36,7 @@ export function Login({ invite }: { invite: string | null }) {
   return (
     <div className="wrap pick">
       <header className="hero">
-        <div className="brand"><LogoMark size={56} /><span className="wordmark">Next Trip</span></div>
+        <div className="brand"><LogoMark size={56} /><Wordmark /></div>
         <div className="eyebrow">家庭旅行・一起排行程</div>
         <h1>我們的行程</h1>
         {invite && info === undefined && <p className="note">確認邀請中…</p>}

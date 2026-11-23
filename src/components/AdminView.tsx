@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { InviteFriends } from "./AccountView";
 import { TRIP_ICONS, TripIcon, tripIconId } from "../tripIcons";
 import { supabase } from "../supabase";
 import { removeTripImages } from "../images";
@@ -349,6 +350,7 @@ export function AdminView() {
       <section className="dayhead"><h2>管理行程</h2><p className="note">團員、邀請連結、家庭和行程設定。</p></section>
       <Members />
       <Invites />
+      <InviteFriends />
       <Families />
       <Settings />
     </>

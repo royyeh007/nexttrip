@@ -80,6 +80,10 @@ const signature = (r: SigRows) => JSON.stringify([
   [...r.extras].filter((e) => e.key !== "info").sort((a, b) => a.key.localeCompare(b.key)).map((e) => [e.key, e.data]),
 ]);
 
+/** What a browser-history entry shows: the trip picker, or one trip. Stored in history.state. */
+interface NavMark { jpTrip?: string; jpPicker?: boolean }
+const navMark = (): NavMark | null => { const st: unknown = history.state; return st && typeof st === "object" ? (st as NavMark) : null; };
+
 export function TripProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -178,13 +182,44 @@ export function TripProvider({ children }: { children: ReactNode }) {
   }, [memberships, currentId, readOnly]);
   useEffect(() => { setTimezone(current?.tz); }, [current?.tz]);
 
-  const enterTrip = useCallback((id: string) => {
+  // ---- 瀏覽器的上一頁／下一頁 ----
+  // 「選行程」那一頁和每個行程在瀏覽紀錄裡各是一筆，每一筆都標上它是哪一個（history.state）：
+  // 從選行程頁點進行程、從行程按「切換行程」會多一筆，所以按上一頁會回到剛剛那一頁，而不是離開網站。
+  // 行程裡換日期、換分頁本來就是換網址的 #，那些是瀏覽器自己記的。
+  const membershipsRef = useRef(memberships);
+  membershipsRef.current = memberships;
+  const openTrip = useCallback((id: string) => {
     setCurrentId(id); setStoredTrip(id); setPickerOpen(false); setViewFam(null); setTripLoaded(false);
     supabase?.rpc("open_trip", { p_trip: id }).then(() => { /* remembered server-side too */ }, () => { /* ignore */ });
     setMemberships((ms) => ms.map((m) => (m.trip_id === id ? { ...m, last_opened_at: new Date().toISOString() } : m)));
-    if (location.hash.startsWith("#admin")) location.hash = "";
   }, []);
-  const leaveToPicker = useCallback(() => { setPickerOpen(true); setCurrentId(null); setStoredTrip(null); setTrip(EMPTY); setTripLoaded(false); have.current.trip = null; setViewFam(null); }, []);
+  const showPicker = useCallback(() => { setPickerOpen(true); setCurrentId(null); setStoredTrip(null); setTrip(EMPTY); setTripLoaded(false); have.current.trip = null; setViewFam(null); }, []);
+  const enterTrip = useCallback((id: string) => {
+    const mark: NavMark = { jpTrip: id };
+    // from the picker: a new entry without a # (the trip page then writes its own); otherwise (a link from one trip into another, after joining) relabel this entry
+    if (navMark()?.jpPicker) history.pushState(mark, "", location.pathname + location.search);
+    else history.replaceState(mark, "", location.hash.startsWith("#admin") ? location.pathname + location.search : location.href);
+    openTrip(id);
+  }, [openTrip]);
+  const leaveToPicker = useCallback(() => {
+    history.pushState({ jpPicker: true } satisfies NavMark, "", location.pathname + location.search);
+    showPicker();
+  }, [showPicker]);
+  useEffect(() => {
+    const onPop = () => {
+      const st = navMark();
+      if (st?.jpPicker) { if (currentIdRef.current) showPicker(); }
+      else if (st?.jpTrip && st.jpTrip !== currentIdRef.current) {
+        if (membershipsRef.current.some((m) => m.trip_id === st.jpTrip)) openTrip(st.jpTrip);
+        else { history.replaceState({ jpPicker: true } satisfies NavMark, "", location.pathname + location.search); showPicker(); } // no longer in that trip
+      }
+    };
+    // clicking a day or a page link makes an unlabelled entry: label it with the trip it belongs to
+    const onHash = () => { if (!navMark() && currentIdRef.current) history.replaceState({ jpTrip: currentIdRef.current } satisfies NavMark, "", location.href); };
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onHash);
+    return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("hashchange", onHash); };
+  }, [openTrip, showPicker]);
   const setInvite = useCallback((code: string | null) => { if (code) setStoredInvite(code); else clearInvite(); setInviteState(code); }, []);
 
   // 3b. this person's credit cards and the shared catalog (not per trip); a missing table just hides the feature
@@ -336,6 +371,13 @@ export function TripProvider({ children }: { children: ReactNode }) {
     : !current ? (memberships.length === 0 || pickerOpen || !memberships.some((m) => m.trip_id === (storedTrip() ?? memberships[0]?.trip_id)) ? "pick" : "loading")
     : !tripLoaded ? "loading"
     : "ready";
+
+  // label the entry we are on when the app decided by itself what to show (first load, removed from a trip, signed in as someone else)
+  useEffect(() => {
+    const st = navMark();
+    if (phase === "pick") { if (!st?.jpPicker) history.replaceState({ jpPicker: true } satisfies NavMark, "", location.pathname + location.search); }
+    else if (phase === "ready" && currentId && st?.jpTrip !== currentId) history.replaceState({ jpTrip: currentId } satisfies NavMark, "", location.href);
+  }, [phase, currentId]);
 
   const families = trip.families;
   const labelOf = useCallback((id: FamilyId) => labelIn(families, id), [families]);

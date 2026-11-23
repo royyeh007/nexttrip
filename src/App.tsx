@@ -21,6 +21,8 @@ import { QuickPickFab } from "./components/QuickPick";
 import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
 import { PaperPlane } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
+import { AccountView } from "./components/AccountView";
+import { useInvitations, usePendingFriend } from "./friends";
 import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
 import { TripPicker } from "./components/TripPicker";
@@ -36,7 +38,7 @@ const store = {
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } },
 };
 
-const PAGES = ["overview", "todo", "upload", "info", "cards", "admin", "guide"];
+const PAGES = ["overview", "todo", "upload", "info", "cards", "admin", "guide", "account"];
 function currentView(dayIds: string[], dayKey: string, todayId?: string) {
   const h = location.hash.slice(1);
   if (PAGES.includes(h) || dayIds.includes(h)) return h;
@@ -84,7 +86,8 @@ function SyncBar() {
 }
 
 export default function App() {
-  const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip } = useTrip();
+  const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip, session } = useTrip();
+  usePendingFriend(phase === "ready" || phase === "pick" ? session?.user.id : undefined);
   if (phase === "noconfig") {
     return (
       <Notice title="還沒接上 Supabase">
@@ -182,6 +185,7 @@ function TripMenu() {
   };
   const leave = () => { close(); setLeaving(true); };
   const short = (member?.name ?? member?.email?.split("@")[0] ?? "我").split(/\s+/)[0];
+  const pending = useInvitations(member?.user_id).length;
   return (
     <>
     {leaving && <LeaveDialog onClose={() => setLeaving(false)} />}
@@ -189,11 +193,13 @@ function TripMenu() {
       <summary aria-label="帳號與行程選單" title="切換行程、管理、登出">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
         <span className="mname">{short}</span>
+        {pending > 0 && <span className="dot" aria-label={`有 ${pending} 個行程邀請`} />}
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </summary>
       <div className="list">
         <small>{member?.name ?? member?.email}</small>
-        <button type="button" onClick={() => { close(); leaveToPicker(); }}>切換行程</button>
+        <button type="button" onClick={() => { close(); leaveToPicker(); }}>切換行程{pending > 0 && <b className="badge">{pending} 個邀請</b>}</button>
+        <a href="#account" onClick={close}>帳號・好友</a>
         {member?.role === "admin" && <a href="#admin" onClick={close}>管理行程</a>}
         <a href="#cards" onClick={close}>我的信用卡</a>
         <a href="#guide" onClick={close}>使用教學</a>
@@ -259,6 +265,12 @@ function Main() {
   // If the viewed family changes (or a day is removed), keep the view valid
   useEffect(() => { if (!PAGES.includes(view) && !dayIds.includes(view)) setView(dayIds[0] ?? "todo"); }, [dayIds, view]);
 
+  // The address always says which day or page is showing (arriving without a #, or when the day in the # went away):
+  // rewrite it in place, no new history entry. Without this, Back to an address with no # showed the last-viewed day, i.e. nothing moved.
+  useEffect(() => {
+    if (!viewFam || (history.state as { jpPicker?: boolean } | null)?.jpPicker) return;
+    if (location.hash.slice(1) !== view) history.replaceState(history.state, "", `#${view}`);
+  }, [view, viewFam]);
   useEffect(() => {
     store.set(dayKey, view);
     document.querySelector(`nav.days [data-id="${view}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -378,6 +390,7 @@ function Main() {
             : view === "cards" ? <CardsView />
             : view === "admin" ? <AdminView />
             : view === "guide" ? <GuideView role={member?.role ?? "member"} />
+            : view === "account" ? <AccountView />
             : cur && mode === "all" ? <AllFamiliesDay dateId={cur.id} onOpen={(day, stop, arrive) => setSelected({ day, stop, arrive })} />
             : cur ? <DayView key={`${cur.id}|${(cur.fam ?? []).join(",")}|${fam.id}`} day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
             : !adding && (
