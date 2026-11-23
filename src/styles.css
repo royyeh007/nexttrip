@@ -985,3 +985,8 @@ li.split > ol.tl{margin:0;padding:0}
 .splitfoot{color:var(--muted)}
 .who.group{background:var(--butter);color:var(--ink)}
 .sec .splitok,.sec .splitwarn{margin-left:0}
+/* 圖示夾在文字裡的時候（標籤、連結、說明文字）：對齊文字基線，後面留一點空 */
+.micon{vertical-align:-.2em;margin-right:.3em}
+.btn .micon,.menu .list .micon,.gbtn .micon,.cardfab .micon,.gicon .micon,summary .micon{margin-right:0}
+.who .micon,.tag .micon,.cardpick .micon{margin-right:.25em}
+.gicon{color:var(--ink)}

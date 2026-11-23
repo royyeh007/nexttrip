@@ -8,6 +8,7 @@ import { headcount, peopleApi, personLabel, refreshTripPeople, useTripPeople } f
 import type { Household, HouseholdPerson, PersonKind, TripPerson } from "../people";
 import { editDayItems, findStop } from "../dayEdit";
 import { sharedFamilies, syncShared } from "../shared";
+import { MenuIcon } from "./Logo";
 
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const kindText = (p: { kind: PersonKind; age: number | null }) => (p.kind === "adult" ? "大人" : p.age !== null ? `小孩・${p.age} 歲` : "小孩");
@@ -189,7 +190,7 @@ export function PeopleBanner() {
   const { current, member } = useTrip();
   const people = useTripPeople(current?.id);
   if (!member || !people || people.some((p) => p.mine)) return null;
-  return <a className="peoplebanner" href="#people">👪 這趟你們家誰會去？點這裡勾選，訂位時就知道幾大幾小 ›</a>;
+  return <a className="peoplebanner" href="#people"><MenuIcon name="people" size={20} />這趟你們家誰會去？點這裡勾選，訂位時就知道幾大幾小 ›</a>;
 }
 
 /** The people who can be at a stop: everyone going from the families that have this stop (a shared stop: all of them; otherwise the families this day belongs to). */
@@ -206,7 +207,10 @@ export function StopPeopleChip({ stop, day }: { stop: Stop; day: Day }) {
   const all = relevantPeople(people, day, sharedFamilies(trip.days, trip.families, day.id, stop.sid));
   const n = all.filter((p) => stop.people!.includes(p.id)).length;
   if (n === all.length) return null;
-  return <span className="who">👥 {n} 人</span>;
+  // on a day several families share: when everyone going is from one family, say which (that is the exception worth seeing)
+  const going = new Set(all.filter((p) => stop.people!.includes(p.id)).map((p) => p.family_id));
+  const only = new Set(all.map((p) => p.family_id)).size > 1 && going.size === 1 ? trip.families.find((f) => f.id === [...going][0])?.label : null;
+  return <span className="who"><MenuIcon name="friends" size={14} />{only ? `只有${only}（${n} 人）` : `${n} 人`}</span>;
 }
 
 /** 地點詳細頁：誰參加。預設全員；點名字可以拿掉或加回來。 */

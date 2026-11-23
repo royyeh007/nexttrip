@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MenuIcon } from "./Logo";
 import type { ClipboardEvent, DragEvent, FormEvent } from "react";
 import type { InfoBlock, InfoPage } from "../data";
 import { Markdown, blocksToMd } from "../md";
@@ -225,11 +226,11 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: (id: string | null) =
         </div>
         <span className="actions">
           <button type="button" className="btn" onClick={() => fileRef.current?.click()} disabled={uploading > 0} title="上傳圖片，會變成文字旁的縮圖；也可以直接把圖貼進內容">
-            {uploading > 0 ? `上傳中…（${uploading}）` : "🖼 加圖片"}
+            {uploading > 0 ? `上傳中…（${uploading}）` : <><MenuIcon name="image" size={16} />加圖片</>}
           </button>
           <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => { addImages(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
           <button type="button" className="btn" onClick={tidy} disabled={!!busy || body.trim().length < 20} title="把貼進來的文字整理成條列或表格">
-            {busy === "tidy" ? "整理中…" : "✦ 幫我整理"}
+            {busy === "tidy" ? "整理中…" : <><MenuIcon name="spark" size={16} />幫我整理</>}
           </button>
         </span>
       </div>
@@ -240,7 +241,7 @@ function Editor({ draft, onDone }: { draft: Draft; onDone: (id: string | null) =
         : <article className="info preview">{body.trim() ? <Markdown text={body} /> : <p className="note">還沒有內容。</p>}</article>}
       {tidied && <p className="note ok">{tidied}{beforeTidy && <> <button type="button" className="link" onClick={undoTidy}>還原成整理前的內容</button></>}</p>}
       {err && <p className="err">{err}</p>}
-      <p className="note">「🖼 加圖片」或直接把圖貼進內容，會變成文字旁的小縮圖（例如商品照），點了放大。「✦ 幫我整理」會把從網站、LINE 複製來的一大段文字整理成條列或表格；它不會上網查，也不會加原文沒有的內容。每個行程每天最多 10 次，用完就自己手寫。</p>
+      <p className="note">「加圖片」或直接把圖貼進內容，會變成文字旁的小縮圖（例如商品照），點了放大。「幫我整理」會把從網站、LINE 複製來的一大段文字整理成條列或表格；它不會上網查，也不會加原文沒有的內容。每個行程每天最多 10 次，用完就自己手寫。</p>
       <div className="actions">
         <button type="submit" className="btn primary" disabled={!!busy || uploading > 0}>{busy === "save" ? "儲存中…" : uploading > 0 ? "圖片上傳中…" : "儲存"}</button>
         {conflict && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy || uploading > 0}>另存成新的一頁</button>}
@@ -329,7 +330,7 @@ export function InfoView() {
               <span>更新於 {fmtDate(page.updated_at)}{page.updated_by_name ? `・${page.updated_by_name}` : ""}</span>
               {editable && (
                 <span className="actions">
-                  <button type="button" className="link" onClick={() => startEdit(page)} disabled={opening}>{opening ? "讀取中…" : "✎ 編輯"}</button>
+                  <button type="button" className="link" onClick={() => startEdit(page)} disabled={opening}>{opening ? "讀取中…" : <><MenuIcon name="rename" size={14} />編輯</>}</button>
                   <button type="button" className="link danger" onClick={() => remove(page)}>刪除</button>
                 </span>
               )}

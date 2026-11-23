@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { daysFor, isLeg } from "../data";
+import { daysFor, hotelFor, isLeg } from "../data";
 import type { Day, Stop } from "../data";
 import { linkLegs } from "../maps";
 import type { LinkedLeg } from "../maps";
@@ -40,7 +40,7 @@ export function Overview({ onOpen }: { onOpen: (day: Day, stop: Stop, arrive?: L
                 <span className="ovdate"><b>{d.d}</b><small>{d.w}</small></span>
                 <span className="ovmain">
                   <span className="ovtitle">{d.title}</span>
-                  <span className="ovmeta">{d.city}{d.hotel && ` ・ 住 ${d.hotel}`}{d.fam && ` ・ ${d.fam.map(labelOf).join("＋")}的版本`}</span>
+                  <span className="ovmeta">{d.city}{hotelFor(d, viewFam) && ` ・ 住 ${hotelFor(d, viewFam)}`}{d.fam && ` ・ ${d.fam.map(labelOf).join("＋")}的版本`}</span>
                 </span>
               </a>
               {stops.length === 0

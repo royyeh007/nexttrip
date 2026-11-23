@@ -80,7 +80,7 @@ function SyncBar() {
   if (!sync.message) return null;
   return (
     <div className="syncbar" role="status">
-      <span>⚠ {sync.message}。{sync.at ? `畫面上是 ${clock(sync.at)} 的資料` : "畫面上可能不是最新的"}{sync.offline ? "，現在只能看、不能改。" : "。"}</span>
+      <span><MenuIcon name="warn" size={16} />{sync.message}。{sync.at ? `畫面上是 ${clock(sync.at)} 的資料` : "畫面上可能不是最新的"}{sync.offline ? "，現在只能看、不能改。" : "。"}</span>
       <button type="button" className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await retry(); } finally { setBusy(false); } }}>{busy ? "重試中…" : "再試一次"}</button>
     </div>
   );
@@ -324,13 +324,13 @@ function Main() {
             </div>
           )}
           <div className="quick">
-            <a className="btn" href="#overview" aria-current={view === "overview" ? "page" : undefined}>☷ 總覽</a>
-            <a className="btn" href="#todo" aria-current={view === "todo" ? "page" : undefined}>✓ 待辦・聯絡</a>
-            {!isViewer(member) && <a className="btn" href="#upload" aria-current={view === "upload" ? "page" : undefined}>↑ 上傳行程</a>}
-            {(trip.info.length > 0 || !isViewer(member)) && <a className="btn" href="#info" aria-current={view === "info" ? "page" : undefined}>ⓘ 其他資訊</a>}
-            <a className="btn" href="#cards" aria-current={view === "cards" ? "page" : undefined}>💳 信用卡</a>
-            {couponsOn && <button type="button" className="btn" onClick={() => openCoupons()}>💊 藥妝優惠券</button>}
-            {member?.role === "admin" && <a className="btn" href="#admin" aria-current={view === "admin" ? "page" : undefined}>⚙ 管理</a>}
+            <a className="btn" href="#overview" aria-current={view === "overview" ? "page" : undefined}><MenuIcon name="overview" size={18} />總覽</a>
+            <a className="btn" href="#todo" aria-current={view === "todo" ? "page" : undefined}><MenuIcon name="todo" size={18} />待辦・聯絡</a>
+            {!isViewer(member) && <a className="btn" href="#upload" aria-current={view === "upload" ? "page" : undefined}><MenuIcon name="upload" size={18} />上傳行程</a>}
+            {(trip.info.length > 0 || !isViewer(member)) && <a className="btn" href="#info" aria-current={view === "info" ? "page" : undefined}><MenuIcon name="info" size={18} />其他資訊</a>}
+            <a className="btn" href="#cards" aria-current={view === "cards" ? "page" : undefined}><MenuIcon name="cards" size={18} />信用卡</a>
+            {couponsOn && <button type="button" className="btn" onClick={() => openCoupons()}><MenuIcon name="coupon" size={18} />藥妝優惠券</button>}
+            {member?.role === "admin" && <a className="btn" href="#admin" aria-current={view === "admin" ? "page" : undefined}><MenuIcon name="admin" size={18} />管理</a>}
           </div>
         </header>
 

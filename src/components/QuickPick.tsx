@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MenuIcon } from "./Logo";
 import { COUNTRY_NAME, KIND_TIP, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, explain, pct } from "../cards";
 import type { Pick, StopKind } from "../cards";
 import { useNow } from "../now";
@@ -47,8 +48,8 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
           </div>
           <button ref={closeRef} type="button" className="x" aria-label="關閉" onClick={onClose}>×</button>
         </header>
-        {couponsOn && <button type="button" className="btn big qpshort" onClick={() => { onClose(); openCoupons(); }}>💊 藥妝優惠券<small>出示條碼、找附近的店</small></button>}
-        {!r.enabled && <p className="note qptip">到 <a href="#cards" onClick={onClose}>💳 信用卡</a> 勾你有的卡{r.on ? "" : "並打開推薦開關"}，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。</p>}
+        {couponsOn && <button type="button" className="btn big qpshort" onClick={() => { onClose(); openCoupons(); }}><MenuIcon name="coupon" size={20} />藥妝優惠券<small>出示條碼、找附近的店</small></button>}
+        {!r.enabled && <p className="note qptip">到 <a href="#cards" onClick={onClose}>信用卡</a> 勾你有的卡{r.on ? "" : "並打開推薦開關"}，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。</p>}
         {r.enabled && <ul className="qprows">
           {rows.map(({ k, top, fallback }) => top && (
             <li key={k} className={top.stale ? "stale" : ""}>
@@ -56,7 +57,7 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
               <div className="qpmain">
                 <span className="qpl">{RATE_KIND_NAME[k]}</span>
                 <span className="qpcard">{top.card.name}</span>
-                <span className="qpwhy">{explain(top)}{top.stale ? "・⚠ 優惠標示已到期，要確認" : ""}</span>
+                <span className="qpwhy">{explain(top)}{top.stale ? "・優惠標示已到期，要確認" : ""}</span>
                 {top.rate?.cond && <span className="qpcond">{top.rate.cond}</span>}
                 {fallback && <span className="qpfb">不收 {top.card.network.map((n) => NETWORK_NAME[n] ?? n).join("／")} 就用 <b>{fallback.card.short || fallback.card.name}</b>（淨 {pct(fallback.net)}）</span>}
               </div>
@@ -84,7 +85,7 @@ export function QuickPickFab() {
   if (!show) return null;
   return (
     <>
-      <button type="button" className="cardfab" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} title="捷徑：現在刷哪張卡、藥妝優惠券">⚡ 捷徑</button>
+      <button type="button" className="cardfab" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} title="捷徑：現在刷哪張卡、藥妝優惠券"><MenuIcon name="bolt" size={18} />捷徑</button>
       {open && <QuickPickSheet onClose={() => setOpen(false)} />}
     </>
   );

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InviteFriends } from "./AccountView";
+import { MenuIcon } from "./Logo";
 import { TRIP_ICONS, TripIcon, tripIconId } from "../tripIcons";
 import { supabase } from "../supabase";
 import { removeTripImages } from "../images";
@@ -100,8 +101,8 @@ function Invites() {
   /** What is wrong with an invite, if anything (shown next to it). */
   const warn = (i: InviteRow) => (i.expires_at && new Date(i.expires_at).getTime() < Date.now() ? "已過期，不能用了"
     : i.uses >= i.max_uses ? "次數用完了"
-    : !i.expires_at ? "⚠ 沒有期限（舊的邀請）。建議刪掉，重新產生一個"
-    : i.code.length < 12 ? "⚠ 舊的短碼，比較容易被猜到。建議刪掉，重新產生一個"
+    : !i.expires_at ? "沒有期限（舊的邀請）。建議刪掉，重新產生一個"
+    : i.code.length < 12 ? "舊的短碼，比較容易被猜到。建議刪掉，重新產生一個"
     : null);
   const del = async (code: string) => {
     if (!supabase || !confirm("刪掉這個邀請連結？已經用它加入的人不受影響。")) return;
@@ -121,7 +122,7 @@ function Invites() {
           <code>{linkOf(i.code)}</code>
           <span className="muted">
             {ROLE_LABEL[i.role]}邀請{i.family_id && `・${trip.families.find((f) => f.id === i.family_id)?.label ?? i.family_id}`}{i.note && `・${i.note}`}・用了 {i.uses}/{i.max_uses}{i.expires_at && `・${fmtDay(i.expires_at)} 到期`}
-            {warn(i) && <b className="invwarn">{warn(i)}</b>}
+            {warn(i) && <b className="invwarn"><MenuIcon name="warn" size={14} />{warn(i)}</b>}
           </span>
           <button type="button" className="btn" onClick={() => copy(i.code)}>{copied === i.code ? "已複製" : "複製"}</button>
           <button type="button" className="link" onClick={() => del(i.code)}>刪除</button>

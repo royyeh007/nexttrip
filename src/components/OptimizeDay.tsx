@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MenuIcon } from "./Logo";
 import { isLeg } from "../data";
 import type { Day, Item, Stop } from "../data";
 import { invoke } from "../supabase";
@@ -105,7 +106,7 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
               );
             })}
           </ol>
-          {res.warnings.length > 0 && <ul className="notes">{res.warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}</ul>}
+          {res.warnings.length > 0 && <ul className="notes">{res.warnings.map((w, i) => <li key={i}><MenuIcon name="warn" size={14} />{w}</li>)}</ul>}
           <p className="note">只算距離，不知道營業時間和你們想先做什麼，所以順序當參考。沒訂位的地點，時間是在前後固定點之間平均分配的，套用後可以再點進去微調；新的交通段會標「待確認」。距離是直線距離，實際路程會更長一些。</p>
           <div className="actions">
             {res.changed && <button type="button" className="btn primary" onClick={apply} disabled={!!busy}>{busy ? "套用中…" : "套用這個順序"}</button>}

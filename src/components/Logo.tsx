@@ -89,6 +89,34 @@ const MENU_ICONS = {
   switch: <><path d="M9 8V6.2A1.7 1.7 0 0 1 10.7 4.5h2.6A1.7 1.7 0 0 1 15 6.2V8" /><rect x="3.5" y="8" width="17" height="11.5" rx="3.2" fill="#e9573f" /><path d="M9.5 13.2h.01M14.5 13.2h.01" strokeWidth="2.6" /></>,
   // 帳號・好友：兩個人
   friends: <><circle cx="16.6" cy="9.4" r="2.6" fill="#7cc4e8" /><path d="M14.6 19.5h6.2a4.3 4.3 0 0 0-5-4.6" fill="#7cc4e8" /><circle cx="9" cy="8.4" r="3.2" fill="#ffd257" /><path d="M3.2 19.5a5.8 5.8 0 0 1 11.6 0Z" fill="#ffd257" /></>,
+  // 總覽：三行清單
+  overview: <><rect x="3.5" y="4.6" width="4.4" height="3.8" rx="1.2" fill="#e9573f" /><rect x="3.5" y="10.1" width="4.4" height="3.8" rx="1.2" fill="#ffd257" /><rect x="3.5" y="15.6" width="4.4" height="3.8" rx="1.2" fill="#7cc4e8" /><path d="M11.5 6.5h9M11.5 12h9M11.5 17.5h9" /></>,
+  // 待辦：打勾的方塊
+  todo: <><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="#ffd257" /><path d="M8 12.4l3 3 5.2-6.2" /></>,
+  // 上傳：往上的箭頭和托盤
+  upload: <><path d="M4.2 14v3.6a2 2 0 0 0 2 2h11.6a2 2 0 0 0 2-2V14" /><path d="M12 15V4.6M7.8 8.6 12 4.4l4.2 4.2" /></>,
+  // 其他資訊：圓圈裡的 i
+  info: <><circle cx="12" cy="12" r="8.6" fill="#7cc4e8" /><path d="M12 11v5.4" /><path d="M12 7.6h.01" strokeWidth="2.8" /></>,
+  // 藥妝優惠券：一張券
+  coupon: <><path d="M3.5 8.6A1.8 1.8 0 0 1 5.3 6.8h13.4a1.8 1.8 0 0 1 1.8 1.8v1.7a1.9 1.9 0 0 0 0 3.6v1.7a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8v-1.7a1.9 1.9 0 0 0 0-3.6Z" fill="#e9573f" /><path d="M10 7.6v9.2" strokeDasharray="1.2 2.6" /></>,
+  // 捷徑：閃電
+  bolt: <path d="M13.4 2.8 5 13.6h5.8l-1.2 7.6L18 10.4h-5.8Z" fill="#ffd257" />,
+  // 一起：兩個交疊的圈
+  together: <><circle cx="9" cy="12" r="5.4" fill="#ffd257" /><circle cx="15" cy="12" r="5.4" fill="#7cc4e8" fillOpacity=".85" /></>,
+  // 注意：三角形驚嘆號
+  warn: <><path d="M12 3.6 2.9 19.4h18.2Z" fill="#ffd257" /><path d="M12 9.6v4.6" /><path d="M12 16.9h.01" strokeWidth="2.8" /></>,
+  // AI 幫忙：四角星
+  spark: <><path d="M11 3.2l1.9 5.9L18.8 11l-5.9 1.9L11 18.8l-1.9-5.9L3.2 11l5.9-1.9Z" fill="#ffd257" /><path d="M18.6 15.4l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" fill="#e9573f" strokeWidth="1.4" /></>,
+  // 圖片
+  image: <><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="3" fill="#7cc4e8" /><circle cx="8.6" cy="9.6" r="1.7" fill="#ffd257" /><path d="M3.6 16.6l4.6-4.4 3.6 3.2 3-2.6 5.6 4.6" /></>,
+  // 調換順序
+  swap: <><path d="M4 8.4h14.6M15 4.8l3.8 3.6L15 12" /><path d="M20 15.6H5.4M9 12l-3.8 3.6L9 19.2" /></>,
+  // 位置
+  pin: <><path d="M12 21.4s6.6-5.8 6.6-11.2a6.6 6.6 0 1 0-13.2 0c0 5.4 6.6 11.2 6.6 11.2Z" fill="#e9573f" /><circle cx="12" cy="10" r="2.4" fill="#fff" /></>,
+  // 觀察員：眼睛
+  eye: <><path d="M2.6 12S6 5.8 12 5.8 21.4 12 21.4 12 18 18.2 12 18.2 2.6 12 2.6 12Z" fill="#fff" /><circle cx="12" cy="12" r="3" fill="#7cc4e8" /></>,
+  // 常見問題
+  question: <><circle cx="12" cy="12" r="8.6" fill="#ffd257" /><path d="M9.6 9.6a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.3 1-1.3 2" /><path d="M12 16.9h.01" strokeWidth="2.8" /></>,
   // 這趟誰會去：兩個大人中間一個小孩
   people: <><circle cx="6.6" cy="7.6" r="2.6" fill="#ffd257" /><path d="M2.4 18.5v-2.2a4.2 4.2 0 0 1 6.6-3.4" fill="#ffd257" /><circle cx="17.4" cy="7.6" r="2.6" fill="#7cc4e8" /><path d="M21.6 18.5v-2.2a4.2 4.2 0 0 0-6.6-3.4" fill="#7cc4e8" /><circle cx="12" cy="12.6" r="2.2" fill="#e9573f" /><path d="M8.2 20a3.8 3.8 0 0 1 7.6 0Z" fill="#e9573f" /></>,
   // 管理這個行程：齒輪

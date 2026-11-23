@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- this file deliberately pairs the proposal UI with the apply logic it needs */
+import { MenuIcon } from "./Logo";
 import { useState } from "react";
 import { dateOf, isLeg, labelOf as labelIn } from "../data";
 import type { Day, Family, Proposal, Stop, Upload as UploadRow } from "../data";
@@ -27,7 +28,7 @@ export function ProposalDays({ p }: { p: Proposal }) {
           </ul>
         </details>
       ))}
-      {p.notes.length > 0 && <ul className="notes">{p.notes.map((n, i) => <li key={i}>⚠ {n}</li>)}</ul>}
+      {p.notes.length > 0 && <ul className="notes">{p.notes.map((n, i) => <li key={i}><MenuIcon name="warn" size={14} />{n}</li>)}</ul>}
     </div>
   );
 }

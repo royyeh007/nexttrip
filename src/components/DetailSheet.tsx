@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { FlightStatus } from "./FlightStatus";
 import { askClaude } from "./Chat";
-import { isLeg, isViewer } from "../data";
+import { famNames, isLeg, isViewer } from "../data";
 import type { Day, Item, Kind, Leg, Memo, Mode, Status, Stop } from "../data";
 import { supabase } from "../supabase";
 import { canEdit } from "../data";
@@ -12,11 +12,11 @@ import { ModeIcon, PinIcon } from "../icons";
 import { KIND_NAME, SEAL } from "../labels";
 import { editDayItems, findStop, removeStopAt, sameDayRow, sortByTime } from "../dayEdit";
 import { CardSection } from "./CardPick";
-import { SuitcaseIcon } from "./Logo";
+import { MenuIcon, SuitcaseIcon } from "./Logo";
 import { StopPeople, relevantPeople } from "./PeopleView";
 import { SplitPanel, newPar } from "./Split";
 import { useTripPeople } from "../people";
-import { SharedPanel } from "./SharedPanel";
+import { SharedPanel, rowFamilies } from "./SharedPanel";
 import { contentPatch, sharedFamilies, syncShared } from "../shared";
 
 function Copy({ value }: { value: string }) {
@@ -133,7 +133,8 @@ function stopOf(d: Draft, base?: Stop): Stop {
 type EditorMode = "edit" | "add" | "new";
 /** `new` = a stop typed in from the day page (no stop to hang it after): it goes where its time puts it. */
 function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; stop: Stop; arrive?: Leg; mode: EditorMode; onDone: (key: { t: string; n: string }) => void; onCancel: () => void }) {
-  const { current, reload, memberships } = useTrip();
+  const { current, reload, memberships, trip, labelOf } = useTrip();
+  const users = rowFamilies(trip.days, trip.families, day);
   // 分頭行動: the new stop happens at the same time as `stop`, for another group of people
   const [split, setSplit] = useState<"" | "pick" | "child" | "adult">("");
   const goers = useTripPeople(current?.id);
@@ -206,6 +207,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   return (
     <div className="sec editor">
       <h4>{mode === "edit" ? "編輯這一站" : mode === "new" ? "加一站" : "在這站後面加一站"}</h4>
+      {users.length > 1 && <p className="note">這一天是{users.length === trip.families.length ? "大家" : famNames(users, labelOf)}共用的同一份：這裡改了，{users.length === 2 ? "兩家" : "每一家"}看到的都會變。</p>}
       {mode === "add" && (
         <label className="full">和「{stop.n}」的關係
           <select value={split} onChange={(e) => setSplit(e.target.value as typeof split)}>
@@ -384,7 +386,7 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
               </div>
               {editable && (
                 <div className="acts editacts">
-                  <button type="button" className="btn" onClick={() => setMode("edit")} disabled={busy}>✎ 編輯</button>
+                  <button type="button" className="btn" onClick={() => setMode("edit")} disabled={busy}><MenuIcon name="rename" size={18} />編輯</button>
                   <button type="button" className="btn" onClick={() => setMode("add")} disabled={busy}>＋ 之後加一站</button>
                   <button type="button" className="btn danger" onClick={remove} disabled={busy}>{busy ? "刪除中…" : "刪除這一站"}</button>
                 </div>

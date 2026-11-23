@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MenuIcon } from "./Logo";
 import { COUPONS, distText, expired, loadBaked, locate, nearby, searchLink, supportsWebp, untilText, walkLink, webpOf } from "../coupons";
 import type { Coupon, Here, Shop } from "../coupons";
 import { countryOf } from "../cards";
@@ -56,7 +57,7 @@ export function CouponList() {
   return (
     <div className="coupons">
       <div className="cpnear">
-        <button type="button" className="btn primary big" onClick={find} disabled={near.state === "busy"}>{near.state === "busy" ? near.step : near.state === "done" ? "📍 重新找附近的藥妝" : "📍 找附近的藥妝"}</button>
+        <button type="button" className="btn primary big" onClick={find} disabled={near.state === "busy"}>{near.state === "busy" ? near.step : near.state === "done" ? <><MenuIcon name="pin" size={18} />重新找附近的藥妝</> : <><MenuIcon name="pin" size={18} />找附近的藥妝</>}</button>
         {near.state === "idle" && <p className="note">用手機定位找走路到得了的店，直接配好優惠券。位置只在這支手機上用，不會存下來。</p>}
         {near.state === "error" && <p className="note warn">{near.msg} <a href={searchLink(near.here)} target="_blank" rel="noopener">改用 Google 地圖找藥妝店 ›</a></p>}
         {near.state === "done" && (
@@ -71,7 +72,7 @@ export function CouponList() {
                     <div className="cpmain">
                       <b>{s.coupon?.name ?? s.name}{s.branch ? ` ${s.branch}` : ""}</b>
                       <span className="cpsub">{distText(s.dist)}・{s.coupon ? s.coupon.tiers : `${s.name}・沒有優惠券`}</span>
-                      {s.coupon && expired(s.coupon, now.date) && <span className="cpwarn">⚠ 券已過期</span>}
+                      {s.coupon && expired(s.coupon, now.date) && <span className="cpwarn"><MenuIcon name="warn" size={14} />券已過期</span>}
                     </div>
                     <div className="cpact">
                       {s.coupon && <button type="button" className="btn primary" onClick={() => openCoupons(s.coupon!.id)}>出示券</button>}
@@ -91,7 +92,7 @@ export function CouponList() {
             <b>{c.name}</b>
             <span className="cpsign">{c.sign}</span>
             <span className="cptiers">{c.tiers}</span>
-            <span className="cpuntil">{expired(c, now.date) ? "⚠ 已過期" : untilText(c)}{c.img ? "" : "・要連網"}</span>
+            <span className="cpuntil">{expired(c, now.date) ? <><MenuIcon name="warn" size={14} />已過期</> : untilText(c)}{c.img ? "" : "・要連網"}</span>
           </button>
         ))}
       </div>
@@ -109,7 +110,7 @@ function CouponView({ coupon, onClose }: { coupon: Coupon; onClose: () => void }
       <header>
         <div>
           <h3>{coupon.name}<small>{coupon.sign}</small></h3>
-          <p>{coupon.tiers}・{expired(coupon, now.date) ? "⚠ 券上的期限已過，問店員還收不收" : untilText(coupon)}</p>
+          <p>{coupon.tiers}・{expired(coupon, now.date) ? <><MenuIcon name="warn" size={14} />券上的期限已過，問店員還收不收</> : untilText(coupon)}</p>
         </div>
         <button ref={closeRef} type="button" className="x" aria-label="關閉" onClick={onClose}>×</button>
       </header>

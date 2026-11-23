@@ -1,9 +1,10 @@
 import { Fragment, useMemo, useState } from "react";
 import { StopPeopleChip } from "./PeopleView";
-import { SharedChip } from "./SharedPanel";
+import { SharedChip, rowFamilies } from "./SharedPanel";
+import { MenuIcon } from "./Logo";
 import { SplitNames, SplitNote } from "./Split";
 import { NewStopSheet } from "./DetailSheet";
-import { canEdit, isLeg, isViewer } from "../data";
+import { canEdit, famNames, hotelFor, isLeg, isViewer } from "../data";
 import { DayWeatherPanel } from "./Weather";
 import type { WeatherState } from "../useWeather";
 import type { Day, Family, Stop } from "../data";
@@ -160,7 +161,7 @@ async function removeDay(day: Day, familyId: string, tripId: string) {
 }
 
 export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; family: Family; onOpen: (s: Stop, arrive?: LinkedLeg) => void; onRemoved: () => void; wx: WeatherState }) {
-  const { trip, current, member, reload } = useTrip();
+  const { trip, current, member, reload, labelOf } = useTrip();
   const [busy, setBusy] = useState(false);
   const viewer = isViewer(member);
   const [optimizing, setOptimizing] = useState(false);
@@ -169,14 +170,18 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   // title / city / hotel of this day, edited in place
   const [editMeta, setEditMeta] = useState(false);
   const [addingStop, setAddingStop] = useState(false);
-  const [meta, setMeta] = useState({ title: day.title, city: day.city, hotel: day.hotel });
+  const users = rowFamilies(trip.days, trip.families, day); // the families that see this very row
+  const joint = users.length > 1;
+  const [meta, setMeta] = useState({ title: day.title, city: day.city, hotel: hotelFor(day, family.id) });
   const [metaErr, setMetaErr] = useState<string | null>(null);
-  const openMeta = () => { setMeta({ title: day.title, city: day.city, hotel: day.hotel }); setMetaErr(null); setEditMeta(true); };
+  const openMeta = () => { setMeta({ title: day.title, city: day.city, hotel: hotelFor(day, family.id) }); setMetaErr(null); setEditMeta(true); };
   const saveMeta = async () => {
     if (!supabase || !current) return;
     if (!meta.title.trim()) { setMetaErr("標題不能空"); return; }
     setBusy(true); setMetaErr(null);
-    const { data, error } = await whereDay(supabase.from("days").update({ title: meta.title.trim(), city: meta.city.trim() || day.city, hotel: meta.hotel.trim(), updated_at: new Date().toISOString() }), current.id, day).select("id");
+    // several families use this row: the hotel typed here is this family's own (the others keep theirs)
+    const where = joint ? { hotels: { ...(day.hotels ?? {}), [family.id]: meta.hotel.trim() } } : { hotel: meta.hotel.trim() };
+    const { data, error } = await whereDay(supabase.from("days").update({ title: meta.title.trim(), city: meta.city.trim() || day.city, ...where, updated_at: new Date().toISOString() }), current.id, day).select("id");
     setBusy(false);
     if (error) { setMetaErr(error.message); return; }
     if (!data?.length) { setMetaErr("沒有存到：這一天已經被改過，或你沒有權限。重新整理再試"); return; }
@@ -194,7 +199,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
   const fork = async () => {
     if (!supabase) return;
     setBusy(true);
-    const { error } = await supabase.from("days").insert({ trip_id: current!.id, date_id: day.id, fam: [family.id], d: day.d, w: day.w, city: day.city, title: day.title, hotel: day.hotel, items: day.items });
+    const { error } = await supabase.from("days").insert({ trip_id: current!.id, date_id: day.id, fam: [family.id], d: day.d, w: day.w, city: day.city, title: day.title, hotel: hotelFor(day, family.id), items: day.items });
     if (error) alert(error.message); else await reload();
     setBusy(false);
   };
@@ -214,9 +219,9 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
       <section className="dayhead">
         <div className="meta">
           <span>{day.d}（{day.w}）</span>
-          <span className="hotel">{day.hotel ? `住 ${day.hotel}` : ""}</span>
-          <span className={`tag ${shared ? "shared" : "own"}`}>{shared ? "大家一起的版本" : `${family.label}自己的版本`}</span>
-          {editable && !editMeta && <button type="button" className="link" onClick={openMeta} disabled={busy}>✎ 改標題／城市／住宿</button>}
+          <span className="hotel">{hotelFor(day, family.id) ? `住 ${hotelFor(day, family.id)}` : ""}</span>
+          <span className={`tag ${shared || (day.fam?.length ?? 0) > 1 ? "shared" : "own"}`}>{shared ? "大家一起的版本" : day.fam!.length > 1 ? `${famNames(day.fam!, labelOf)}一起的版本` : `${family.label}自己的版本`}</span>
+          {editable && !editMeta && <button type="button" className="link" onClick={openMeta} disabled={busy}><MenuIcon name="rename" size={14} />改標題／城市／住宿</button>}
           {shared && mayWriteForFamily && <button type="button" className="link" onClick={fork} disabled={busy}>做一份我們家的版本</button>}
           {own && mayWriteForFamily && <button type="button" className="link" onClick={remove} disabled={busy}>{hasSharedVersion ? "改回大家一起的版本" : "刪除這天"}</button>}
         </div>
@@ -225,7 +230,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
             <div className="formgrid">
               <label>標題<input value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} autoFocus onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) saveMeta(); if (e.key === "Escape") setEditMeta(false); }} /></label>
               <label>城市<input value={meta.city} onChange={(e) => setMeta({ ...meta, city: e.target.value })} placeholder="例：東京" /></label>
-              <label>那晚住哪<input value={meta.hotel} onChange={(e) => setMeta({ ...meta, hotel: e.target.value })} placeholder="可空" /></label>
+              <label>{joint ? `${family.label}那晚住哪（別家可以各填各的）` : "那晚住哪"}<input value={meta.hotel} onChange={(e) => setMeta({ ...meta, hotel: e.target.value })} placeholder="可空" /></label>
             </div>
             <div className="actions">
               <button type="button" className="btn primary" onClick={saveMeta} disabled={busy}>{busy ? "儲存中…" : "儲存"}</button>
@@ -241,7 +246,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
             <a className="btn primary" href={dayRouteURL(day)} target="_blank" rel="noopener">
               <RouteIcon />開啟今天的 Google 地圖路線
             </a>
-            {canOptimize && <button type="button" className="btn" onClick={() => setOptimizing((v) => !v)} aria-expanded={optimizing}>⇄ 優化順序</button>}
+            {canOptimize && <button type="button" className="btn" onClick={() => setOptimizing((v) => !v)} aria-expanded={optimizing}><MenuIcon name="swap" size={18} />優化順序</button>}
             {editable && <button type="button" className="btn" onClick={() => setAddingStop(true)}>＋ 加一站</button>}
           </div>
         )}

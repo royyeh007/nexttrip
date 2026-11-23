@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { MenuIcon } from "./Logo";
 import type { Kind } from "../data";
 import { KIND_TIP, countryOf, explain, pct, rank, useCardsOn } from "../cards";
 import type { Card, Country, Pick } from "../cards";
@@ -37,7 +38,7 @@ export function CardChip({ kind, date }: { kind: Kind; date?: string }) {
   if (!top) return null;
   return (
     <span className={`cardpick${top.stale ? " stale" : ""}`} title={explain(top) + (top.stale ? "（優惠標示已到期，要確認）" : "")}>
-      💳 {top.card.short || top.card.name}<small>{pct(top.net)}</small>
+      <MenuIcon name="cards" size={15} />{top.card.short || top.card.name}<small>{pct(top.net)}</small>
     </span>
   );
 }
@@ -50,7 +51,7 @@ export function CardSection({ kind, date }: { kind: Kind; date: string }) {
     return (
       <div className="sec cardsec">
         <h4>刷哪張卡</h4>
-        <p className="note">到 <a href="#cards">💳 信用卡</a> 勾你有的卡，每一站就會告訴你刷哪張最划算（回饋最多、手續費最少）。</p>
+        <p className="note">到 <a href="#cards">信用卡</a> 勾你有的卡，每一站就會告訴你刷哪張最划算（回饋最多、手續費最少）。</p>
       </div>
     );
   }
@@ -61,12 +62,12 @@ export function CardSection({ kind, date }: { kind: Kind; date: string }) {
     <div className="sec cardsec">
       <h4>刷哪張卡</h4>
       <div className="cardtop">
-        <span className="cardpick big">💳 {top.card.name}</span>
+        <span className="cardpick big"><MenuIcon name="cards" size={18} />{top.card.name}</span>
         <b className={`net${top.net < 0 ? " neg" : ""}`}>淨回饋 {pct(top.net)}</b>
       </div>
       <p className="why">{explain(top)}</p>
       {top.rate?.cond && <p className="note">條件：{top.rate.cond}</p>}
-      {top.stale && <p className="note warn">⚠ 這個優惠標示到 {top.rate!.until!.replace(/-0?/g, "/").slice(5)}，{month}是否延續請先問銀行；下面「其次」的卡也可以考慮。</p>}
+      {top.stale && <p className="note warn"><MenuIcon name="warn" size={14} />這個優惠標示到 {top.rate!.until!.replace(/-0?/g, "/").slice(5)}，{month}是否延續請先問銀行；下面「其次」的卡也可以考慮。</p>}
       {picks.length > 1 && (
         <p className="note">其次：{picks.slice(1, 4).map((p) => `${p.card.short || p.card.name} ${pct(p.net)}${p.stale ? "（要確認）" : ""}`).join("、")}</p>
       )}

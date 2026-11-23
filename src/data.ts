@@ -13,7 +13,11 @@ export type Item = Stop | Leg;
  * One date's itinerary. `id` is the date (YYYY-MM-DD). `fam` missing = everyone's shared day; otherwise only those families have this version.
  * `rowId` is the database row (several rows can share a date: the shared one, a family's own, a joint one), so every write names its row exactly.
  */
-export interface Day { id: string; d: string; w: string; city: string; title: string; hotel: string; items: Item[]; fam?: FamilyId[] | null; rowId?: string }
+export interface Day { id: string; d: string; w: string; city: string; title: string; hotel: string; /** where each family sleeps when several families use this same row and stay in different hotels; a family not listed stays at `hotel` */ hotels?: Record<FamilyId, string>; items: Item[]; fam?: FamilyId[] | null; rowId?: string }
+/** Where this family sleeps that night. */
+export const hotelFor = (d: Pick<Day, "hotel" | "hotels">, f: FamilyId | null | undefined) => (f && d.hotels?.[f]) || d.hotel;
+/** 「Lily 家＋Yenchih 家」 for a row several families share; used wherever a day says whose version it is. */
+export const famNames = (fam: FamilyId[], labelOf: (f: FamilyId) => string) => fam.map(labelOf).join("＋");
 export const isLeg = (i: Item): i is Leg => "leg" in i;
 
 /** Family ids are short slugs chosen per trip (e.g. "lily", "f3a9c1"). */

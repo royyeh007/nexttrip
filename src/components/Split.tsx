@@ -8,6 +8,7 @@ import { useTripPeople } from "../people";
 import type { TripPerson } from "../people";
 import { relevantPeople } from "./PeopleView";
 import { editDayItems } from "../dayEdit";
+import { MenuIcon } from "./Logo";
 
 export const splitMembers = (day: Day, par: string | undefined): Stop[] => (par ? day.items.filter((it): it is Stop => !isLeg(it) && it.par === par) : []);
 export const newPar = () => "p" + Math.random().toString(36).slice(2, 10);
@@ -29,7 +30,7 @@ export function SplitNote({ day, par }: { day: Day; par: string }) {
   if (all.length === 0) return null;
   const { unset, missing, twice } = check(all, members);
   if (unset) return <p className="splitwarn">還沒分組：點開每一站，在「誰參加」選這一組有誰。</p>;
-  if (!missing.length && !twice.length) return <p className="splitok">✓ {all.length} 個人都排到了，沒有人重複。</p>;
+  if (!missing.length && !twice.length) return <p className="splitok"><MenuIcon name="todo" size={15} />{all.length} 個人都排到了，沒有人重複。</p>;
   return (
     <p className="splitwarn">
       {missing.length > 0 && <>還沒排到：{missing.map((p) => p.name).join("、")}。</>}

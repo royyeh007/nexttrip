@@ -3,9 +3,10 @@ import { useTrip } from "../trip";
 import { canEdit, daysFor } from "../data";
 import type { Day, Stop } from "../data";
 import { sharedApi, sharedFamilies } from "../shared";
+import { MenuIcon } from "./Logo";
 
 /** The families that see this very row on this date (one family for an own version, several for a joint or everyone's version). */
-function rowFamilies(days: Day[], families: { id: string }[], day: Day) {
+export function rowFamilies(days: Day[], families: { id: string }[], day: Day) {
   return families.filter((f) => { const d = daysFor(days, f.id).find((x) => x.id === day.id); return !!d && (day.rowId ? d.rowId === day.rowId : d === day); }).map((f) => f.id);
 }
 
@@ -17,7 +18,7 @@ export function SharedChip({ stop, day }: { stop: Stop; day: Day }) {
   const mine = new Set([viewFam, ...rowFamilies(trip.days, trip.families, day)]);
   const others = fams.filter((f) => !mine.has(f)).map((f) => trip.families.find((x) => x.id === f)?.label ?? f);
   if (others.length === 0) return null;
-  return <span className="tag together">🤝 {fams.length === trip.families.length ? "大家一起" : `和${others.join("、")}`}</span>;
+  return <span className="tag together"><MenuIcon name="together" size={14} />{fams.length === trip.families.length ? "大家一起" : `和${others.join("、")}`}</span>;
 }
 
 /**

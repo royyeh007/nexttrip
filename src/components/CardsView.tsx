@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MenuIcon } from "./Logo";
 import { COUNTRY_NAME, COUNTRY_ORDER, NETWORKS, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, WHERE_NAME, explain, isAbroad, pct, rank, setCardsOn } from "../cards";
 import type { Card, CardRate, Country, RateKind, RateWhere } from "../cards";
 import { isViewer } from "../data";
@@ -106,7 +107,7 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
   return (
     <div className="gcard cardedit" ref={boxRef}>
       <h3>{card ? `編輯「${card.name}」` : "新增一張卡到卡片庫"}</h3>
-      <p className="note">回饋填「在那裡買那類東西可以拿到的總回饋 %」（已含基本回饋；點數卡換成約略的 %，例：3x 點數以 1.5¢ 計 ≈ 4.5%）。「出國」＝發卡國以外都適用。沒把握的欄位留白就好，或先按「✦ 幫我查這張卡」。</p>
+      <p className="note">回饋填「在那裡買那類東西可以拿到的總回饋 %」（已含基本回饋；點數卡換成約略的 %，例：3x 點數以 1.5¢ 計 ≈ 4.5%）。「出國」＝發卡國以外都適用。沒把握的欄位留白就好，或先按「幫我查這張卡」。</p>
       <div className="formgrid">
         <label>卡片名稱<input value={d.name} onChange={(e) => up("name", e.target.value)} placeholder="例：Chase Sapphire Preferred" maxLength={80} /></label>
         <label>短名（標籤用）<input value={d.short} onChange={(e) => up("short", e.target.value)} placeholder="例：CSP" maxLength={10} /></label>
@@ -148,7 +149,7 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
         {busy === "ai"
           ? <button type="button" className="btn" onClick={() => lookupAbort.current?.abort()}>取消查詢</button>
           : <button type="button" className="btn" onClick={onCancel} disabled={busy === "save"}>取消</button>}
-        {!isViewer(member) && <button type="button" className="btn" onClick={lookup} disabled={!!busy} title="AI 上網查這張卡目前的海外手續費和回饋，填進表單給你核對">{busy === "ai" ? "查詢中…（約 30 秒）" : "✦ 幫我查這張卡"}</button>}
+        {!isViewer(member) && <button type="button" className="btn" onClick={lookup} disabled={!!busy} title="AI 上網查這張卡目前的海外手續費和回饋，填進表單給你核對">{busy === "ai" ? "查詢中…（約 30 秒）" : <><MenuIcon name="spark" size={16} />幫我查這張卡</>}</button>}
       </div>
       {aiNote && <p className="note">{aiNote}</p>}
       {err && <p className="err">{err}</p>}
@@ -266,7 +267,7 @@ export function CardsView() {
           <span className="track" aria-hidden="true" />
           <span>每一站顯示推薦的卡</span>
         </label>
-        {!r.on && <span className="note" style={{ margin: 0 }}>關掉後行程上不會出現 💳 標籤，這一頁還是可以看。</span>}
+        {!r.on && <span className="note" style={{ margin: 0 }}>關掉後行程上不會出現信用卡標籤，這一頁還是可以看。</span>}
       </div>
 
       {editing && <CardEditor key={`${editing.card?.id ?? "new"}|${editing.card?.updated_at ?? ""}`} card={editing.card} name={editing.name} country={filter === "all" ? "us" : filter} onCancel={() => setEditing(null)} onDone={async (id) => { if (editing.addToMine) await add(id); setEditing(null); }} />}
@@ -279,7 +280,7 @@ export function CardsView() {
           <ul className="cardlist">
             {r.mine.map((c) => (
               <CardRow key={c.id} c={c} dest={dest} date={date0} mine={false} actions={<>
-                {canWrite && <button type="button" className="link" onClick={() => edit(c)} disabled={opening === c.id}>{opening === c.id ? "讀取中…" : "✎ 改資料"}</button>}
+                {canWrite && <button type="button" className="link" onClick={() => edit(c)} disabled={opening === c.id}>{opening === c.id ? "讀取中…" : <><MenuIcon name="rename" size={14} />改資料</>}</button>}
                 <button type="button" className="link" onClick={() => remove(c.id)} disabled={busy === c.id}>移除</button>
               </>} />
             ))}
@@ -309,7 +310,7 @@ export function CardsView() {
       {r.mine.length > 0 && (
         <div className="gcard plan">
           <h3>這趟怎麼刷</h3>
-          <p className="note">依消費類型算的推薦（以 {fmtDate(date0)} 的優惠計）。{endsEarly ? "有些優惠標示在行程結束前到期，那幾天的站會有 ⚠ 提醒。" : ""}</p>
+          <p className="note">依消費類型算的推薦（以 {fmtDate(date0)} 的優惠計）。{endsEarly ? "有些優惠標示在行程結束前到期，那幾天的站會有黃色三角形提醒。" : ""}</p>
           <div className="tablewrap">
             <table className="infotable plantable">
               <thead><tr><th>類型</th><th>推薦</th><th>淨回饋</th><th>為什麼／條件</th></tr></thead>
@@ -319,7 +320,7 @@ export function CardsView() {
                   return (
                     <tr key={k}>
                       <td>{RATE_KIND_NAME[k]}</td>
-                      <td>💳 {p.card.short || p.card.name}{p.stale && " ⚠"}</td>
+                      <td><MenuIcon name="cards" size={15} />{p.card.short || p.card.name}{p.stale && <MenuIcon name="warn" size={14} />}</td>
                       <td className={p.net < 0 ? "neg" : ""}>{pct(p.net)}</td>
                       <td>{explain(p)}{p.rate?.cond ? `；${p.rate.cond}` : ""}{picks.length > 1 ? `。其次 ${picks.slice(1, 3).map((x) => `${x.card.short || x.card.name} ${pct(x.net)}`).join("、")}` : ""}</td>
                     </tr>
@@ -363,7 +364,7 @@ export function CardsView() {
                 {mineSet.has(c.id)
                   ? <button type="button" className="link" onClick={() => remove(c.id)} disabled={busy === c.id}>移除</button>
                   : <button type="button" className="link" onClick={() => add(c.id)} disabled={busy === c.id}>＋ 我有這張</button>}
-                {canWrite && <button type="button" className="link" onClick={() => edit(c)} disabled={opening === c.id}>{opening === c.id ? "讀取中…" : "✎ 改資料"}</button>}
+                {canWrite && <button type="button" className="link" onClick={() => edit(c)} disabled={opening === c.id}>{opening === c.id ? "讀取中…" : <><MenuIcon name="rename" size={14} />改資料</>}</button>}
                 {canDelete(c) && <button type="button" className="link danger" onClick={() => del(c)} disabled={busy === c.id}>刪除</button>}
               </>} />
             ))}

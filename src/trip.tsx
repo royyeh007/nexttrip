@@ -276,7 +276,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
     if (readOnly) { if (have.current.trip !== id) setError(NO_COPY); return; }
     const [f, d, x, t, c, ip] = await Promise.all([
       supabase.from("families").select("id, name, label, flights").eq("trip_id", id).order("sort").abortSignal(readSignal()),
-      supabase.from("days").select("id, date_id, fam, d, w, city, title, hotel, items, updated_at").eq("trip_id", id).abortSignal(readSignal()),
+      supabase.from("days").select("id, date_id, fam, d, w, city, title, hotel, hotels, items, updated_at").eq("trip_id", id).abortSignal(readSignal()),
       supabase.from("extras").select("key, data").eq("trip_id", id).abortSignal(readSignal()),
       supabase.from("todos").select("id, fam, due, text, done, sort, created_at").eq("trip_id", id).order("sort").order("created_at").abortSignal(readSignal()),
       supabase.from("contacts").select("id, fam, name, value, sort, created_at").eq("trip_id", id).order("sort").order("created_at").abortSignal(readSignal()),
@@ -291,7 +291,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
     const legacy: { id: string; title: string; updated?: string; blocks: InfoBlock[] }[] = Array.isArray(extras.info) ? extras.info : [];
     const data: TripData = {
       families: (f.data ?? []) as Family[],
-      days: (d.data ?? []).map((r) => ({ rowId: r.id as string, id: r.date_id, fam: r.fam, d: r.d, w: r.w, city: r.city, title: r.title, hotel: r.hotel, items: r.items })),
+      days: (d.data ?? []).map((r) => ({ rowId: r.id as string, id: r.date_id, fam: r.fam, d: r.d, w: r.w, city: r.city, title: r.title, hotel: r.hotel, hotels: (r.hotels as Record<string, string> | null) ?? undefined, items: r.items })),
       todos: (t.data ?? []) as TodoRow[],
       contacts: (c.data ?? []) as ContactRow[],
       notes: extras.notes ?? {},

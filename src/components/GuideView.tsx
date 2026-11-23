@@ -9,13 +9,13 @@ import { MenuIcon, PersonIcon, SuitcaseIcon } from "./Logo";
  * The guide's text is shared with the chat helper, so it names buttons with plain characters (🧳 Trip醬, 👤 你的名字).
  * On the page those are swapped for the pictures the real buttons use, so what the guide shows is what the person will look for.
  */
+const TARGET_ICON: Record<string, Parameters<typeof MenuIcon>[0]["name"]> = { switch: "switch", people: "people", admin: "admin", overview: "overview", todo: "todo", upload: "upload", info: "info", cards: "cards" };
+const SECTION_ICON: Record<string, Parameters<typeof MenuIcon>[0]["name"]> = { enter: "switch", view: "overview", edit: "rename", info: "info", cards: "cards", people: "people", todo: "todo", admin: "admin", viewer: "eye", faq: "question" };
 function Label({ target, label, size = 18 }: { target: string; label: string; size?: number }) {
-  const text = label.replace(/^(🧳|👤|👪)\s*/u, "");
+  const text = label.replace(/^(🧳|👤|👪|⚙|☷|✓|↑|ⓘ|💳)\s*/u, "");
   if (target === "chat") return <><SuitcaseIcon size={size} />{text}</>;
   if (target === "menu") return <><PersonIcon size={size - 2} />{text}</>;
-  if (target === "people") return <><MenuIcon name="people" size={size} />{text}</>;
-  if (target === "switch") return <><MenuIcon name="switch" size={size} />{text}</>;
-  if (target === "admin" && /管理這個行程/.test(text)) return <><MenuIcon name="admin" size={size} />{text.replace(/^⚙\s*/u, "")}</>;
+  if (TARGET_ICON[target]) return <><MenuIcon name={TARGET_ICON[target]} size={size} />{text}</>;
   return <>{label}</>;
 }
 
@@ -78,7 +78,7 @@ export function GuideView({ role, compact = false }: { role: GuideRole; compact?
         {sections.map((s, i) => (
           <details key={s.id} className="gsec" open={!compact && i < 2}>
             <summary>
-              <span className="gicon" aria-hidden="true">{s.id === "chat" ? <SuitcaseIcon size={26} /> : s.id === "people" ? <MenuIcon name="people" size={26} /> : s.icon}</span>
+              <span className="gicon" aria-hidden="true">{s.id === "chat" ? <SuitcaseIcon size={26} /> : SECTION_ICON[s.id] ? <MenuIcon name={SECTION_ICON[s.id]} size={24} /> : s.icon}</span>
               <span className="gtitle"><h3>{s.title}</h3>{s.lead && <small><Rich text={s.lead} go={go} interactive={!compact} /></small>}</span>
               <span className="chev" aria-hidden="true">›</span>
             </summary>
