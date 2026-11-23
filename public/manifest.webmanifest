@@ -5,7 +5,8 @@
   "lang": "zh-Hant",
   "start_url": ".",
   "scope": ".",
-  "display": "browser",
+  "id": ".",
+  "display": "standalone",
   "background_color": "#eef2f6",
   "theme_color": "#eef2f6",
   "icons": [

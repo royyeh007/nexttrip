@@ -10,6 +10,9 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="行程" />
+    <!-- 加到主畫面之後全螢幕開啟（沒有網址列）。新的 iPhone 看 manifest 的 display，這兩行是給舊版看的。 -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <!--
       字型：內文用手機內建的中文字型（iPhone 的蘋方、Android 的思源黑體），不下載。
       只有標題用的 Noto Serif TC 和數字用的 IBM Plex Mono 從 Google Fonts 載，而且不擋住畫面：

@@ -857,3 +857,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;bor
 .msg .md .tablewrap{max-width:100%}
 .msg .md .infotable{font-size:.84rem}
 .cpview picture{display:block;width:100%;max-width:560px}
+
+/* 從主畫面開啟（全螢幕，沒有網址列）：按鈕按下去不要有網頁的灰色閃一下，長按按鈕不要跳出網頁選單 */
+@media (display-mode: standalone){
+  html{-webkit-tap-highlight-color:transparent}
+  button,.btn,.daysbar a{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+}
