@@ -1218,3 +1218,5 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 .langpick button.on{border-color:var(--ink);color:var(--ink);font-weight:700}
 /* 英文：類別小圓章的字比中文一個字寬（Shop、Stay），改成膠囊形，不然會擠到時間 */
 html[lang="en"] .ovstops .k{width:auto;min-width:20px;padding:0 6px;border-radius:999px;letter-spacing:0}
+/* 上面那圈淺色光暈是給直接壓在背景上的字用的；有自己底色的按鈕、標籤不要跟著發光（深底白字會糊成一團亮光） */
+.toolbar :is(button:not(.link),.btn,.tag,.modebar),.dayhead :is(button:not(.link),.btn,.tag,.seal),.pick .note :is(button:not(.link),.btn),.othersown :is(button:not(.link),.btn,.tag),.splitfoot :is(button:not(.link),.btn,.tag){text-shadow:none}
