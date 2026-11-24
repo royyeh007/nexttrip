@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { daysFor, dotDate, isViewer } from "./data";
 import type { Day, FamilyId, Stop } from "./data";
 import { useWeather } from "./useWeather";
@@ -66,8 +66,27 @@ function Notice({ title, children }: { title: string; children?: React.ReactNode
 }
 
 /** 「載入中…」，等了一陣子還沒好就給一個出口（訊號很差時不要讓人對著空白畫面乾等）。 */
+/** 載入畫面一出現就至少留這麼久：資料太快回來時動畫才不會閃一下就不見。 */
+const MIN_LOADING_MS = 1500;
+function useMinLoading(loading: boolean): boolean {
+  const since = useRef<number | null>(loading ? Date.now() : null);
+  const [held, setHeld] = useState(loading);
+  useEffect(() => {
+    if (loading) { if (since.current === null) since.current = Date.now(); setHeld(true); return; }
+    if (since.current === null) return;
+    const left = MIN_LOADING_MS - (Date.now() - since.current);
+    const done = () => { since.current = null; setHeld(false); };
+    if (left <= 0) { done(); return; }
+    const timer = setTimeout(done, left);
+    return () => clearTimeout(timer);
+  }, [loading]);
+  return loading || held;
+}
+
 function Loading() {
   const [slow, setSlow] = useState(false);
+  // 載入的時候畫面上只有動畫：後面那幅會動的背景先收起來，載完才出現
+  useLayoutEffect(() => { document.documentElement.dataset.loading = "1"; return () => { delete document.documentElement.dataset.loading; }; }, []);
   useEffect(() => { const timer = setTimeout(() => setSlow(true), 7000); return () => clearTimeout(timer); }, []);
   return (
     <div className="wrap pick loadingpage">
@@ -95,6 +114,8 @@ function SyncBar() {
 export default function App() {
   const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip, session } = useTrip();
   usePendingFriend(phase === "ready" || phase === "pick" || phase === "account" ? session?.user.id : undefined);
+  const loading = useMinLoading(phase === "loading");
+  if (loading && phase !== "noconfig" && phase !== "error") return <Loading />;
   if (phase === "noconfig") {
     return (
       <Notice title={t("還沒接上 Supabase")}>
@@ -110,7 +131,6 @@ export default function App() {
       </Notice>
     );
   }
-  if (phase === "loading") return <Loading />;
   if (phase === "signedout") return <Login invite={invite} />;
   if (phase === "join" && invite) {
     return <JoinTrip code={invite} onDone={async (tripId) => { setInvite(null); await refreshMemberships(); enterTrip(tripId); }} onCancel={() => setInvite(null)} />;
