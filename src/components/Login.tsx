@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { setStoredInvite, supabase } from "../supabase";
 import { dotDate } from "../data";
 import { LogoMark, Wordmark } from "./Logo";
+import { lang, setLang, t, tr } from "../i18n";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
@@ -30,28 +31,32 @@ export function Login({ invite }: { invite: string | null }) {
     const c = code.trim();
     if (c) setStoredInvite(c); // used by the join screen after the redirect
     const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
-    if (error) { setErr(error.message); setBusy(false); }
+    if (error) { setErr(t(error.message)); setBusy(false); }
   };
 
   return (
     <div className="wrap pick">
       <header className="hero">
         <h1 className="brand"><LogoMark size={56} /><Wordmark /></h1>
-        <div className="eyebrow">家庭旅行・一起排行程</div>
-        {invite && info === undefined && <p className="note">確認邀請中…</p>}
-        {invite && info && <p className="note">你收到「<b>{info.name}</b>」（{dotDate(info.start_date)} — {dotDate(info.end_date)}）的邀請。用 Google 登入後選一下你是哪一家就加入了。</p>}
-        {invite && info === null && <p className="note err">這個邀請連結不對或已經用完，跟邀請你的人再要一個。登入後也可以在下面重新輸入邀請碼。</p>}
-        {!invite && <p className="note">只給被邀請的人用。第一次來需要家人傳的邀請碼（邀請連結會自動帶入）；已經加入過的人直接用 Google 登入。</p>}
+        <div className="eyebrow">{t("家庭旅行・一起排行程")}</div>
+        {invite && info === undefined && <p className="note">{t("確認邀請中…")}</p>}
+        {invite && info && <p className="note">{tr("你收到「<b>{name}</b>」（{from} — {to}）的邀請。用 Google 登入後選一下你是哪一家就加入了。", { b: (c) => <b>{c}</b> }, { name: info.name, from: dotDate(info.start_date), to: dotDate(info.end_date) })}</p>}
+        {invite && info === null && <p className="note err">{t("這個邀請連結不對或已經用完，跟邀請你的人再要一個。登入後也可以在下面重新輸入邀請碼。")}</p>}
+        {!invite && <p className="note">{t("只給被邀請的人用。第一次來需要家人傳的邀請碼（邀請連結會自動帶入）；已經加入過的人直接用 Google 登入。")}</p>}
       </header>
       <div className="joinform">
         <button type="button" className="btn primary big" onClick={google} disabled={busy}>
-          <GoogleIcon />{busy ? "前往 Google…" : "用 Google 登入"}
+          <GoogleIcon />{busy ? t("前往 Google…") : t("用 Google 登入")}
         </button>
         {!invite && (
-          <label>有邀請碼？先貼在這裡（可空）<input value={code} onChange={(e) => setCode(e.target.value)} placeholder="例：abc123" autoCapitalize="none" autoCorrect="off" /></label>
+          <label>{t("有邀請碼？先貼在這裡（可空）")}<input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("例：abc123")} autoCapitalize="none" autoCorrect="off" /></label>
         )}
         {err && <p className="err">{err}</p>}
       </div>
+      <p className="langpick">
+        <button type="button" className={lang === "zh" ? "on" : ""} aria-pressed={lang === "zh"} onClick={() => setLang("zh")}>中文</button>
+        <button type="button" className={lang === "en" ? "on" : ""} aria-pressed={lang === "en"} onClick={() => setLang("en")}>English</button>
+      </p>
     </div>
   );
 }

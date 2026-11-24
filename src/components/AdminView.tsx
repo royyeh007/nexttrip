@@ -8,6 +8,9 @@ import { useTrip } from "../trip";
 import { COMMON_TZ, ROLE_LABEL } from "../data";
 import { fillTripDays } from "../days";
 import type { InviteRow, Member, Role } from "../data";
+import { t, tr } from "../i18n";
+
+const DOT = t("・");
 
 const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"; // 31 symbols, no look-alikes (0/o, 1/l/i)
 /** `n` random symbols, each equally likely (bytes ≥ 248 are thrown away so no symbol is favoured). */
@@ -37,31 +40,31 @@ function Members() {
   const run = async (p: PromiseLike<{ error: { message: string } | null }>) => {
     setBusy(true);
     const { error } = await p;
-    if (error) alert(error.message); else { await load(); await refreshMemberships(); }
+    if (error) alert(t(error.message)); else { await load(); await refreshMemberships(); }
     setBusy(false);
   };
   const setRole = (m: Member, role: Role) => {
     if (!supabase || !current) return;
-    if (m.user_id === me?.user_id && role !== "admin" && !confirm(`把自己改成「${ROLE_LABEL[role]}」？改了之後你就進不了這個管理頁，要請其他管理員幫你改回來。`)) return;
+    if (m.user_id === me?.user_id && role !== "admin" && !confirm(t("把自己改成「{role}」？改了之後你就進不了這個管理頁，要請其他管理員幫你改回來。", { role: t(ROLE_LABEL[role]) }))) return;
     run(supabase.from("members").update({ role }).eq("trip_id", current.id).eq("user_id", m.user_id));
   };
   const setFamily = (m: Member, family_id: string) => supabase && current && run(supabase.from("members").update({ family_id }).eq("trip_id", current.id).eq("user_id", m.user_id));
-  const remove = (m: Member) => supabase && current && confirm(`把 ${m.name ?? m.email} 從這個行程移除？他可以再用邀請連結加入。`) && run(supabase.from("members").delete().eq("trip_id", current.id).eq("user_id", m.user_id));
+  const remove = (m: Member) => supabase && current && confirm(t("把 {name} 從這個行程移除？他可以再用邀請連結加入。", { name: m.name ?? m.email })) && run(supabase.from("members").delete().eq("trip_id", current.id).eq("user_id", m.user_id));
   return (
     <div className="panel admin">
-      <h3>團員（{rows.length}）</h3>
-      {loadErr && <p className="err">讀不到團員名單：{loadErr} <button type="button" className="link" onClick={load}>再試一次</button></p>}
-      <p className="note">管理員可以改所有人的行程、管理邀請和團員；成員只能改自己家和大家一起的日子；觀察員只能看，不能改也不能用聊天機器人。每個行程至少要有一位管理員。</p>
+      <h3>{t("團員（{n}）", { n: rows.length })}</h3>
+      {loadErr && <p className="err">{tr("讀不到團員名單：{err} <btn>再試一次</btn>", { btn: (c) => <button type="button" className="link" onClick={load}>{c}</button> }, { err: t(loadErr) })}</p>}
+      <p className="note">{t("管理員可以改所有人的行程、管理邀請和團員；成員只能改自己家和大家一起的日子；觀察員只能看，不能改也不能用聊天機器人。每個行程至少要有一位管理員。")}</p>
       {rows.map((m) => (
         <div className="row" key={m.user_id}>
-          <span className="person"><b>{m.name ?? "（沒有名字）"}{m.user_id === me?.user_id && <span className="tag shared">你</span>}</b><small className="muted">{m.email}</small></span>
-          <select value={m.family_id} onChange={(e) => setFamily(m, e.target.value)} disabled={busy} aria-label="哪一家">
+          <span className="person"><b>{m.name ?? t("（沒有名字）")}{m.user_id === me?.user_id && <span className="tag shared">{t("你")}</span>}</b><small className="muted">{m.email}</small></span>
+          <select value={m.family_id} onChange={(e) => setFamily(m, e.target.value)} disabled={busy} aria-label={t("哪一家")}>
             {trip.families.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
-          <select value={m.role} onChange={(e) => setRole(m, e.target.value as Role)} disabled={busy} aria-label="角色">
-            {(["member", "admin", "viewer"] as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+          <select value={m.role} onChange={(e) => setRole(m, e.target.value as Role)} disabled={busy} aria-label={t("角色")}>
+            {(["member", "admin", "viewer"] as Role[]).map((r) => <option key={r} value={r}>{t(ROLE_LABEL[r])}</option>)}
           </select>
-          <button type="button" className="link" onClick={() => remove(m)} disabled={busy || m.user_id === me?.user_id}>移除</button>
+          <button type="button" className="link" onClick={() => remove(m)} disabled={busy || m.user_id === me?.user_id}>{t("移除")}</button>
         </div>
       ))}
     </div>
@@ -95,63 +98,63 @@ function Invites() {
     const expires_at = new Date(Date.now() + days * 86400000).toISOString();
     const { error } = await supabase.from("invites").insert({ trip_id: current.id, code: newCode(), role, family_id: famPreset || null, max_uses: maxUses, note: note.trim().slice(0, 80) || null, created_by: member?.user_id, expires_at });
     setBusy(false);
-    if (error) alert(error.message); else { setNote(""); load(); }
+    if (error) alert(t(error.message)); else { setNote(""); load(); }
   };
   const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" });
   /** What is wrong with an invite, if anything (shown next to it). */
-  const warn = (i: InviteRow) => (i.expires_at && new Date(i.expires_at).getTime() < Date.now() ? "已過期，不能用了"
-    : i.uses >= i.max_uses ? "次數用完了"
-    : !i.expires_at ? "沒有期限（舊的邀請）。建議刪掉，重新產生一個"
-    : i.code.length < 12 ? "舊的短碼，比較容易被猜到。建議刪掉，重新產生一個"
+  const warn = (i: InviteRow) => (i.expires_at && new Date(i.expires_at).getTime() < Date.now() ? t("已過期，不能用了")
+    : i.uses >= i.max_uses ? t("次數用完了")
+    : !i.expires_at ? t("沒有期限（舊的邀請）。建議刪掉，重新產生一個")
+    : i.code.length < 12 ? t("舊的短碼，比較容易被猜到。建議刪掉，重新產生一個")
     : null);
   const del = async (code: string) => {
-    if (!supabase || !confirm("刪掉這個邀請連結？已經用它加入的人不受影響。")) return;
+    if (!supabase || !confirm(t("刪掉這個邀請連結？已經用它加入的人不受影響。"))) return;
     const { error } = await supabase.from("invites").delete().eq("code", code);
-    if (error) alert(error.message); else load();
+    if (error) alert(t(error.message)); else load();
   };
   const copy = async (code: string) => {
-    try { await navigator.clipboard.writeText(linkOf(code)); setCopied(code); setTimeout(() => setCopied(null), 1500); } catch { prompt("複製這個連結", linkOf(code)); }
+    try { await navigator.clipboard.writeText(linkOf(code)); setCopied(code); setTimeout(() => setCopied(null), 1500); } catch { prompt(t("複製這個連結"), linkOf(code)); }
   };
   return (
     <div className="panel admin">
-      <h3>邀請連結</h3>
-      <p className="note">把連結傳給家人，點開用 Google 登入、選自己是哪一家就加入了。可以先幫對方選好是哪一家，或讓他自己選／新建。</p>
-      {loadErr && <p className="err">讀不到邀請清單：{loadErr} <button type="button" className="link" onClick={load}>再試一次</button></p>}
+      <h3>{t("邀請連結")}</h3>
+      <p className="note">{t("把連結傳給家人，點開用 Google 登入、選自己是哪一家就加入了。可以先幫對方選好是哪一家，或讓他自己選／新建。")}</p>
+      {loadErr && <p className="err">{tr("讀不到邀請清單：{err} <btn>再試一次</btn>", { btn: (c) => <button type="button" className="link" onClick={load}>{c}</button> }, { err: t(loadErr) })}</p>}
       {rows.map((i) => (
         <div className="invite" key={i.code}>
           <code>{linkOf(i.code)}</code>
           <span className="muted">
-            {ROLE_LABEL[i.role]}邀請{i.family_id && `・${trip.families.find((f) => f.id === i.family_id)?.label ?? i.family_id}`}{i.note && `・${i.note}`}・用了 {i.uses}/{i.max_uses}{i.expires_at && `・${fmtDay(i.expires_at)} 到期`}
+            {t("{role}邀請", { role: t(ROLE_LABEL[i.role]) })}{i.family_id && `${DOT}${trip.families.find((f) => f.id === i.family_id)?.label ?? i.family_id}`}{i.note && `${DOT}${i.note}`}{DOT}{t("用了 {uses}/{max}", { uses: i.uses, max: i.max_uses })}{i.expires_at && `${DOT}${t("{date} 到期", { date: fmtDay(i.expires_at) })}`}
             {warn(i) && <b className="invwarn"><MenuIcon name="warn" size={14} />{warn(i)}</b>}
           </span>
-          <button type="button" className="btn" onClick={() => copy(i.code)}>{copied === i.code ? "已複製" : "複製"}</button>
-          <button type="button" className="link" onClick={() => del(i.code)}>刪除</button>
+          <button type="button" className="btn" onClick={() => copy(i.code)}>{copied === i.code ? t("已複製") : t("複製")}</button>
+          <button type="button" className="link" onClick={() => del(i.code)}>{t("刪除")}</button>
         </div>
       ))}
       <div className="formgrid">
-        <label>角色
+        <label>{t("角色")}
           <select value={role} onChange={(e) => pickRole(e.target.value as Role)}>
-            <option value="member">成員（可以改自己家和大家一起的）</option>
-            <option value="viewer">觀察員（只能看）</option>
-            <option value="admin">管理員</option>
+            <option value="member">{t("成員（可以改自己家和大家一起的）")}</option>
+            <option value="viewer">{t("觀察員（只能看）")}</option>
+            <option value="admin">{t("管理員")}</option>
           </select>
         </label>
-        <label>先選好是哪一家（可空）
+        <label>{t("先選好是哪一家（可空）")}
           <select value={famPreset} onChange={(e) => setFamPreset(e.target.value)}>
-            <option value="">讓對方自己選或新建</option>
+            <option value="">{t("讓對方自己選或新建")}</option>
             {trip.families.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
         </label>
-        <label>可用次數<input type="number" min={1} max={500} value={maxUses} onChange={(e) => setMaxUses(Math.max(1, Number(e.target.value) || 1))} /></label>
-        <label>幾天後失效
+        <label>{t("可用次數")}<input type="number" min={1} max={500} value={maxUses} onChange={(e) => setMaxUses(Math.max(1, Number(e.target.value) || 1))} /></label>
+        <label>{t("幾天後失效")}
           <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-            {[3, 7, 14, 30, 60].map((d) => <option key={d} value={d}>{d} 天</option>)}
+            {[3, 7, 14, 30, 60].map((d) => <option key={d} value={d}>{t("{n} 天", { n: d })}</option>)}
           </select>
         </label>
-        <label>備註（可空）<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="例：給 Claire 家" maxLength={80} /></label>
+        <label>{t("備註（可空）")}<input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("例：給 Claire 家")} maxLength={80} /></label>
       </div>
-      {role === "admin" && <p className="note">管理員邀請預設只能用 1 次、7 天後失效：拿到連結的人可以改所有人的行程、刪掉整個行程。對方加入後這個連結就沒用了。</p>}
-      <button type="button" className="btn primary" onClick={create} disabled={busy}>{busy ? "產生中…" : "產生新的邀請連結"}</button>
+      {role === "admin" && <p className="note">{t("管理員邀請預設只能用 1 次、7 天後失效：拿到連結的人可以改所有人的行程、刪掉整個行程。對方加入後這個連結就沒用了。")}</p>}
+      <button type="button" className="btn primary" onClick={create} disabled={busy}>{busy ? t("產生中…") : t("產生新的邀請連結")}</button>
     </div>
   );
 }
@@ -179,7 +182,7 @@ function Families() {
     lock.current = true; setBusy(true);
     try {
       const { error } = await write();
-      if (error) { alert(error.code === "23503" ? "刪不掉：這一家還有上傳或提案的紀錄。資料庫升級後（make db-push）就可以刪了。" : error.message); return false; }
+      if (error) { alert(error.code === "23503" ? t("刪不掉：這一家還有上傳或提案的紀錄。資料庫升級後（make db-push）就可以刪了。") : t(error.message)); return false; }
       await reload();
       return true;
     } finally { lock.current = false; setBusy(false); }
@@ -192,41 +195,41 @@ function Families() {
   const save = async (id: string) => { if (supabase && current && eLabel.trim() && await run(() => supabase!.from("families").update({ label: eLabel.trim().slice(0, 40), name: eLabel.trim().slice(0, 40) }).eq("trip_id", current.id).eq("id", id))) setEditing(null); };
   const del = async (id: string, lbl: string) => {
     if (!supabase || !current) return;
-    if (!members) { alert("還不知道這一家有沒有人（讀不到團員名單），等一下再試。"); return; }
-    if ((members[id] ?? 0) > 0) { alert("這一家還有成員，先把他們換到別家。"); return; }
-    if (trip.days.some((d) => d.fam?.includes(id))) { alert("這一家還有自己的日子，先把那些日子刪掉。"); return; }
+    if (!members) { alert(t("還不知道這一家有沒有人（讀不到團員名單），等一下再試。")); return; }
+    if ((members[id] ?? 0) > 0) { alert(t("這一家還有成員，先把他們換到別家。")); return; }
+    if (trip.days.some((d) => d.fam?.includes(id))) { alert(t("這一家還有自己的日子，先把那些日子刪掉。")); return; }
     // their own to-dos and contacts would stay in the database but nobody could see them any more
-    if (trip.todos.some((t) => t.fam?.includes(id)) || trip.contacts.some((c) => c.fam?.includes(id))) { alert("這一家還有自己的待辦或聯絡資料，先到「待辦・聯絡」刪掉。"); return; }
-    if (!confirm(`刪掉「${lbl}」？指定給這一家的邀請連結也會一起刪掉。`)) return;
+    if (trip.todos.some((td) => td.fam?.includes(id)) || trip.contacts.some((c) => c.fam?.includes(id))) { alert(t("這一家還有自己的待辦或聯絡資料，先到「待辦・聯絡」刪掉。")); return; }
+    if (!confirm(t("刪掉「{name}」？指定給這一家的邀請連結也會一起刪掉。", { name: lbl }))) return;
     // an invite that names a family that no longer exists can only fail with 「沒有這一家」
     await supabase.from("invites").delete().eq("trip_id", current.id).eq("family_id", id);
     await run(() => supabase!.from("families").delete().eq("trip_id", current.id).eq("id", id));
   };
   return (
     <div className="panel admin">
-      <h3>家庭</h3>
-      <p className="note">同一家的人共用一份行程。加入的人也可以在加入時自己新建一家。</p>
+      <h3>{t("家庭")}</h3>
+      <p className="note">{t("同一家的人共用一份行程。加入的人也可以在加入時自己新建一家。")}</p>
       {trip.families.map((f) => (
         <div className="row" key={f.id}>
           {editing === f.id ? (
             <div className="inline">
-              <input value={eLabel} onChange={(e) => setELabel(e.target.value)} aria-label="名稱" onKeyDown={(e) => { if (isEnter(e) && eLabel.trim()) save(f.id); if (e.key === "Escape") setEditing(null); }} autoFocus maxLength={40} />
-              <button type="button" className="btn primary" onClick={() => save(f.id)} disabled={busy || !eLabel.trim()}>儲存</button>
-              <button type="button" className="btn" onClick={() => setEditing(null)}>取消</button>
+              <input value={eLabel} onChange={(e) => setELabel(e.target.value)} aria-label={t("名稱")} onKeyDown={(e) => { if (isEnter(e) && eLabel.trim()) save(f.id); if (e.key === "Escape") setEditing(null); }} autoFocus maxLength={40} />
+              <button type="button" className="btn primary" onClick={() => save(f.id)} disabled={busy || !eLabel.trim()}>{t("儲存")}</button>
+              <button type="button" className="btn" onClick={() => setEditing(null)}>{t("取消")}</button>
             </div>
           ) : (
             <>
-              <span className="person"><b>{f.label}</b><span className="muted"> {members ? `${members[f.id] ?? 0} 人` : "…"}・{f.flights.length ? f.flights.join("／") : "沒有航班"}</span></span>
-              <button type="button" className="link" onClick={() => { setEditing(f.id); setELabel(f.label); }}>改名</button>
-              <button type="button" className="link" onClick={() => del(f.id, f.label)} disabled={busy}>刪除</button>
+              <span className="person"><b>{f.label}</b><span className="muted"> {members ? ((members[f.id] ?? 0) === 1 ? t("1 人") : t("{n} 人", { n: members[f.id] ?? 0 })) : "…"}{DOT}{f.flights.length ? f.flights.join("／") : t("沒有航班")}</span></span>
+              <button type="button" className="link" onClick={() => { setEditing(f.id); setELabel(f.label); }}>{t("改名")}</button>
+              <button type="button" className="link" onClick={() => del(f.id, f.label)} disabled={busy}>{t("刪除")}</button>
               <span />
             </>
           )}
         </div>
       ))}
       <div className="addrow pair">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="新的一家，例：Iris 家" maxLength={40} onKeyDown={(e) => { if (isEnter(e)) add(); }} />
-        <button type="button" className="btn primary" onClick={add} disabled={busy || !label.trim()}>＋ 新增</button>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("新的一家，例：Iris 家")} maxLength={40} onKeyDown={(e) => { if (isEnter(e)) add(); }} />
+        <button type="button" className="btn primary" onClick={add} disabled={busy || !label.trim()}>{t("＋ 新增")}</button>
       </div>
     </div>
   );
@@ -267,32 +270,32 @@ function Settings() {
     if (end !== b.end) changes.end_date = end;
     if (place.trim() !== b.place) changes.place = place.trim().slice(0, 200);
     if (tz !== b.tz) changes.tz = tz;
-    if (Object.keys(changes).length === 0 && icon === b.icon) { setMsg("沒有改動"); return; }
+    if (Object.keys(changes).length === 0 && icon === b.icon) { setMsg(t("沒有改動")); return; }
     setBusy(true); setMsg(null);
     if (icon !== b.icon) {
       // the picture lives inside `settings` next to other things (the weather places): read the row again and change only this key
       const { data: fresh, error: e0 } = await supabase.from("trips").select("settings").eq("id", current.id).single();
-      if (e0) { setMsg(e0.message); setBusy(false); return; }
+      if (e0) { setMsg(t(e0.message)); setBusy(false); return; }
       changes.settings = { ...((fresh?.settings as Record<string, unknown> | null) ?? {}), icon };
     }
     const { error } = await supabase.from("trips").update(changes).eq("id", current.id);
-    if (error) { setMsg(error.message); setBusy(false); return; }
+    if (error) { setMsg(t(error.message)); setBusy(false); return; }
     // dates extended → add the missing empty days
     let added = 0;
     try { added = await fillTripDays(current.id, start, end, place, trip.days.filter((d) => !d.fam).map((d) => d.id)); } catch { /* ignore */ }
     await Promise.all([refreshMemberships(), reload()]);
-    setMsg(added ? `已儲存，補了 ${added} 個空白日子` : "已儲存");
+    setMsg(added ? t("已儲存，補了 {n} 個空白日子", { n: added }) : t("已儲存"));
     setBusy(false);
   };
   const destroy = async () => {
     if (!supabase || !current || confirmName.trim() !== current.name) return;
-    if (!confirm(`真的要刪掉「${current.name}」？所有家庭的行程、待辦、聊天紀錄都會一起消失，無法復原。`)) return;
+    if (!confirm(t("真的要刪掉「{name}」？所有家庭的行程、待辦、聊天紀錄都會一起消失，無法復原。", { name: current.name }))) return;
     setBusy(true);
     // the pictures on the info pages are public files: remove them first (afterwards nobody has the right to)
     await removeTripImages(current.id);
     const { data, error } = await supabase.from("trips").delete().eq("id", current.id).select("id");
-    if (!error && !data?.length) { alert("沒有刪掉：你可能已經不是管理員了"); setBusy(false); return; }
-    if (error) { alert(error.message); setBusy(false); return; }
+    if (!error && !data?.length) { alert(t("沒有刪掉：你可能已經不是管理員了")); setBusy(false); return; }
+    if (error) { alert(t(error.message)); setBusy(false); return; }
     await refreshMemberships();
     leaveToPicker();
   };
@@ -300,19 +303,19 @@ function Settings() {
   return (
     <>
       <div className="panel admin">
-        <h3>行程設定</h3>
-        <p className="note">延長日期時，多出來的日子會自動補上空白的「大家一起」版本。</p>
+        <h3>{t("行程設定")}</h3>
+        <p className="note">{t("延長日期時，多出來的日子會自動補上空白的「大家一起」版本。")}</p>
         <div className="formgrid">
-          <label>行程名稱<input value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label>去哪裡<input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="例：日本・東京、長野" /></label>
-          <label>開始日期<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-          <label>結束日期<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
-          <label>當地時區（「現在」的線、航班日期用）
+          <label>{t("行程名稱")}<input value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <label>{t("去哪裡")}<input value={place} onChange={(e) => setPlace(e.target.value)} placeholder={t("例：日本・東京、長野")} /></label>
+          <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+          <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
+          <label>{t("當地時區（「現在」的線、航班日期用）")}
             <select value={tz} onChange={(e) => setTz(e.target.value)}>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
           </label>
         </div>
         <fieldset className="iconpick">
-          <legend>行程圖案（顯示在行程名稱旁邊和「我的行程」的卡片上）</legend>
+          <legend>{t("行程圖案（顯示在行程名稱旁邊和「我的行程」的卡片上）")}</legend>
           <div className="icongrid">
             {TRIP_ICONS.map((i) => (
               <label key={i.id} className={i.id === icon ? "on" : undefined}>
@@ -324,16 +327,16 @@ function Settings() {
           </div>
         </fieldset>
         <div className="actions">
-          <button type="button" className="btn primary" onClick={save} disabled={busy || !name.trim() || !start || !end || end < start}>{busy ? "儲存中…" : "儲存"}</button>
+          <button type="button" className="btn primary" onClick={save} disabled={busy || !name.trim() || !start || !end || end < start}>{busy ? t("儲存中…") : t("儲存")}</button>
           {msg && <span className="note" style={{ margin: 0 }}>{msg}</span>}
         </div>
       </div>
       <div className="panel admin dangerzone">
-        <h3>刪除整個行程</h3>
-        <p className="note">所有人的行程、待辦、聯絡資料、上傳和聊天紀錄都會刪掉，無法復原。輸入行程名稱「{current?.name}」確認。</p>
+        <h3>{t("刪除整個行程")}</h3>
+        <p className="note">{t("所有人的行程、待辦、聯絡資料、上傳和聊天紀錄都會刪掉，無法復原。輸入行程名稱「{name}」確認。", { name: current?.name })}</p>
         <div className="addrow pair">
           <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={current?.name} />
-          <button type="button" className="btn danger" onClick={destroy} disabled={busy || confirmName.trim() !== current?.name}>刪除行程</button>
+          <button type="button" className="btn danger" onClick={destroy} disabled={busy || confirmName.trim() !== current?.name}>{t("刪除行程")}</button>
         </div>
       </div>
     </>
@@ -344,11 +347,11 @@ function Settings() {
 export function AdminView() {
   const { member } = useTrip();
   if (member?.role !== "admin") {
-    return <section className="dayhead"><h2>管理這個行程</h2><p className="note">只有這個行程的管理員可以進來。</p></section>;
+    return <section className="dayhead"><h2>{t("管理這個行程")}</h2><p className="note">{t("只有這個行程的管理員可以進來。")}</p></section>;
   }
   return (
     <>
-      <section className="dayhead"><h2>管理這個行程</h2><p className="note">團員、邀請連結、家庭和行程設定。</p></section>
+      <section className="dayhead"><h2>{t("管理這個行程")}</h2><p className="note">{t("團員、邀請連結、家庭和行程設定。")}</p></section>
       <Members />
       <Invites />
       <InviteFriends />

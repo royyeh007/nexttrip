@@ -26,23 +26,25 @@ export interface Coupon {
   fewStores?: boolean;
 }
 
+import { t } from "./i18n";
+
 const img = (id: string) => `coupons/${id}.jpg`;
 
 export const COUPONS: Coupon[] = [
-  { id: "matsukiyo", name: "松本清", sign: "マツモトキヨシ", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 7%", until: "2027-03-31", img: img("matsukiyo"), note: "Outlet 和部分分店不收。專櫃化妝品、尿布、嬰兒食品不折。", match: /マツモトキヨシ|マツキヨ|matsumoto\s?kiyoshi|matsukiyo/i },
-  { id: "donki", name: "唐吉訶德", sign: "ドン・キホーテ", tiers: "滿 1 萬 5%・3 萬 7%（未稅）", url: "https://japanportal.donki-global.com/coupon/?ptcd=0076001603", note: "只收官方網頁上的條碼，截圖無效，所以要連網開。", match: /ドン・?キホーテ|ドンキ|don\s?quijote|donki/i },
-  { id: "cocokara", name: "Cocokara Fine", sign: "ココカラファイン", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 7%", until: "2027-03-31", img: img("cocokara"), note: "不是每家都能免稅。券面寫截圖不收，被拒絕就改去松本清。", match: /ココカラ|cocokara/i },
-  { id: "sundrug", name: "Sundrug 尚都樂客", sign: "サンドラッグ", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 7%（未稅）", img: img("sundrug"), note: "只能在免稅櫃台結帳時用。", match: /サンドラッグ|sun\s?drug/i },
-  { id: "sugi", name: "SUGI 杉藥局", sign: "スギ薬局", tiers: "滿 1 萬 4%・3 萬 6%・5 萬 8%", until: "2027-02-28", img: img("sugi"), note: "只限免稅結帳。食品、專櫃化妝品、POSA 卡不折。", match: /スギ薬局|スギドラッグ|\bsugi\b/i },
-  { id: "tsuruha", name: "鶴羽藥妝", sign: "ツルハドラッグ", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 7%（含稅）", img: img("tsuruha"), note: "郊區店不一定有免稅櫃台，進門先看 TAX FREE。", match: /ツルハ|tsuruha/i },
-  { id: "welcia", name: "Welcia", sign: "ウエルシア", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 8%（未稅）", until: "2027-03-31", img: img("welcia"), note: "HAC、金光藥品的免稅店也能用。資生堂、佳麗寶、KOSE 不折。", match: /ウエルシア|welcia|ハックドラッグ|金光薬品/i },
-  { id: "kokumin", name: "國民藥妝", sign: "コクミン KoKuMiN", tiers: "滿 5500 円 3%・1 萬 5%・3 萬 8%", until: "2027-06-30", img: img("kokumin"), note: "一人只能用一次。部分品牌化妝品不折。", match: /コクミン|kokumin/i },
-  { id: "bic", name: "Bic Camera", sign: "ビックカメラ", tiers: "藥妝、日用品 5%・家電 7%・清酒 3%", until: "2027-04-30", img: img("bic"), note: "折完要滿 5000 円。兩個條碼都要掃。Apple、遊戲主機不折。", match: /ビックカメラ|bic\s?camera|コジマ/i },
-  { id: "takeya", name: "多慶屋（御徒町）", sign: "多慶屋 TAKEYA", tiers: "滿 5000 円 5%・3 萬 7%；海外 JCB 卡 12%", until: "2027-04-30", img: img("takeya"), note: "只有御徒町本店。一筆最多折 1 萬円。", match: /多慶屋|takeya/i },
-  { id: "cosmos", name: "COSMOS 科摩思", sign: "コスモス", tiers: "滿 1 萬 5%・3 萬 7%・5 萬 9%", img: img("cosmos"), note: "東京只有歌舞伎町一丁目店、廣尾站店收。一天一次。", match: /コスモス|cosmos/i, fewStores: true },
-  { id: "daikoku", name: "大國藥妝", sign: "ダイコクドラッグ", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 7%（未稅）", url: "https://www.japanuts.com/2022/12/2023.html", note: "限東京分店。沒有可以直接開的券，要到這篇文章裡找券圖。", match: /ダイコク|daikoku/i },
-  { id: "fukutaro", name: "福太郎", sign: "くすりの福太郎", tiers: "滿 1 萬 3%・3 萬 5%・5 萬 8%", url: "https://matcha-jp.com/tw/coupon/143", note: "限東京、千葉指定免稅店。券在 MATCHA 網頁上。", match: /福太郎|fukutaro/i },
-  { id: "tomods", name: "Tomod's", sign: "トモズ", tiers: "免稅再加最高 8%", url: "https://matcha-jp.com/tw/coupon/148?code=matcha", note: "券在 MATCHA 網頁上。", match: /トモズ|tomod/i },
+  { id: "matsukiyo", name: "松本清", sign: "マツモトキヨシ", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 7%"), until: "2027-03-31", img: img("matsukiyo"), note: t("Outlet 和部分分店不收。專櫃化妝品、尿布、嬰兒食品不折。"), match: /マツモトキヨシ|マツキヨ|matsumoto\s?kiyoshi|matsukiyo/i },
+  { id: "donki", name: "唐吉訶德", sign: "ドン・キホーテ", tiers: t("滿 1 萬 5%・3 萬 7%（未稅）"), url: "https://japanportal.donki-global.com/coupon/?ptcd=0076001603", note: t("只收官方網頁上的條碼，截圖無效，所以要連網開。"), match: /ドン・?キホーテ|ドンキ|don\s?quijote|donki/i },
+  { id: "cocokara", name: "Cocokara Fine", sign: "ココカラファイン", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 7%"), until: "2027-03-31", img: img("cocokara"), note: t("不是每家都能免稅。券面寫截圖不收，被拒絕就改去松本清。"), match: /ココカラ|cocokara/i },
+  { id: "sundrug", name: "Sundrug 尚都樂客", sign: "サンドラッグ", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 7%（未稅）"), img: img("sundrug"), note: t("只能在免稅櫃台結帳時用。"), match: /サンドラッグ|sun\s?drug/i },
+  { id: "sugi", name: "SUGI 杉藥局", sign: "スギ薬局", tiers: t("滿 1 萬 4%・3 萬 6%・5 萬 8%"), until: "2027-02-28", img: img("sugi"), note: t("只限免稅結帳。食品、專櫃化妝品、POSA 卡不折。"), match: /スギ薬局|スギドラッグ|\bsugi\b/i },
+  { id: "tsuruha", name: "鶴羽藥妝", sign: "ツルハドラッグ", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 7%（含稅）"), img: img("tsuruha"), note: t("郊區店不一定有免稅櫃台，進門先看 TAX FREE。"), match: /ツルハ|tsuruha/i },
+  { id: "welcia", name: "Welcia", sign: "ウエルシア", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 8%（未稅）"), until: "2027-03-31", img: img("welcia"), note: t("HAC、金光藥品的免稅店也能用。資生堂、佳麗寶、KOSE 不折。"), match: /ウエルシア|welcia|ハックドラッグ|金光薬品/i },
+  { id: "kokumin", name: "國民藥妝", sign: "コクミン KoKuMiN", tiers: t("滿 5500 円 3%・1 萬 5%・3 萬 8%"), until: "2027-06-30", img: img("kokumin"), note: t("一人只能用一次。部分品牌化妝品不折。"), match: /コクミン|kokumin/i },
+  { id: "bic", name: "Bic Camera", sign: "ビックカメラ", tiers: t("藥妝、日用品 5%・家電 7%・清酒 3%"), until: "2027-04-30", img: img("bic"), note: t("折完要滿 5000 円。兩個條碼都要掃。Apple、遊戲主機不折。"), match: /ビックカメラ|bic\s?camera|コジマ/i },
+  { id: "takeya", name: "多慶屋（御徒町）", sign: "多慶屋 TAKEYA", tiers: t("滿 5000 円 5%・3 萬 7%；海外 JCB 卡 12%"), until: "2027-04-30", img: img("takeya"), note: t("只有御徒町本店。一筆最多折 1 萬円。"), match: /多慶屋|takeya/i },
+  { id: "cosmos", name: "COSMOS 科摩思", sign: "コスモス", tiers: t("滿 1 萬 5%・3 萬 7%・5 萬 9%"), img: img("cosmos"), note: t("東京只有歌舞伎町一丁目店、廣尾站店收。一天一次。"), match: /コスモス|cosmos/i, fewStores: true },
+  { id: "daikoku", name: "大國藥妝", sign: "ダイコクドラッグ", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 7%（未稅）"), url: "https://www.japanuts.com/2022/12/2023.html", note: t("限東京分店。沒有可以直接開的券，要到這篇文章裡找券圖。"), match: /ダイコク|daikoku/i },
+  { id: "fukutaro", name: "福太郎", sign: "くすりの福太郎", tiers: t("滿 1 萬 3%・3 萬 5%・5 萬 8%"), url: "https://matcha-jp.com/tw/coupon/143", note: t("限東京、千葉指定免稅店。券在 MATCHA 網頁上。"), match: /福太郎|fukutaro/i },
+  { id: "tomods", name: "Tomod's", sign: "トモズ", tiers: t("免稅再加最高 8%"), url: "https://matcha-jp.com/tw/coupon/148?code=matcha", note: t("券在 MATCHA 網頁上。"), match: /トモズ|tomod/i },
 ];
 
 /** The smaller WebP twin of a coupon picture. */
@@ -58,7 +60,7 @@ export const supportsWebp = (): Promise<boolean> => (webp ??= new Promise((resol
 
 export const couponFor = (text: string): Coupon | undefined => COUPONS.find((c) => c.match.test(text));
 export const expired = (c: Coupon, today: string) => !!c.until && c.until < today;
-export const untilText = (c: Coupon) => (c.until ? `到 ${c.until.replace(/-/g, "/")}` : "券上沒寫期限");
+export const untilText = (c: Coupon) => (c.until ? t("到 {date}", { date: c.until.replace(/-/g, "/") }) : t("券上沒寫期限"));
 
 // ---- 附近的店（資料來自 OpenStreetMap，免費、不用金鑰） ----
 
@@ -67,10 +69,10 @@ export interface Here { lat: number; lon: number; acc: number }
 
 export function locate(): Promise<Here> {
   return new Promise((resolve, reject) => {
-    if (!("geolocation" in navigator)) { reject(new Error("這個瀏覽器不能定位")); return; }
+    if (!("geolocation" in navigator)) { reject(new Error(t("這個瀏覽器不能定位"))); return; }
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }),
-      (e) => reject(new Error(e.code === e.PERMISSION_DENIED ? "沒有拿到定位權限。到手機的「設定 → 瀏覽器 → 位置」打開，再按一次。" : e.code === e.TIMEOUT ? "定位太久沒有回應，到室外或靠窗再試一次。" : "現在定不到位置，稍後再試。")),
+      (e) => reject(new Error(e.code === e.PERMISSION_DENIED ? t("沒有拿到定位權限。到手機的「設定 → 瀏覽器 → 位置」打開，再按一次。") : e.code === e.TIMEOUT ? t("定位太久沒有回應，到室外或靠窗再試一次。") : t("現在定不到位置，稍後再試。"))),
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
     );
   });
@@ -98,24 +100,24 @@ async function overpass(q: string): Promise<Element[]> {
       return ((await r.json()) as { elements?: Element[] }).elements ?? [];
     } catch (e) { last = e; } finally { clearTimeout(timer); }
   }
-  throw new Error(`店家資料現在查不到（${last instanceof Error ? last.message : "連線失敗"}）`);
+  throw new Error(t("店家資料現在查不到（{why}）", { why: last instanceof Error ? last.message : t("連線失敗") }));
 }
 
 /** 純函式：把 Overpass 的結果變成依距離排好的店（有券的全留，沒券的只留幾家藥妝店）。 */
 export function toShops(els: Element[], here: { lat: number; lon: number }): Shop[] {
   const all: Shop[] = [];
   for (const e of els) {
-    const t = e.tags ?? {};
+    const tg = e.tags ?? {};
     const lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon;
     if (lat == null || lon == null) continue;
-    const text = [t.name, t.brand, t["name:en"], t["name:ja"], t["brand:en"], t.operator].filter(Boolean).join(" ");
+    const text = [tg.name, tg.brand, tg["name:en"], tg["name:ja"], tg["brand:en"], tg.operator].filter(Boolean).join(" ");
     const hit = couponFor(text);
     if (hit?.fewStores) continue;
     const coupon = hit;
-    if (!coupon && t.shop !== "chemist") continue;
-    const name = t.name ?? t.brand ?? "";
+    if (!coupon && tg.shop !== "chemist") continue;
+    const name = tg.name ?? tg.brand ?? "";
     if (!name) continue;
-    all.push({ key: `${e.type}${e.id}`, name, branch: t.branch ?? "", lat, lon, dist: metres(here, { lat, lon }), coupon });
+    all.push({ key: `${e.type}${e.id}`, name, branch: tg.branch ?? "", lat, lon, dist: metres(here, { lat, lon }), coupon });
   }
   all.sort((a, b) => a.dist - b.dist);
   // 同一家店常被畫成一個點＋一棟建築：40 公尺內同品牌只留最近的
@@ -165,4 +167,4 @@ export async function nearby(here: Here): Promise<{ shops: Shop[]; radius: numbe
 
 export const walkLink = (s: { lat: number; lon: number }) => `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}&travelmode=walking`;
 export const searchLink = (here?: Here | null) => (here ? `https://www.google.com/maps/search/${encodeURIComponent("ドラッグストア")}/@${here.lat},${here.lon},16z` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("ドラッグストア")}`);
-export const distText = (m: number) => (m < 950 ? `${Math.max(10, Math.round(m / 10) * 10)} 公尺` : `${(m / 1000).toFixed(1)} 公里`);
+export const distText = (m: number) => (m < 950 ? t("{n} 公尺", { n: Math.max(10, Math.round(m / 10) * 10) }) : t("{n} 公里", { n: (m / 1000).toFixed(1) }));

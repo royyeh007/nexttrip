@@ -1,6 +1,7 @@
 // 共同的地點：各家那一天的行程裡各有一份，帶同一個 sid；內容由資料庫函式一次改掉所有份
 // （supabase/migrations/20261126000000_shared_stops.sql）。
 import { supabase } from "./supabase";
+import { t } from "./i18n";
 import { daysFor, isLeg } from "./data";
 import type { Day, FamilyId, Stop } from "./data";
 
@@ -13,9 +14,9 @@ export function sharedFamilies(days: Day[], families: { id: FamilyId }[], dateId
 }
 
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  if (!supabase) throw new Error("Supabase 還沒設定");
+  if (!supabase) throw new Error(t("Supabase 還沒設定"));
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw new Error(error.code === "PGRST202" || error.code === "42883" ? "這個功能要先升級資料庫（make db-push）" : error.message);
+  if (error) throw new Error(error.code === "PGRST202" || error.code === "42883" ? t("這個功能要先升級資料庫（make db-push）") : error.message);
   return data as T;
 }
 
@@ -43,5 +44,5 @@ export function contentPatch(stop: Stop): Record<string, unknown> {
 export async function syncShared(trip: string, day: Day, sid: string | undefined, patch: Record<string, unknown>): Promise<string | null> {
   if (!sid) return null;
   try { await sharedApi.patch(trip, day.id, sid, patch, day.rowId); return null; }
-  catch (e) { return `我們家這一份已經存好，但同步到其他家的時候失敗了：${e instanceof Error ? e.message : String(e)}`; }
+  catch (e) { return t("我們家這一份已經存好，但同步到其他家的時候失敗了：{error}", { error: t(e instanceof Error ? e.message : String(e)) }); }
 }

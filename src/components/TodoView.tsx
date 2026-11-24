@@ -4,6 +4,7 @@ import type { ContactRow, FamilyId, TodoRow } from "../data";
 import { supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { HScroll } from "./HScroll";
+import { t } from "../i18n";
 
 type Scope = "mine" | "shared";
 const visible = <T extends { fam: FamilyId[] | null }>(rows: T[], fam: FamilyId) => rows.filter((r) => !r.fam || r.fam.includes(fam));
@@ -11,15 +12,15 @@ const famOf = (scope: Scope, mine: FamilyId) => (scope === "shared" ? null : [mi
 
 function Tag({ fam }: { fam: FamilyId[] | null }) {
   const { labelOf } = useTrip();
-  return <span className={`tag ${fam ? "own" : "shared"}`}>{fam ? fam.map((f) => labelOf(f)).join("＋") : "大家一起"}</span>;
+  return <span className={`tag ${fam ? "own" : "shared"}`}>{fam ? fam.map((f) => labelOf(f)).join("＋") : t("大家一起")}</span>;
 }
 
 function ScopePick({ value, onChange, mine }: { value: Scope; onChange: (s: Scope) => void; mine: FamilyId }) {
   const { labelOf } = useTrip();
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as Scope)} aria-label="給誰看">
+    <select value={value} onChange={(e) => onChange(e.target.value as Scope)} aria-label={t("給誰看")}>
       <option value="mine">{labelOf(mine)}</option>
-      <option value="shared">大家一起</option>
+      <option value="shared">{t("大家一起")}</option>
     </select>
   );
 }
@@ -38,8 +39,8 @@ function useRun() {
     lock.current = true; setBusy(true);
     try {
       const { error, data } = await write();
-      if (error) { alert(error.message); return false; }
-      if (Array.isArray(data) && data.length === 0) { alert("沒有改到：這一筆可能已經被刪掉，或你沒有權限"); await reload(); return false; }
+      if (error) { alert(t(error.message)); return false; }
+      if (Array.isArray(data) && data.length === 0) { alert(t("沒有改到：這一筆可能已經被刪掉，或你沒有權限")); await reload(); return false; }
       await reload();
       return true;
     } finally { lock.current = false; setBusy(false); }
@@ -68,12 +69,12 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
     if (!supabase) return;
     setTicking((m) => ({ ...m, [r.id]: done }));
     const { data, error } = await supabase.from("todos").update({ done }).eq("id", r.id).select("id");
-    if (error || !data?.length) alert(error?.message ?? "沒有改到：這一筆可能已經被刪掉，或你沒有權限");
+    if (error || !data?.length) alert(error ? t(error.message) : t("沒有改到：這一筆可能已經被刪掉，或你沒有權限"));
     else patchTrip((t) => ({ ...t, todos: t.todos.map((x) => (x.id === r.id ? { ...x, done } : x)) }));
     setTicking((m) => { const next = { ...m }; delete next[r.id]; return next; });
   };
   const save = async (r: TodoRow) => { if (supabase && eText.trim() && await run(() => supabase!.from("todos").update({ due: eDue.trim().slice(0, 60), text: eText.trim().slice(0, 300) }).eq("id", r.id).select("id"))) setEditing(null); };
-  const del = (r: TodoRow) => { if (supabase && confirm(`刪掉「${r.text}」？`)) run(() => supabase!.from("todos").delete().eq("id", r.id).select("id")); };
+  const del = (r: TodoRow) => { if (supabase && confirm(t("刪掉「{name}」？", { name: r.text }))) run(() => supabase!.from("todos").delete().eq("id", r.id).select("id")); };
 
   const list = (
       <ul className="todo">
@@ -82,9 +83,9 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
             <input type="checkbox" id={`td-${r.id}`} checked={ticking[r.id] ?? r.done} disabled={r.id in ticking || !canEdit(r.fam, member)} onChange={(e) => toggle(r, e.target.checked)} />
             {editing === r.id ? (
               <div className="editrow">
-                <input value={eDue} onChange={(e) => setEDue(e.target.value)} placeholder="時間（例：11/20 前）" />
-                <input value={eText} onChange={(e) => setEText(e.target.value)} placeholder="要做什麼" onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
-                <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eText.trim()}>儲存</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>取消</button></div>
+                <input value={eDue} onChange={(e) => setEDue(e.target.value)} placeholder={t("時間（例：11/20 前）")} />
+                <input value={eText} onChange={(e) => setEText(e.target.value)} placeholder={t("要做什麼")} onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
+                <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eText.trim()}>{t("儲存")}</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>{t("取消")}</button></div>
               </div>
             ) : (
               <label htmlFor={`td-${r.id}`}>
@@ -94,26 +95,26 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
             )}
             {editing !== r.id && canEdit(r.fam, member) && (
               <span className="rowacts">
-                <button type="button" className="link" onClick={() => { setEditing(r.id); setEDue(r.due); setEText(r.text); }}>改</button>
-                <button type="button" className="link" onClick={() => del(r)} disabled={busy}>刪</button>
+                <button type="button" className="link" onClick={() => { setEditing(r.id); setEDue(r.due); setEText(r.text); }}>{t("改")}</button>
+                <button type="button" className="link" onClick={() => del(r)} disabled={busy}>{t("刪")}</button>
               </span>
             )}
           </li>
         ))}
-        {rows.length === 0 && <li className="note">還沒有項目。</li>}
+        {rows.length === 0 && <li className="note">{t("還沒有項目。")}</li>}
       </ul>
   );
   if (compact) return list;
   return (
     <div className="panel">
-      <h3>要訂、要搶的</h3>
-      <p className="note">{viewFam === mine ? "大家一起的和你們家的都在這裡，勾選全家都看得到。" : `這是${labelOf(viewFam)}的清單；你新增的會加到自己家或大家一起。`}</p>
+      <h3>{t("要訂、要搶的")}</h3>
+      <p className="note">{viewFam === mine ? t("大家一起的和你們家的都在這裡，勾選全家都看得到。") : t("這是{family}的清單；你新增的會加到自己家或大家一起。", { family: labelOf(viewFam) })}</p>
       {list}
       {!isViewer(member) && <div className="addrow">
-        <input value={due} onChange={(e) => setDue(e.target.value)} placeholder="時間（例：11/20 前）" />
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="要做什麼" onKeyDown={(e) => { if (isEnter(e)) add(); }} />
+        <input value={due} onChange={(e) => setDue(e.target.value)} placeholder={t("時間（例：11/20 前）")} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("要做什麼")} onKeyDown={(e) => { if (isEnter(e)) add(); }} />
         <ScopePick value={scope} onChange={setScope} mine={mine} />
-        <button type="button" className="btn primary" onClick={add} disabled={busy || !text.trim()}>＋ 新增</button>
+        <button type="button" className="btn primary" onClick={add} disabled={busy || !text.trim()}>{t("＋ 新增")}</button>
       </div>}
     </div>
   );
@@ -133,7 +134,7 @@ function Contacts({ fam, compact = false }: { fam: FamilyId; compact?: boolean }
     if (await run(() => supabase!.from("contacts").insert({ trip_id: current!.id, fam: famOf(scope, mine), name: name.trim().slice(0, 80), value: value.trim().slice(0, 200), created_by: member!.user_id }))) { setName(""); setValue(""); }
   };
   const save = async (r: ContactRow) => { if (supabase && eName.trim() && eValue.trim() && await run(() => supabase!.from("contacts").update({ name: eName.trim().slice(0, 80), value: eValue.trim().slice(0, 200) }).eq("id", r.id).select("id"))) setEditing(null); };
-  const del = (r: ContactRow) => { if (supabase && confirm(`刪掉「${r.name}」？`)) run(() => supabase!.from("contacts").delete().eq("id", r.id).select("id")); };
+  const del = (r: ContactRow) => { if (supabase && confirm(t("刪掉「{name}」？", { name: r.name }))) run(() => supabase!.from("contacts").delete().eq("id", r.id).select("id")); };
   const href = (v: string) => (v.includes("@") ? `mailto:${v}` : /^[+\d][\d\s-]{6,}$/.test(v) ? `tel:${v.replace(/[\s-]/g, "")}` : null);
 
   const fromTrip = contactsFromDays(daysFor(trip.days, viewFam));
@@ -141,15 +142,15 @@ function Contacts({ fam, compact = false }: { fam: FamilyId; compact?: boolean }
       <div className="contacts">
         {fromTrip.map((c) => (
           <div key={c.value} className="fromtrip">
-            <span className="cname">{c.name} <span className="tag trip">{c.d} 行程</span></span>
+            <span className="cname">{c.name} <span className="tag trip">{t("{d} 行程", { d: c.d })}</span></span>
             <span className="cval">{href(c.value) ? <a href={href(c.value)!}>{c.value}</a> : c.value}</span>
           </div>
         ))}
         {rows.map((r) => editing === r.id ? (
           <div className="editrow" key={r.id}>
-            <input value={eName} onChange={(e) => setEName(e.target.value)} placeholder="名稱" />
-            <input value={eValue} onChange={(e) => setEValue(e.target.value)} placeholder="電話或 email" onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
-            <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eName.trim() || !eValue.trim()}>儲存</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>取消</button></div>
+            <input value={eName} onChange={(e) => setEName(e.target.value)} placeholder={t("名稱")} />
+            <input value={eValue} onChange={(e) => setEValue(e.target.value)} placeholder={t("電話或 email")} onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
+            <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eName.trim() || !eValue.trim()}>{t("儲存")}</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>{t("取消")}</button></div>
           </div>
         ) : (
           <div key={r.id}>
@@ -157,26 +158,26 @@ function Contacts({ fam, compact = false }: { fam: FamilyId; compact?: boolean }
             <span className="cval">{href(r.value) ? <a href={href(r.value)!}>{r.value}</a> : r.value}</span>
             {canEdit(r.fam, member) && (
               <span className="rowacts">
-                <button type="button" className="link" onClick={() => { setEditing(r.id); setEName(r.name); setEValue(r.value); }}>改</button>
-                <button type="button" className="link" onClick={() => del(r)}>刪</button>
+                <button type="button" className="link" onClick={() => { setEditing(r.id); setEName(r.name); setEValue(r.value); }}>{t("改")}</button>
+                <button type="button" className="link" onClick={() => del(r)}>{t("刪")}</button>
               </span>
             )}
           </div>
         ))}
-        {rows.length === 0 && fromTrip.length === 0 && <p className="note">還沒有聯絡資料。</p>}
+        {rows.length === 0 && fromTrip.length === 0 && <p className="note">{t("還沒有聯絡資料。")}</p>}
       </div>
   );
   if (compact) return list;
   return (
     <div className="panel">
-      <h3>聯絡資料</h3>
-      <p className="note">有「行程」標籤的是從行程裡的地點自動帶出來的（電話、email），行程改了會跟著變；下面可以再自己加。</p>
+      <h3>{t("聯絡資料")}</h3>
+      <p className="note">{t("有「行程」標籤的是從行程裡的地點自動帶出來的（電話、email），行程改了會跟著變；下面可以再自己加。")}</p>
       {list}
       {!isViewer(member) && <div className="addrow">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名稱（例：飯店訂房）" />
-        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="電話或 email" onKeyDown={(e) => { if (isEnter(e)) add(); }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("名稱（例：飯店訂房）")} />
+        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("電話或 email")} onKeyDown={(e) => { if (isEnter(e)) add(); }} />
         <ScopePick value={scope} onChange={setScope} mine={mine} />
-        <button type="button" className="btn primary" onClick={add} disabled={busy || !name.trim() || !value.trim()}>＋ 新增</button>
+        <button type="button" className="btn primary" onClick={add} disabled={busy || !name.trim() || !value.trim()}>{t("＋ 新增")}</button>
       </div>}
     </div>
   );
@@ -187,11 +188,11 @@ export function TodoView() {
   const [mode, setMode] = useState<"one" | "all">("one");
   return (
     <>
-      <section className="dayhead"><h2>待辦與聯絡資料</h2></section>
+      <section className="dayhead"><h2>{t("待辦與聯絡資料")}</h2></section>
       <div className="toolbar">
-        <div className="modebar" role="group" aria-label="顯示方式">
-          <button type="button" className={mode === "one" ? "on" : ""} onClick={() => setMode("one")}>只看 {labelOf(viewFam)}</button>
-          <button type="button" className={mode === "all" ? "on" : ""} onClick={() => setMode("all")}>看所有家</button>
+        <div className="modebar" role="group" aria-label={t("顯示方式")}>
+          <button type="button" className={mode === "one" ? "on" : ""} onClick={() => setMode("one")}>{t("只看 {family}", { family: labelOf(viewFam) })}</button>
+          <button type="button" className={mode === "all" ? "on" : ""} onClick={() => setMode("all")}>{t("看所有家")}</button>
         </div>
       </div>
       {mode === "one" ? (
@@ -201,8 +202,8 @@ export function TodoView() {
         </>
       ) : (
         <>
-          <h3 className="allh">要訂、要搶的</h3>
-          <HScroll hint="← 左右滑動看每一家 →" deps={trip.todos.length}>
+          <h3 className="allh">{t("要訂、要搶的")}</h3>
+          <HScroll hint={t("← 左右滑動看每一家 →")} deps={trip.todos.length}>
             {trip.families.map((f) => (
               <section className="famcol" key={f.id}>
                 <header><b>{f.label}</b></header>
@@ -210,7 +211,7 @@ export function TodoView() {
               </section>
             ))}
           </HScroll>
-          <h3 className="allh">聯絡資料</h3>
+          <h3 className="allh">{t("聯絡資料")}</h3>
           <HScroll hint="" deps={trip.contacts.length}>
             {trip.families.map((f) => (
               <section className="famcol" key={f.id}>
@@ -219,7 +220,7 @@ export function TodoView() {
               </section>
             ))}
           </HScroll>
-          <p className="note">要新增項目請切回「只看」模式。</p>
+          <p className="note">{t("要新增項目請切回「只看」模式。")}</p>
         </>
       )}
     </>

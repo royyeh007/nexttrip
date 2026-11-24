@@ -5,6 +5,8 @@ export type GuideRole = "admin" | "member" | "viewer";
 export interface GuideItem { text: string; roles?: GuideRole[] }
 export interface GuideSection { id: string; icon: string; title: string; lead?: string; roles?: GuideRole[]; items: GuideItem[] }
 export interface GuideAction { target: string; label: string }
+/** The languages the guide is written in. Every function below takes it last and defaults to Chinese. */
+export type GuideLang = "zh" | "en";
 
 export const ROLE_NAMES: Record<GuideRole, string> = { admin: "管理員", member: "成員", viewer: "觀察員" };
 export const ROLE_SUMMARY: Record<GuideRole, string> = {
@@ -18,6 +20,27 @@ export const QUICK_START: Record<GuideRole, GuideAction[]> = {
   member: [{ target: "overview", label: "☷ 總覽" }, { target: "upload", label: "↑ 上傳行程" }, { target: "chat", label: "🧳 Trip醬" }, { target: "todo", label: "✓ 待辦・聯絡" }],
   viewer: [{ target: "overview", label: "☷ 總覽" }, { target: "todo", label: "✓ 待辦・聯絡" }],
 };
+
+/** English counterpart of ROLE_NAMES. */
+export const ROLE_NAMES_EN: Record<GuideRole, string> = { admin: "Admin", member: "Member", viewer: "Viewer" };
+/** English counterpart of ROLE_SUMMARY. */
+export const ROLE_SUMMARY_EN: Record<GuideRole, string> = {
+  admin: "Can see and change every family's itinerary, and manage people, invitations, families and trip settings.",
+  member: "Can see every family's itinerary; can change their own family's days and the days everyone shares, and can use Trip-chan.",
+  viewer: "Can only look at the itinerary, to-dos, contacts and flight status. Can't change anything, and has no chat assistant.",
+};
+/** English counterpart of QUICK_START (same targets, translated labels). */
+export const QUICK_START_EN: Record<GuideRole, GuideAction[]> = {
+  admin: [{ target: "admin", label: "⚙ Manage this trip" }, { target: "upload", label: "↑ Upload" }, { target: "chat", label: "🧳 Trip-chan" }, { target: "overview", label: "☷ Overview" }],
+  member: [{ target: "overview", label: "☷ Overview" }, { target: "upload", label: "↑ Upload" }, { target: "chat", label: "🧳 Trip-chan" }, { target: "todo", label: "✓ To-dos & contacts" }],
+  viewer: [{ target: "overview", label: "☷ Overview" }, { target: "todo", label: "✓ To-dos & contacts" }],
+};
+/** Role names in the given language. */
+export const roleNames = (lang: GuideLang = "zh") => (lang === "en" ? ROLE_NAMES_EN : ROLE_NAMES);
+/** One-line description of each role in the given language. */
+export const roleSummary = (lang: GuideLang = "zh") => (lang === "en" ? ROLE_SUMMARY_EN : ROLE_SUMMARY);
+/** Quick-start buttons for each role in the given language. */
+export const quickStart = (lang: GuideLang = "zh") => (lang === "en" ? QUICK_START_EN : QUICK_START);
 
 const editors: GuideRole[] = ["admin", "member"];
 
@@ -95,7 +118,7 @@ export const GUIDE: GuideSection[] = [
     { text: "[[admin|⚙ 管理]] → 團員：改每個人的家庭和角色（管理員／成員／觀察員），或移除。每個行程至少要有一位管理員。" },
     { text: "[[admin|⚙ 管理]] → 行程設定 → 行程圖案：挑一個代表這趟旅行的圖案（行李箱、富士山、郵輪、珍奶……），會出現在行程名稱旁邊和「我的行程」的卡片上。" },
     { text: "邀請好友：[[admin|⚙ 管理]] → 邀請好友，直接點好友的名字邀請，不用傳連結。對方打開網站會在「我的行程」那一頁看到邀請，可以選加入或不加入；他選了不加入你會看到，可以再邀一次或清掉。要先互為好友（帳號按鈕 → 帳號・好友）。" },
-    { text: "邀請連結：選角色、可先指定對方是哪一家、設定可用次數和幾天後失效（預設 30 天），把連結傳給對方即可；不用的連結可以刪除。管理員邀請預設只能用 1 次、7 天內有效，因為拿到的人可以改所有行程、刪掉整個行程。清單上標 的是舊的邀請（短碼或沒有期限），建議刪掉重發。" },
+    { text: "邀請連結：選角色、可先指定對方是哪一家、設定可用次數和幾天後失效（預設 30 天），把連結傳給對方即可；不用的連結可以刪除。管理員邀請預設只能用 1 次、7 天內有效，因為拿到的人可以改所有行程、刪掉整個行程。清單上有黃色三角形的是舊的邀請（短碼或沒有期限），建議刪掉重發。" },
     { text: "家庭：新增、改名；還有成員、自己的日子、自己的待辦或聯絡資料的家不能刪。" },
     { text: "行程設定：名稱、日期、地點、當地時區（影響「現在」的線和航班日期）。延長日期會自動補上空白的日子。" },
     { text: "刪除整個行程要輸入行程名稱確認，所有人的資料都會消失，無法復原。" },
@@ -115,20 +138,118 @@ export const GUIDE: GuideSection[] = [
   ] },
 ];
 
-/** The sections and items this role should see. */
-export function guideFor(role: GuideRole): GuideSection[] {
-  return GUIDE
+/** English counterpart of GUIDE: same sections, ids, icons, roles and button targets, in the same order. Change both together. */
+export const GUIDE_EN: GuideSection[] = [
+  { id: "enter", icon: "→", title: "Signing in and choosing a trip", lead: "One account can be in several trips.", items: [
+    { text: "Sign in with Google. The first time, you need an invite link or invite code from a family member; if you've joined before, just sign in." },
+    { text: "After signing in you go straight to the trip you last opened. To change trips: press [[menu|👤 your name]] at the top right → [[switch|Switch trip]]." },
+    { text: "On the trip picker you can “Create a new trip” (only if you're already a Member or Admin of some trip; Viewers can't), or paste an invite code to join someone else's trip. Whoever creates a trip is its Admin." },
+    { text: "[[menu|👤 your name]] also has: change my name, leave this trip (type delete to confirm; when the last person leaves, the whole trip is deleted), and sign out." },
+  ] },
+  { id: "view", icon: "☷", title: "Viewing the itinerary", items: [
+    { text: "“Which family” in the header switches between each family's itinerary; “Only this family / All families” puts every family's version of the same day side by side." },
+    { text: "The date bar scrolls left and right, and today is highlighted. Each date shows the weather (a forecast within 16 days of departure, the average from past years before that)." },
+    { text: "[[overview|☷ Overview]] lists every day's stops on one page. You can narrow it to food, lodging or booked stops only, and print it or save it as a PDF." },
+    { text: "Tap any stop to open its details: open in Google Maps, the route from the previous stop, booking details, one-tap copy of the booking code, phone, recommendations, reminders and notes." },
+    { text: "“Open today's Google Maps route” strings the whole day's stops into one route." },
+    { text: "Open it on a travel day and the itinerary shows a red “now” line, with past stops faded. There's a switch next to it, and before the trip you can press “Preview” to see how it looks." },
+    { text: "On a day with a flight, the flight card shows on-time status, gate, check-in counter or baggage carousel that day." },
+    { text: "[[info|ⓘ Info]] is extra material everyone puts together (for example immigration, tax refunds, souvenirs, car rental, drugstore and convenience-store must-buys); Members and Admins can all write in it. Tap a small picture next to an item to enlarge it, and press × or tap beside it to close." },
+    { text: "The card tag next to a stop is the best card to pay with at that stop, worked out from the cards you ticked. Set them up in [[cards|💳 Cards]]." },
+    { text: "When someone else changes the itinerary, your screen updates by itself within 5 minutes at most; it also checks right away when you switch back to the page." },
+    { text: "It works without signal: your phone keeps the itinerary it last loaded and still opens it offline (a notice appears at the top, and you can only look, not change). When the signal is poor and an update fails, the screen stays as it is; just press “Try again” on the notice. Signing out clears the itinerary stored on the phone." },
+  ] },
+  { id: "edit", icon: "✎", title: "Changing the itinerary", lead: "You can change your own family's days and the days everyone shares; another family's own version is view-only. Admins can change everything.", roles: editors, items: [
+    { text: "[[upload|↑ Upload]]: send the filled-in form (you can download it on that page), a screenshot of an itinerary, a PDF, or just paste text. Trip-chan turns it into an itinerary for you to check, and it only goes live when you press “Confirm and update the itinerary”." },
+    { text: "[[chat|🧳 Trip-chan]]: just say what you want to change (for example “On 12/30 our family wants a different hotel, everything else the same”). It prepares a proposal, which also takes effect only after you confirm." },
+    { text: "Type it in yourself: each day's page has “+ Add a stop”. Enter a time and a name and it's slotted in by time; an empty day can start from here too." },
+    { text: "Small changes don't need Trip-chan: open a stop and you'll find “Edit” (time, name, booking status, address, phone, recommendations, how to get there), “+ Add a stop after this” and “Delete this stop”. Changing the time re-sorts the day automatically." },
+    { text: "You can add notes at the bottom of every stop, and everyone can see them; you can delete your own notes." },
+    { text: "A stop can “link to another trip” (chosen when editing the stop), for example “Leave for Japan” in a Taiwan trip linking to the Japan New Year trip. People who are in both trips can open that stop to see that day's plan and jump over in one tap; people who aren't only see the name." },
+    { text: "[[addday|+ Add a day]] at the end of the date bar adds a date for your own family (within two weeks before or after the trip); you can delete days you added." },
+    { text: "Who you spend a day with: tap the version tag next to each day's date (“Everyone's version”, “So-and-so family's own version”). Choose everyone together, just our family, or tap a few families' names so those families share one copy. Once shared, a change by any of those families changes it for all of them; each family can still enter its own lodging." },
+    { text: "If a family you want to share with already has its own itinerary for that day, you're asked which copy to use as the shared one. A regular Member can't overwrite another family's copy with their own: use the other family's copy instead, or ask an Admin to sort it out." },
+    { text: "“⋯” on the right of each day's page → “Optimize order”: tick the stops that may be moved (booked stops, meals, stations and airports stay put by default), press calculate, and it finds the order with the least travel by distance. Check it, then “Apply”. It only looks at distance and doesn't know opening hours, so treat it as a suggestion." },
+  ] },
+  { id: "info", icon: "ⓘ", title: "Info", lead: "Immigration, tax refunds, souvenirs, car rental, what to pack… add a page whenever something comes to mind, and everyone can see it.", roles: editors, items: [
+    { text: "[[info|ⓘ Info]] → “+ New page”: just type a title and the content, and plain typing is shown paragraph by paragraph. For formatting you can use “# Heading”, “- Item”, “1. Step”, “| Table |” and “[text](link)”; press “Preview” to see the result first." },
+    { text: "“Add picture”, or paste a picture straight into the content, and it becomes a small thumbnail beside the text (product photos, screenshots, anything) that everyone can tap to enlarge and compare. The longest side is shrunk to 1280 automatically, and each picture can be up to 5 MB." },
+    { text: "For a big block of text copied from a website or LINE, paste it in and press “Tidy up for me”: the AI turns it into a list or a table, without looking anything up online or adding anything that wasn't in the original. Each trip gets up to 10 a day; after that, write it by hand." },
+    { text: "Answers [[chat|🧳 Trip-chan]] finds (for example the tax refund steps, or how to get somewhere) have “Save to Info” underneath. One press turns the answer into a page, so nobody has to ask again." },
+    { text: "Anyone can “Edit” or “Delete” any page; the page shows who changed it last and when. Deleting a page, or taking a picture out of the content, deletes those pictures too." },
+    { text: "If you leave by accident halfway through writing (tapped another date, refreshed the page): when you return to Info it asks whether to “Keep editing” that draft. If someone else changed the same page while you were editing, you're told when you save and their content isn't overwritten; you can “Save as a new page” to keep your version. If you don't like the result of “Tidy up for me”, press “Restore the content from before tidying”." },
+  ] },
+  { id: "cards", icon: "💳", title: "Cards: which one to use at each stop", lead: "Tick the cards you have, and each stop is marked with the best card to use there (most rewards, lowest fees).", items: [
+    { text: "[[cards|💳 Cards]] → type a card name or bank to add the cards you have (US, UK and Taiwan cards are included, e.g. Sapphire, Amex Gold, Barclaycard, CUBE). If a card isn't in the library you can add it: press “Look up this card for me” to have the AI look up its fees and rewards online, then check them before saving." },
+    { text: "While the switch “Show the recommended card at each stop” is on, every stop in the itinerary has a card tag (card name + net reward %). “Which card to use” inside a stop explains why, what conditions apply, and the next-best cards. Net reward = reward − foreign transaction fee; no fee is counted when the card's country and the destination are the same." },
+    { text: "Buying something on the spot: press “Shortcuts” at the bottom left. A small card lists which card to use for meals, shopping, hotels, transport and tickets, with the net reward for each; where a shop doesn't take AmEx, it says which card to use instead." },
+    { text: "Drugstore coupons for Japan trips: “Drugstore coupons” on the home page (also in “Shortcuts” at the bottom left and on the “Drugstore coupons” page in [[info|ⓘ Info]]). “Find drugstores nearby” uses your phone's location to list shops within walking distance that have a coupon; press “Show coupon” to put the barcode full-screen for the cashier to scan. Without location you can still tap a shop's name under “All coupons”. Show the coupon together with your passport before paying. Don Quijote only accepts the barcode on its official web page, so that opens separately. Your location is only used on the phone and isn't stored." },
+    { text: "The card library is shared by everyone: when an offer changes, whoever notices can press “Edit details” to update it, and who changed it is recorded. A yellow triangle means the listed offer has passed its end date; check with the bank." },
+  ] },
+  { id: "people", icon: "👪", title: "Family and who's going", items: [
+    { text: "Account button → Account, family & friends → My family: add the family members who travel with you, adults and children alike; they don't need an account. For children, enter an age or a birthday (the age then keeps up by itself). Use the note for dietary restrictions. This list is shared across all your trips." },
+    { text: "If another adult in your family also has an account: add each other as friends first, then press “Link account” next to their name. After that they can change this list too." },
+    { text: "[[people|👪 Who's going]]: tick who from your family is coming on this trip. The top shows the total headcount, how many adults and children, and the children's ages; use these numbers for bookings and tickets." },
+    { text: "Travelers without an account (for example grandparents): an Admin can fill them in for any family under “Who's going”; a Member can do it for their own family." },
+    { text: "When families have different plans for a day but share one stop (for example lunch together): open that stop and tap another family's name under “With whom”, and the stop appears in their itinerary for that day. From then on the time, booking, notes and who's joining stay in sync for every family, whoever changes them; each family arranges its own transport before and after. The card is marked “with the So-and-so family”." },
+    { text: "Not going to a shared stop after all: “Delete this stop” in your own family's itinerary only removes it for your family. To cancel it for every family, use “Cancel for everyone” under “With whom”." },
+    { text: "Split up (for example the kids go one place and the adults another): open one of the stops → “+ Add a stop after this” → under “Relation to this stop” choose “At the same time”. You can pick “Kids go to this stop, adults stay at the original one” directly, or divide people yourself later under “Who's joining”. The two stops are boxed together and marked “Split up”, and it checks that nobody is left out or placed in both." },
+    { text: "Every stop has “Who's joining”: everyone by default; tap a name to take someone out or put them back. It shows how many adults and children are at this stop, and you can copy that in one tap for the restaurant." },
+  ] },
+  { id: "todo", icon: "✓", title: "To-dos and contacts", items: [
+    { text: "[[todo|✓ To-dos & contacts]] is split into your own family's and everyone's; “All families” shows each family's list side by side." },
+    { text: "You can add, change and tick off to-dos; when adding one, choose who can see it.", roles: editors },
+    { text: "Contacts automatically lists the phone numbers and emails that appear in the itinerary (tagged “Itinerary”), and you can add more yourself." },
+    { text: "Viewers can only look at to-dos and contacts; they can't add or tick anything.", roles: ["viewer"] },
+  ] },
+  { id: "chat", icon: "🧳", title: "Trip-chan (AI assistant)", roles: editors, items: [
+    { text: "[[chat|🧳 Trip-chan]] is at the bottom right. It can see every family's itinerary, to-dos and contacts in this trip, so you can ask for details (what time, the booking code, how to get there) or have it change the itinerary." },
+    { text: "Paste a link to a shop or a video and it looks up the address, opening hours and recommendations online, and suggests which day to fit it into." },
+    { text: "It only deals with this trip and this site: it can't see other trips and can't change the site's code. Any change to the itinerary needs you to press “Confirm”." },
+    { text: "When you ask about a topic covered in Info (tax refunds, immigration…), it reads that page first and then answers; press “Save to Info” to keep a useful answer." },
+    { text: "It's fine to switch to another app after sending a question; the reply stays in the conversation. “Clear conversation” only clears your own history in this trip." },
+  ] },
+  { id: "admin", icon: "⚙", title: "Managing this trip", lead: "Only Admins can see this page.", roles: ["admin"], items: [
+    { text: "[[admin|⚙ Manage]] → People: change each person's family and role (Admin / Member / Viewer), or remove them. Every trip needs at least one Admin." },
+    { text: "[[admin|⚙ Manage]] → Trip settings → Trip icon: pick a picture that stands for this trip (suitcase, Mt. Fuji, cruise ship, bubble tea…). It appears next to the trip name and on the card under “My trips”." },
+    { text: "Inviting friends: [[admin|⚙ Manage]] → Invite friends, then tap a friend's name to invite them; no link needed. When they open the site they see the invitation on the “My trips” page and can accept or decline. If they decline you'll see it, and can invite them again or clear it. You need to be friends first (account button → Account & friends)." },
+    { text: "Invite links: choose a role, optionally set which family the person belongs to, and set how many times the link can be used and after how many days it expires (30 by default), then send them the link; delete links you no longer need. Admin invitations by default work only once and for 7 days, because whoever gets one can change every itinerary and delete the whole trip. Those marked in the list are old invitations (a short code or no expiry); it's best to delete them and send new ones." },
+    { text: "Families: add or rename. A family that still has members, its own days, or its own to-dos or contacts can't be deleted." },
+    { text: "Trip settings: name, dates, place and local time zone (which affects the “now” line and flight dates). Extending the dates adds the empty days automatically." },
+    { text: "Deleting the whole trip requires typing the trip name to confirm. Everyone's data is gone and can't be recovered." },
+    { text: "To let someone only look: choose “Viewer” when inviting, or change them to Viewer in the people list." },
+  ] },
+  { id: "viewer", icon: "👁", title: "What Viewers can do", roles: ["viewer"], items: [
+    { text: "You're a Viewer: you can see every family's itinerary, [[overview|☷ Overview]], stop details, [[todo|✓ To-dos & contacts]], the weather and flight status." },
+    { text: "You can't change the itinerary, add days, add notes or upload, and there's no chat assistant. If something needs changing, tell a Member or Admin of the trip." },
+    { text: "To become a Member, ask an Admin to change your role under “Manage → People”." },
+  ] },
+  { id: "faq", icon: "?", title: "Common questions", items: [
+    { text: "The map opens the wrong place? Open that stop → “Edit” → change “Google Maps search text” to the shop name plus its address.", roles: editors },
+    { text: "Google sign-in fails or the invite link no longer works: ask whoever invited you, or an Admin, for a new link; invitations have a use limit and also expire." },
+    { text: "Trip-chan, upload, “Tidy up for me” or the card lookup says “already used N times today”: each feature has a daily limit per person and per trip (so it doesn't cost too much at once). It resets the next day.", roles: editors },
+    { text: "Can't see what someone just changed: switch to another tab and back, or wait up to 5 minutes for it to update by itself." },
+    { text: "To use it like an app on your phone: use your browser's “Add to Home Screen”, and a trip icon appears on your home screen. Once you've opened it one time, it opens without a connection too." },
+  ] },
+];
+/** The whole guide in the given language. */
+export const guide = (lang: GuideLang = "zh") => (lang === "en" ? GUIDE_EN : GUIDE);
+
+/** The sections and items this role should see, in the given language (Chinese when omitted). */
+export function guideFor(role: GuideRole, lang: GuideLang = "zh"): GuideSection[] {
+  return guide(lang)
     .filter((s) => !s.roles || s.roles.includes(role))
     .map((s) => ({ ...s, items: s.items.filter((i) => !i.roles || i.roles.includes(role)) }))
     .filter((s) => s.items.length > 0);
 }
 
 export const ACTION_RE = /\[\[([a-z-]+)\|([^\]]+)\]\]/g;
-/** `[[target|label]]` → 「label」 for plain-text uses (the chatbot). */
-export const plain = (text: string) => text.replace(ACTION_RE, "「$2」");
+/** `[[target|label]]` → 「label」 (“label” in English) for plain-text uses (the chatbot). */
+export const plain = (text: string, lang: GuideLang = "zh") => text.replace(ACTION_RE, lang === "en" ? "“$2”" : "「$2」");
 
 /** Plain text for the chatbot's system prompt: everything, with role tags so it can answer for whoever is asking. */
-export function guideText(): string {
-  const tag = (roles?: GuideRole[]) => (!roles || roles.length === 3 ? "" : `（${roles.map((r) => ROLE_NAMES[r]).join("、")}才有）`);
-  return GUIDE.map((s) => `${s.title}${tag(s.roles)}：${s.lead ? plain(s.lead) : ""}\n${s.items.map((i) => `- ${plain(i.text)}${tag(i.roles)}`).join("\n")}`).join("\n");
+export function guideText(lang: GuideLang = "zh"): string {
+  const en = lang === "en";
+  const tag = (roles?: GuideRole[]) => (!roles || roles.length === 3 ? "" : en ? ` (${roles.map((r) => ROLE_NAMES_EN[r]).join(", ")} only)` : `（${roles.map((r) => ROLE_NAMES[r]).join("、")}才有）`);
+  return guide(lang).map((s) => `${s.title}${tag(s.roles)}${en ? ": " : "："}${s.lead ? plain(s.lead, lang) : ""}\n${s.items.map((i) => `- ${plain(i.text, lang)}${tag(i.roles)}`).join("\n")}`).join("\n");
 }

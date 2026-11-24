@@ -35,6 +35,7 @@ import { useTrip } from "./trip";
 import { endPreview, fakeNow, setNowLine, startPreview, useNow, useNowLine } from "./now";
 import { useScrollEdges } from "./useScrollEdges";
 import type { LinkedLeg } from "./maps";
+import { t, tr, wk, list } from "./i18n";
 
 const store = {
   get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -65,10 +66,10 @@ function Notice({ title, children }: { title: string; children?: React.ReactNode
 /** 「載入中…」，等了一陣子還沒好就給一個出口（訊號很差時不要讓人對著空白畫面乾等）。 */
 function Loading() {
   const [slow, setSlow] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setSlow(true), 7000); return () => clearTimeout(t); }, []);
+  useEffect(() => { const timer = setTimeout(() => setSlow(true), 7000); return () => clearTimeout(timer); }, []);
   return (
-    <Notice title="載入中…">
-      {slow && <><p>網路有點慢，還在等回應。</p><div className="actions"><button type="button" className="btn" onClick={() => location.reload()}>重新整理</button></div></>}
+    <Notice title={t("載入中…")}>
+      {slow && <><p>{t("網路有點慢，還在等回應。")}</p><div className="actions"><button type="button" className="btn" onClick={() => location.reload()}>{t("重新整理")}</button></div></>}
     </Notice>
   );
 }
@@ -82,8 +83,8 @@ function SyncBar() {
   if (!sync.message) return null;
   return (
     <div className="syncbar" role="status">
-      <span><MenuIcon name="warn" size={16} />{sync.message}。{sync.at ? `畫面上是 ${clock(sync.at)} 的資料` : "畫面上可能不是最新的"}{sync.offline ? "，現在只能看、不能改。" : "。"}</span>
-      <button type="button" className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await retry(); } finally { setBusy(false); } }}>{busy ? "重試中…" : "再試一次"}</button>
+      <span><MenuIcon name="warn" size={16} />{sync.at ? (sync.offline ? t("{msg}。畫面上是 {time} 的資料，現在只能看、不能改。", { msg: sync.message, time: clock(sync.at) }) : t("{msg}。畫面上是 {time} 的資料。", { msg: sync.message, time: clock(sync.at) })) : sync.offline ? t("{msg}。畫面上可能不是最新的，現在只能看、不能改。", { msg: sync.message }) : t("{msg}。畫面上可能不是最新的。", { msg: sync.message })}</span>
+      <button type="button" className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await retry(); } finally { setBusy(false); } }}>{busy ? t("重試中…") : t("再試一次")}</button>
     </div>
   );
 }
@@ -93,16 +94,16 @@ export default function App() {
   usePendingFriend(phase === "ready" || phase === "pick" || phase === "account" ? session?.user.id : undefined);
   if (phase === "noconfig") {
     return (
-      <Notice title="還沒接上 Supabase">
-        <p>本機請在 <code>.env.local</code> 填 <code>VITE_SUPABASE_URL</code> 和 <code>VITE_SUPABASE_ANON_KEY</code>；GitHub Pages 請在 repo 的 Variables 設同名變數。做法在 SETUP.md。</p>
+      <Notice title={t("還沒接上 Supabase")}>
+        <p>{tr("本機請在 <c>.env.local</c> 填 <c>VITE_SUPABASE_URL</c> 和 <c>VITE_SUPABASE_ANON_KEY</c>；GitHub Pages 請在 repo 的 Variables 設同名變數。做法在 SETUP.md。", { c: (c) => <code>{c}</code> })}</p>
       </Notice>
     );
   }
   if (phase === "error") {
     return (
-      <Notice title="讀不到資料">
+      <Notice title={t("讀不到資料")}>
         <p className="err">{error}</p>
-        <div className="actions"><button type="button" className="btn primary" onClick={() => { retry(); }}>再試一次</button><button type="button" className="btn" onClick={signOut}>登出</button></div>
+        <div className="actions"><button type="button" className="btn primary" onClick={() => { retry(); }}>{t("再試一次")}</button><button type="button" className="btn" onClick={signOut}>{t("登出")}</button></div>
       </Notice>
     );
   }
@@ -127,7 +128,7 @@ function LeaveDialog({ onClose }: { onClose: () => void }) {
     if (!supabase || !current) return;
     // 查不到人數（網路問題）時維持「確認中」，不要當成「還有別人」：只剩自己時退出會刪掉整個行程
     supabase.from("members").select("user_id", { count: "exact", head: true }).eq("trip_id", current.id)
-      .then(({ count, error }) => { if (error || count == null) setErr("查不到這個行程還有幾個人，可能是網路問題。關掉再開一次試試"); else setAlone(count === 1); });
+      .then(({ count, error }) => { if (error || count == null) setErr(t("查不到這個行程還有幾個人，可能是網路問題。關掉再開一次試試")); else setAlone(count === 1); });
   }, [current]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -141,7 +142,7 @@ function LeaveDialog({ onClose }: { onClose: () => void }) {
     // 最後一個人退出＝刪掉整個行程：資訊頁的圖片是公開網址，先清掉
     if (alone) await removeTripImages(current.id);
     const { error } = await supabase.rpc("leave_trip", { p_trip: current.id });
-    if (error) { setErr(error.message); setBusy(false); return; }
+    if (error) { setErr(t(error.message)); setBusy(false); return; }
     await refreshMemberships();
     leaveToPicker();
   };
@@ -149,18 +150,18 @@ function LeaveDialog({ onClose }: { onClose: () => void }) {
     <>
       <div className="scrim" onClick={onClose} />
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="leave-title">
-        <h3 id="leave-title">退出「{current?.name}」</h3>
+        <h3 id="leave-title">{t("退出「{name}」", { name: current?.name })}</h3>
         <p className="note">
-          {alone === null ? "確認中…" : alone
-            ? "你是這個行程裡唯一的人，退出會把整個行程連同所有資料刪掉，無法復原。"
-            : "退出後就看不到這個行程了，之後要再用邀請連結才能回來。你的備註和已經確認的行程會留著。"}
+          {alone === null ? t("確認中…") : alone
+            ? t("你是這個行程裡唯一的人，退出會把整個行程連同所有資料刪掉，無法復原。")
+            : t("退出後就看不到這個行程了，之後要再用邀請連結才能回來。你的備註和已經確認的行程會留著。")}
         </p>
-        <label>請輸入 <code>delete</code> 確認
+        <label>{tr("請輸入 <c>delete</c> 確認", { c: (c) => <code>{c}</code> })}
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="delete" autoCapitalize="none" autoCorrect="off" autoFocus onKeyDown={(e) => { if (e.key === "Enter" && ok) go(); }} />
         </label>
         <div className="actions">
-          <button type="button" className="btn danger" onClick={go} disabled={!ok || busy || alone === null}>{busy ? "處理中…" : alone ? "確認退出並刪除行程" : "確認退出"}</button>
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>取消</button>
+          <button type="button" className="btn danger" onClick={go} disabled={!ok || busy || alone === null}>{busy ? t("處理中…") : alone ? t("確認退出並刪除行程") : t("確認退出")}</button>
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>{t("取消")}</button>
         </div>
         {err && <p className="err">{err}</p>}
       </div>
@@ -181,36 +182,36 @@ function TripMenu() {
   }, []);
   const rename = async () => {
     if (!supabase || !current) return;
-    const name = prompt("你在這個行程裡顯示的名字", member?.name ?? "");
+    const name = prompt(t("你在這個行程裡顯示的名字"), member?.name ?? "");
     if (name === null) return;
     const { error } = await supabase.rpc("set_my_name", { p_trip: current.id, p_name: name });
-    if (error) alert(error.message); else await refreshMemberships();
+    if (error) alert(t(error.message)); else await refreshMemberships();
     close();
   };
   const leave = () => { close(); setLeaving(true); };
-  const short = (member?.name ?? member?.email?.split("@")[0] ?? "我").split(/\s+/)[0];
+  const short = (member?.name ?? member?.email?.split("@")[0] ?? t("我")).split(/\s+/)[0];
   const pending = useInvitations(member?.user_id).length;
   return (
     <>
     {leaving && <LeaveDialog onClose={() => setLeaving(false)} />}
     <details className="menu" ref={ref}>
-      <summary aria-label="帳號與行程選單" title="切換行程、管理、登出">
+      <summary aria-label={t("帳號與行程選單")} title={t("切換行程、管理、登出")}>
         <PersonIcon />
         <span className="mname">{short}</span>
-        {pending > 0 && <span className="dot" aria-label={`有 ${pending} 個行程邀請`} />}
+        {pending > 0 && <span className="dot" aria-label={pending === 1 ? t("有 1 個行程邀請") : t("有 {n} 個行程邀請", { n: pending })} />}
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </summary>
       <div className="list">
         <small>{member?.name ?? member?.email}</small>
-        <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />切換行程{pending > 0 && <b className="badge">{pending} 個邀請</b>}</button>
-        <a href="#people" onClick={close}><MenuIcon name="people" />這趟誰會去</a>
-        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・家人・好友</button>
-        {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />管理這個行程</a>}
-        <a href="#cards" onClick={close}><MenuIcon name="cards" />我的信用卡</a>
-        <a href="#guide" onClick={close}><MenuIcon name="guide" />使用教學</a>
-        <button type="button" onClick={rename}><MenuIcon name="rename" />改我的名字</button>
-        <button type="button" className="danger" onClick={leave}><MenuIcon name="leave" />退出這個行程</button>
-        <button type="button" onClick={signOut}><MenuIcon name="signout" />登出</button>
+        <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />{t("切換行程")}{pending > 0 && <b className="badge">{pending === 1 ? t("1 個邀請") : t("{n} 個邀請", { n: pending })}</b>}</button>
+        <a href="#people" onClick={close}><MenuIcon name="people" />{t("這趟誰會去")}</a>
+        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />{t("帳號・家人・好友")}</button>
+        {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />{t("管理這個行程")}</a>}
+        <a href="#cards" onClick={close}><MenuIcon name="cards" />{t("我的信用卡")}</a>
+        <a href="#guide" onClick={close}><MenuIcon name="guide" />{t("使用教學")}</a>
+        <button type="button" onClick={rename}><MenuIcon name="rename" />{t("改我的名字")}</button>
+        <button type="button" className="danger" onClick={leave}><MenuIcon name="leave" />{t("退出這個行程")}</button>
+        <button type="button" onClick={signOut}><MenuIcon name="signout" />{t("登出")}</button>
       </div>
     </details>
     </>
@@ -220,7 +221,7 @@ function TripMenu() {
 function Main() {
   const { member, current, trip, viewFam, setViewFam } = useTrip();
   const couponsOn = useCouponsOn();
-  const fam = trip.families.find((f) => f.id === viewFam) ?? { id: viewFam, name: viewFam, label: viewFam || "我們家", flights: [] };
+  const fam = trip.families.find((f) => f.id === viewFam) ?? { id: viewFam, name: viewFam, label: viewFam || t("我們家"), flights: [] };
   const tripId = current?.id ?? "";
   const dayKey = `jp-day:${tripId}`;
 
@@ -286,7 +287,7 @@ function Main() {
     document.querySelector(`nav.days [data-id="${view}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [view, viewFam, dayKey]);
 
-  useEffect(() => { document.title = `${fam.label}・${current?.name ?? "行程"}`; }, [fam.label, current?.name]);
+  useEffect(() => { document.title = `${fam.label}・${current?.name ?? t("行程")}`; }, [fam.label, current?.name]);
   // the backdrop follows the day on screen: its city (landmark), its date (season) and its weather there; on the other pages it keeps the last one
   const onScreen = days.find((d) => d.id === view);
   const skyOnScreen = useMemo(() => {
@@ -312,16 +313,16 @@ function Main() {
         <header className={`hero${PAGES.includes(view) ? " compact" : ""}`}>
           <div className="fambar">
             <span className="fampill">{fam.label}</span>
-            <select className="famselect" value={viewFam} aria-label="看哪一家的行程" onChange={(e) => setViewFam(e.target.value as FamilyId)}>
-              {[...trip.families].sort((a, b) => (a.id === member?.family_id ? -1 : b.id === member?.family_id ? 1 : 0)).map((f) => <option key={f.id} value={f.id}>{f.id === member?.family_id ? `看我們家（${f.label}）` : `看 ${f.label}`}</option>)}
+            <select className="famselect" value={viewFam} aria-label={t("看哪一家的行程")} onChange={(e) => setViewFam(e.target.value as FamilyId)}>
+              {[...trip.families].sort((a, b) => (a.id === member?.family_id ? -1 : b.id === member?.family_id ? 1 : 0)).map((f) => <option key={f.id} value={f.id}>{f.id === member?.family_id ? t("看我們家（{label}）", { label: f.label }) : t("看 {label}", { label: f.label })}</option>)}
             </select>
             <TripMenu />
           </div>
           <div className="eyebrow">
-            {first && last ? `${dotDate(first.id)} — ${dotDate(last.id)} ・ ${famDays.length} 天` : current ? `${dotDate(current.start_date)} — ${dotDate(current.end_date)}` : ""}
+            {first && last ? `${dotDate(first.id)} — ${dotDate(last.id)} ・ ${famDays.length === 1 ? t("1 天") : t("{n} 天", { n: famDays.length })}` : current ? `${dotDate(current.start_date)} — ${dotDate(current.end_date)}` : ""}
             {current?.place && <> ・ {current.place.split(/(?<=[、，,・])/).map((seg, i) => <span key={i} className="nb">{seg}</span>)}</>}
           </div>
-          <div className="titlerow"><TripIcon id={tripIconId(current?.settings)} size={48} /><h1>{current?.name ?? "行程"}</h1></div>
+          <div className="titlerow"><TripIcon id={tripIconId(current?.settings)} size={48} /><h1>{current?.name ?? t("行程")}</h1></div>
           {route.length > 0 && (
             <div className="route">
               <PaperPlane />
@@ -333,9 +334,9 @@ function Main() {
           <div className="flights">
             {fam.flights.length > 0
               ? fam.flights.map((f) => <span key={f} className="flight">{f}</span>)
-              : <span className="flight muted">去回航班待補</span>}
+              : <span className="flight muted">{t("去回航班待補")}</span>}
             {trip.notes.shared && <span className="flight">{trip.notes.shared}</span>}
-            {fam.flights.length > 0 && <button type="button" className="link flighttoggle" aria-expanded={flightsOpen} onClick={() => setFlightsOpen(!flightsOpen)}>{flightsOpen ? "收起航班狀態" : "航班狀態"}<span aria-hidden="true">{flightsOpen ? " ▴" : " ▾"}</span></button>}
+            {fam.flights.length > 0 && <button type="button" className="link flighttoggle" aria-expanded={flightsOpen} onClick={() => setFlightsOpen(!flightsOpen)}>{flightsOpen ? t("收起航班狀態") : t("航班狀態")}<span aria-hidden="true">{flightsOpen ? " ▴" : " ▾"}</span></button>}
           </div>
           {fam.flights.length > 0 && flightsOpen && (
             <div className="flightlive">
@@ -343,65 +344,64 @@ function Main() {
             </div>
           )}
           <div className="quick">
-            <a className="btn" href="#overview" aria-current={view === "overview" ? "page" : undefined}><MenuIcon name="overview" size={18} />總覽</a>
-            <a className="btn" href="#todo" aria-current={view === "todo" ? "page" : undefined}><MenuIcon name="todo" size={18} />待辦・聯絡</a>
-            {!isViewer(member) && <a className="btn" href="#upload" aria-current={view === "upload" ? "page" : undefined}><MenuIcon name="upload" size={18} />上傳行程</a>}
-            {(trip.info.length > 0 || !isViewer(member)) && <a className="btn" href="#info" aria-current={view === "info" ? "page" : undefined}><MenuIcon name="info" size={18} />其他資訊</a>}
-            <a className="btn" href="#cards" aria-current={view === "cards" ? "page" : undefined}><MenuIcon name="cards" size={18} />信用卡</a>
-            {couponsOn && <button type="button" className="btn" onClick={() => openCoupons()}><MenuIcon name="coupon" size={18} />藥妝優惠券</button>}
-            {member?.role === "admin" && <a className="btn" href="#admin" aria-current={view === "admin" ? "page" : undefined}><MenuIcon name="admin" size={18} />管理</a>}
+            <a className="btn" href="#overview" aria-current={view === "overview" ? "page" : undefined}><MenuIcon name="overview" size={18} />{t("總覽")}</a>
+            <a className="btn" href="#todo" aria-current={view === "todo" ? "page" : undefined}><MenuIcon name="todo" size={18} />{t("待辦・聯絡#nav")}</a>
+            {!isViewer(member) && <a className="btn" href="#upload" aria-current={view === "upload" ? "page" : undefined}><MenuIcon name="upload" size={18} />{t("上傳行程")}</a>}
+            {(trip.info.length > 0 || !isViewer(member)) && <a className="btn" href="#info" aria-current={view === "info" ? "page" : undefined}><MenuIcon name="info" size={18} />{t("其他資訊")}</a>}
+            <a className="btn" href="#cards" aria-current={view === "cards" ? "page" : undefined}><MenuIcon name="cards" size={18} />{t("信用卡")}</a>
+            {couponsOn && <button type="button" className="btn" onClick={() => openCoupons()}><MenuIcon name="coupon" size={18} />{t("藥妝優惠券#nav")}</button>}
+            {member?.role === "admin" && <a className="btn" href="#admin" aria-current={view === "admin" ? "page" : undefined}><MenuIcon name="admin" size={18} />{t("管理")}</a>}
           </div>
         </header>
 
         <div className={`daysbar${edge.start ? " at-start" : ""}${edge.end ? " at-end" : ""}`}>
-          <button type="button" className="scrollbtn left" onClick={() => scrollDays(-1)} aria-label="往前幾天" tabIndex={-1}>‹</button>
-          <nav className="days" ref={navRef} onScroll={updateEdge} aria-label="選擇日期">
+          <button type="button" className="scrollbtn left" onClick={() => scrollDays(-1)} aria-label={t("往前幾天")} tabIndex={-1}>‹</button>
+          <nav className="days" ref={navRef} onScroll={updateEdge} aria-label={t("選擇日期")}>
             {days.map((d) => (
               <a key={d.id} href={`#${d.id}`} data-id={d.id} className={[d.items.length === 0 ? "pending" : "", d.id === todayId ? "today" : ""].join(" ").trim() || undefined} aria-current={view === d.id ? "page" : undefined}>
                 <span className="dd">{d.d}</span>
-                <span className="dc">{d.w}・{d.city}</span>
+                <span className="dc">{wk(d.w)}・{d.city}</span>
                 <ChipWeather date={d.id} city={d.city} wx={wx} />
               </a>
             ))}
             {!isViewer(member) && (
               <button type="button" className="add" onClick={() => { setAdding(true); }} aria-expanded={adding}>
-                <span className="dd">＋</span><span className="dc">加一天</span>
+                <span className="dd">＋</span><span className="dc">{t("加一天")}</span>
               </button>
             )}
           </nav>
-          <button type="button" className="scrollbtn right" onClick={() => scrollDays(1)} aria-label="往後幾天" tabIndex={-1}>›</button>
+          <button type="button" className="scrollbtn right" onClick={() => scrollDays(1)} aria-label={t("往後幾天")} tabIndex={-1}>›</button>
         </div>
 
         <main>
           <SyncBar />
           {fakeNow() && (
             <div className="previewbar">
-              <span>預覽模式：假裝現在是 {now.date.slice(5).replace("-", "/")} {now.hhmm}（當地時間）</span>
-              <button type="button" className="btn" onClick={endPreview}>結束預覽</button>
+              <span>{t("預覽模式：假裝現在是 {date} {time}（當地時間）", { date: now.date.slice(5).replace("-", "/"), time: now.hhmm })}</span>
+              <button type="button" className="btn" onClick={endPreview}>{t("結束預覽")}</button>
             </div>
           )}
           {!PAGES.includes(view) && (
             <div className="toolbar">
-              <div className="modebar" role="group" aria-label="顯示方式">
-                <button type="button" className={mode === "one" ? "on" : ""} onClick={() => setMode("one")}>只看 {fam.label}</button>
-                <button type="button" className={mode === "all" ? "on" : ""} onClick={() => setMode("all")}>看所有家</button>
+              <div className="modebar" role="group" aria-label={t("顯示方式")}>
+                <button type="button" className={mode === "one" ? "on" : ""} onClick={() => setMode("one")}>{t("只看 {label}", { label: fam.label })}</button>
+                <button type="button" className={mode === "all" ? "on" : ""} onClick={() => setMode("all")}>{t("看所有家")}</button>
               </div>
               {(travelling || !!fakeNow()) && <div className="nowctl">
-                <label className="switch" title="旅行當天打開時，行程上會有一條標示現在時間的線">
+                <label className="switch" title={t("旅行當天打開時，行程上會有一條標示現在時間的線")}>
                   <input type="checkbox" checked={nowLine} onChange={(e) => setNowLine(e.target.checked)} />
                   <span className="track" aria-hidden="true" />
-                  <span>「現在」的線</span>
+                  <span>{t("「現在」的線")}</span>
                 </label>
                 {nowLine && !fakeNow() && cur && todayId !== cur.id && (
-                  <button type="button" className="link" onClick={() => startPreview(cur.id, now.hhmm, `#${cur.id}`)}>旅行當天才會出現・預覽</button>
+                  <button type="button" className="link" onClick={() => startPreview(cur.id, now.hhmm, `#${cur.id}`)}>{t("旅行當天才會出現・預覽")}</button>
                 )}
               </div>}
             </div>
           )}
           {!PAGES.includes(view) && mode === "one" && cur && othersToday.length > 0 && (
             <p className="note othersown">
-              {othersToday.join("、")}這一天有自己的版本。
-              <button type="button" className="link" onClick={() => setMode("all")}>看所有家</button>
+              {tr("{names}這一天有自己的版本。<btn>看所有家</btn>", { btn: (c) => <button type="button" className="link" onClick={() => setMode("all")}>{c}</button> }, { names: list(othersToday) })}
             </p>
           )}
           {view !== "people" && <PeopleBanner />}
@@ -418,8 +418,8 @@ function Main() {
             : cur ? <DayView key={`${cur.id}|${(cur.fam ?? []).join(",")}|${fam.id}`} day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
             : !adding && (
               <section className="dayhead">
-                <h2>還沒有行程</h2>
-                <p className="note">{isViewer(member) ? "這個行程還沒有內容。" : "按日期列的「＋ 加一天」先把日期加進來，再用「上傳行程」或右下角「Trip醬」把內容補上。"}</p>
+                <h2>{t("還沒有行程")}</h2>
+                <p className="note">{isViewer(member) ? t("這個行程還沒有內容。") : t("按日期列的「＋ 加一天」先把日期加進來，再用「上傳行程」或右下角「Trip醬」把內容補上。")}</p>
               </section>
             )}
         </main>

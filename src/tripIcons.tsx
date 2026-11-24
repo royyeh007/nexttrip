@@ -2,6 +2,7 @@
 // 和 App 圖示同一種畫法：512 的方格、深藍粗線、平塗色塊、多半有張小臉。顏色是固定的（像貼紙），不跟深色模式變。
 // 要加新圖案：在 TRIP_ICONS 加一筆，圖畫在中間 110–400 的範圍內。id 存進資料庫之後不要改名。
 import type { ReactNode } from "react";
+import { t } from "./i18n";
 
 const INK = "#1b2740", RED = "#e9573f", YELLOW = "#ffd257", BLUE = "#7cc4e8", PINK = "#ffab98", GREEN = "#7ccf9b", BROWN = "#c98a5b", WHITE = "#fff";
 const BUTTER = "#ffe7a8", SKY = "#cfe8f7", MINT = "#d3f0df", ROSE = "#ffdcd4", LILAC = "#e4dcfb";
@@ -22,7 +23,7 @@ function Face({ x, y, gap = 28, cheeks = true }: { x: number; y: number; gap?: n
 export interface TripIconDef { id: string; label: string; tile: string; art: ReactNode }
 
 export const TRIP_ICONS: TripIconDef[] = [
-  { id: "suitcase", label: "行李箱", tile: BUTTER, art: (
+  { id: "suitcase", label: t("行李箱"), tile: BUTTER, art: (
     <g transform="rotate(-5 256 300)">
       <circle cx="188" cy="404" r="13" fill={INK} />
       <circle cx="324" cy="404" r="13" fill={INK} />
@@ -33,7 +34,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={276} />
     </g>
   ) },
-  { id: "plane", label: "飛機", tile: SKY, art: (
+  { id: "plane", label: t("飛機"), tile: SKY, art: (
     <>
       <g stroke="none" fill={WHITE}><circle cx="150" cy="380" r="22" /><circle cx="182" cy="386" r="28" /><circle cx="218" cy="384" r="20" /><circle cx="352" cy="142" r="18" /><circle cx="378" cy="146" r="14" /></g>
       <g transform="rotate(-12 256 260)">
@@ -46,7 +47,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       </g>
     </>
   ) },
-  { id: "train", label: "火車", tile: SKY, art: (
+  { id: "train", label: t("火車"), tile: SKY, art: (
     <>
       <rect x="188" y="374" width="40" height="30" rx="8" fill={INK} />
       <rect x="284" y="374" width="40" height="30" rx="8" fill={INK} />
@@ -59,7 +60,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <path d="M132 420 h248" fill="none" />
     </>
   ) },
-  { id: "car", label: "開車", tile: MINT, art: (
+  { id: "car", label: t("開車"), tile: MINT, art: (
     <>
       <rect x="216" y="160" width="80" height="40" rx="10" fill={YELLOW} />
       <path d="M164 280 L198 204 a16 16 0 0 1 14 -8 h88 a16 16 0 0 1 14 8 L348 280 Z" fill={RED} />
@@ -70,7 +71,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={304} gap={24} />
     </>
   ) },
-  { id: "ship", label: "郵輪", tile: SKY, art: (
+  { id: "ship", label: t("郵輪"), tile: SKY, art: (
     <>
       <g stroke="none" fill={WHITE}><circle cx="318" cy="128" r="18" /><circle cx="344" cy="112" r="13" /></g>
       <rect x="232" y="152" width="52" height="84" rx="10" fill={YELLOW} />
@@ -83,7 +84,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <path d="M100 420 q26 -20 52 0 t52 0 t52 0 t52 0 t52 0 t52 0" fill="none" stroke={WHITE} strokeWidth="12" />
     </>
   ) },
-  { id: "balloon", label: "熱氣球", tile: SKY, art: (
+  { id: "balloon", label: t("熱氣球"), tile: SKY, art: (
     <>
       <path d="M234 366 v32 M278 366 v32" fill="none" strokeWidth="9" />
       <rect x="224" y="394" width="64" height="44" rx="10" fill={BROWN} />
@@ -92,7 +93,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={226} gap={34} />
     </>
   ) },
-  { id: "globe", label: "環遊世界", tile: LILAC, art: (
+  { id: "globe", label: t("環遊世界"), tile: LILAC, art: (
     <>
       <circle cx="256" cy="262" r="128" fill={BLUE} />
       <path d="M176 196 q44 -34 84 -6 q16 38 -26 50 q-20 30 -50 12 q-24 -24 -8 -56 z" fill={GREEN} strokeWidth="8" />
@@ -100,7 +101,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={262} y={268} gap={26} />
     </>
   ) },
-  { id: "fuji", label: "富士山", tile: ROSE, art: (
+  { id: "fuji", label: t("富士山"), tile: ROSE, art: (
     <>
       <circle cx="368" cy="150" r="34" fill={RED} />
       <path d="M92 400 L204 172 Q256 132 308 172 L420 400 Z" fill={BLUE} />
@@ -108,7 +109,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={308} />
     </>
   ) },
-  { id: "mountain", label: "爬山", tile: MINT, art: (
+  { id: "mountain", label: t("爬山"), tile: MINT, art: (
     <>
       <circle cx="370" cy="150" r="30" fill={YELLOW} />
       <path d="M214 396 L320 220 L416 396 Z" fill="#a9dfbd" />
@@ -117,7 +118,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={212} y={318} gap={24} />
     </>
   ) },
-  { id: "snowman", label: "雪人", tile: SKY, art: (
+  { id: "snowman", label: t("雪人"), tile: SKY, art: (
     <>
       <g stroke="none" fill={WHITE}><circle cx="136" cy="170" r="9" /><circle cx="384" cy="210" r="9" /><circle cx="150" cy="300" r="7" /><circle cx="372" cy="120" r="7" /><circle cx="392" cy="330" r="8" /></g>
       <circle cx="256" cy="336" r="90" fill={WHITE} />
@@ -128,7 +129,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={194} gap={24} />
     </>
   ) },
-  { id: "onsen", label: "溫泉", tile: MINT, art: (
+  { id: "onsen", label: t("溫泉"), tile: MINT, art: (
     <>
       <path d="M196 236 q-18 -22 0 -44 q18 -22 0 -44 M256 236 q-18 -22 0 -44 q18 -22 0 -44 M316 236 q-18 -22 0 -44 q18 -22 0 -44" fill="none" />
       <path d="M130 290 h252 l-18 104 a22 22 0 0 1 -22 18 h-172 a22 22 0 0 1 -22 -18 Z" fill={BROWN} />
@@ -136,14 +137,14 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={346} />
     </>
   ) },
-  { id: "sakura", label: "賞櫻", tile: MINT, art: (
+  { id: "sakura", label: t("賞櫻"), tile: MINT, art: (
     <>
       {[0, 72, 144, 216, 288].map((a) => <ellipse key={a} cx="256" cy="170" rx="50" ry="70" fill="#ffc2d1" transform={`rotate(${a} 256 262)`} />)}
       <circle cx="256" cy="262" r="50" fill={YELLOW} />
       <Face x={256} y={254} gap={18} cheeks={false} />
     </>
   ) },
-  { id: "island", label: "海島", tile: SKY, art: (
+  { id: "island", label: t("海島"), tile: SKY, art: (
     <>
       <path d="M112 400 Q256 280 400 400 Z" fill={YELLOW} />
       <path d="M240 340 Q228 268 254 200 L282 206 Q260 270 272 338 Z" fill={BROWN} />
@@ -154,7 +155,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={366} gap={22} cheeks={false} />
     </>
   ) },
-  { id: "tent", label: "露營", tile: MINT, art: (
+  { id: "tent", label: t("露營"), tile: MINT, art: (
     <>
       <circle cx="372" cy="148" r="26" fill={YELLOW} />
       <path d="M256 150 v-40" fill="none" /><path d="M256 110 l40 14 -40 14 z" fill={RED} strokeWidth="8" />
@@ -164,7 +165,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <path d="M92 392 h328" fill="none" />
     </>
   ) },
-  { id: "castle", label: "樂園", tile: ROSE, art: (
+  { id: "castle", label: t("樂園"), tile: ROSE, art: (
     <>
       <path d="M256 112 v-34" fill="none" /><path d="M256 78 l36 12 -36 12 z" fill={YELLOW} strokeWidth="8" />
       <rect x="136" y="240" width="56" height="160" fill={WHITE} />
@@ -178,7 +179,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={298} gap={24} cheeks={false} />
     </>
   ) },
-  { id: "camera", label: "拍照", tile: LILAC, art: (
+  { id: "camera", label: t("拍照"), tile: LILAC, art: (
     <>
       <rect x="202" y="156" width="92" height="56" rx="14" fill={BLUE} />
       <rect x="120" y="196" width="272" height="192" rx="36" fill={BLUE} />
@@ -189,7 +190,7 @@ export const TRIP_ICONS: TripIconDef[] = [
       <g stroke="none" fill={PINK}><ellipse cx="160" cy="330" rx="13" ry="9" /><ellipse cx="352" cy="330" rx="13" ry="9" /></g>
     </>
   ) },
-  { id: "ramen", label: "美食", tile: BUTTER, art: (
+  { id: "ramen", label: t("美食"), tile: BUTTER, art: (
     <>
       <path d="M306 250 L388 128 M336 256 L412 150" fill="none" strokeWidth="11" />
       <rect x="214" y="392" width="84" height="22" rx="9" fill={RED} />
@@ -200,14 +201,14 @@ export const TRIP_ICONS: TripIconDef[] = [
       <Face x={256} y={330} />
     </>
   ) },
-  { id: "onigiri", label: "飯糰", tile: BUTTER, art: (
+  { id: "onigiri", label: t("飯糰"), tile: BUTTER, art: (
     <>
       <path d="M256 132 Q288 132 306 166 L386 314 Q410 372 348 384 H164 Q102 372 126 314 L206 166 Q224 132 256 132 Z" fill={WHITE} />
       <path d="M204 318 h104 v66 h-104 Z" fill={INK} />
       <Face x={256} y={254} />
     </>
   ) },
-  { id: "boba", label: "珍奶", tile: LILAC, art: (
+  { id: "boba", label: t("珍奶"), tile: LILAC, art: (
     <>
       <rect x="262" y="92" width="24" height="104" rx="6" fill={RED} transform="rotate(10 274 144)" />
       <path d="M176 196 h160 l-20 196 a22 22 0 0 1 -22 20 h-76 a22 22 0 0 1 -22 -20 Z" fill="#e9b98a" />

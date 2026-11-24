@@ -9,6 +9,7 @@ import type { TripPerson } from "../people";
 import { relevantPeople } from "./PeopleView";
 import { editDayItems } from "../dayEdit";
 import { MenuIcon } from "./Logo";
+import { t, list, lang } from "../i18n";
 
 export const splitMembers = (day: Day, par: string | undefined): Stop[] => (par ? day.items.filter((it): it is Stop => !isLeg(it) && it.par === par) : []);
 export const newPar = () => "p" + Math.random().toString(36).slice(2, 10);
@@ -29,12 +30,13 @@ export function SplitNote({ day, par }: { day: Day; par: string }) {
   const all = relevantPeople(people, day, []);
   if (all.length === 0) return null;
   const { unset, missing, twice } = check(all, members);
-  if (unset) return <p className="splitwarn">還沒分組：點開每一站，在「誰參加」選這一組有誰。</p>;
-  if (!missing.length && !twice.length) return <p className="splitok"><MenuIcon name="todo" size={15} />{all.length} 個人都排到了，沒有人重複。</p>;
+  if (unset) return <p className="splitwarn">{t("還沒分組：點開每一站，在「誰參加」選這一組有誰。")}</p>;
+  if (!missing.length && !twice.length) return <p className="splitok"><MenuIcon name="todo" size={15} />{t("{n} 個人都排到了，沒有人重複。", { n: all.length })}</p>;
   return (
     <p className="splitwarn">
-      {missing.length > 0 && <>還沒排到：{missing.map((p) => p.name).join("、")}。</>}
-      {twice.length > 0 && <>兩邊都有：{twice.map((p) => p.name).join("、")}。</>}
+      {missing.length > 0 && t("還沒排到：{names}。", { names: list(missing.map((p) => p.name)) })}
+      {missing.length > 0 && twice.length > 0 && lang === "en" && " "}
+      {twice.length > 0 && t("兩邊都有：{names}。", { names: list(twice.map((p) => p.name)) })}
     </p>
   );
 }
@@ -46,7 +48,7 @@ export function SplitNames({ stop, day }: { stop: Stop; day: Day }) {
   if (!people || !stop.people) return null;
   const names = relevantPeople(people, day, []).filter((p) => stop.people!.includes(p.id)).map((p) => p.name);
   if (!names.length) return null;
-  return <span className="who group">{names.length > 5 ? `${names.slice(0, 5).join("、")}…等 ${names.length} 人` : names.join("、")}</span>;
+  return <span className="who group">{names.length > 5 ? t("{names}…等 {n} 人", { names: list(names.slice(0, 5)), n: names.length }) : list(names)}</span>;
 }
 
 /** 地點詳細頁：這一站是分頭行動的其中一組。列出同時段的其他站，可以取消分頭。 */
@@ -57,7 +59,7 @@ export function SplitPanel({ day, stop }: { day: Day; stop: Stop }) {
   const others = splitMembers(day, stop.par).filter((m) => !(m.n === stop.n && m.t === stop.t));
   if (others.length === 0) return null;
   const undo = async () => {
-    if (!confirm(`「${stop.n}」不再是分頭行動？它會變回一般的一站（大家照順序去）。`)) return;
+    if (!confirm(t("「{name}」不再是分頭行動？它會變回一般的一站（大家照順序去）。", { name: stop.n }))) return;
     setBusy(true);
     const err = await editDayItems(current.id, day, (items) => {
       const left = items.filter((it) => !isLeg(it) && it.par === stop.par && !(it.n === stop.n && it.t === stop.t)).length;
@@ -73,10 +75,10 @@ export function SplitPanel({ day, stop }: { day: Day; stop: Stop }) {
   };
   return (
     <div className="sec">
-      <h4>分頭行動</h4>
-      <p>同一個時段，另一組人在：{others.map((o) => `${o.t} ${o.n}`).join("、")}</p>
+      <h4>{t("分頭行動")}</h4>
+      <p>{t("同一個時段，另一組人在：{stops}", { stops: list(others.map((o) => `${o.t} ${o.n}`)) })}</p>
       <SplitNote day={day} par={stop.par} />
-      {canEdit(day.fam, member) && <p className="note"><button type="button" className="link" disabled={busy} onClick={undo}>不再分頭（變回一般的一站）</button></p>}
+      {canEdit(day.fam, member) && <p className="note"><button type="button" className="link" disabled={busy} onClick={undo}>{t("不再分頭（變回一般的一站）")}</button></p>}
     </div>
   );
 }

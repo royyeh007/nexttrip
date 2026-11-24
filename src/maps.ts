@@ -1,16 +1,17 @@
 import type { Day, Leg, Mode, Stop } from "./data";
 import { isLeg } from "./data";
+import { t } from "./i18n";
 
 const E = encodeURIComponent;
 
 export const MODE: Record<Mode, { travel: string | null; label: string }> = {
-  taxi: { travel: "driving", label: "計程車" },
-  walk: { travel: "walking", label: "走路" },
-  train: { travel: "transit", label: "電車" },
-  bus: { travel: "transit", label: "巴士" },
-  charter: { travel: "driving", label: "包車" },
-  shuttle: { travel: "driving", label: "接駁車" },
-  flight: { travel: null, label: "飛機" },
+  taxi: { travel: "driving", label: t("計程車") },
+  walk: { travel: "walking", label: t("走路") },
+  train: { travel: "transit", label: t("電車") },
+  bus: { travel: "transit", label: t("巴士") },
+  charter: { travel: "driving", label: t("包車") },
+  shuttle: { travel: "driving", label: t("接駁車") },
+  flight: { travel: null, label: t("飛機") },
 };
 
 export const placeURL = (q: string) => `https://www.google.com/maps/search/?api=1&query=${E(q)}`;

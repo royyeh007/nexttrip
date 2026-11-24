@@ -2,6 +2,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "./supabase";
 import type { Role } from "./data";
+import { t } from "./i18n";
 
 export interface Person { user_id: string; name: string; email: string | null }
 export interface Profile { name: string; friend_code: string }
@@ -18,11 +19,11 @@ export interface SentInvitation extends Person { id: string; role: Role; status:
 export class NotReady extends Error {}
 
 async function call<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
-  if (!supabase) throw new Error("Supabase 還沒設定");
+  if (!supabase) throw new Error(t("Supabase 還沒設定"));
   const { data, error } = await supabase.rpc(fn, args);
   if (error) {
-    if (error.code === "PGRST202" || error.code === "42883") throw new NotReady("這個功能要先升級資料庫（make db-push）");
-    throw new Error(/failed to fetch|network|load failed/i.test(error.message) ? "連不上伺服器，檢查一下網路再試" : error.message);
+    if (error.code === "PGRST202" || error.code === "42883") throw new NotReady(t("這個功能要先升級資料庫（make db-push）"));
+    throw new Error(/failed to fetch|network|load failed/i.test(error.message) ? t("連不上伺服器，檢查一下網路再試") : t(error.message));
   }
   return data as T;
 }
@@ -69,8 +70,8 @@ export function usePendingFriend(uid: string | undefined) {
     if (!uid || !code || adding) return;
     adding = true;
     friendsApi.add(code).then(
-      (p) => { store.set(null); alert(`已經和 ${p.name} 成為好友。之後可以在「管理 → 邀請好友」直接邀他加入行程。`); },
-      (e: Error) => { store.set(null); alert(`好友連結沒有成功：${e.message}`); },
+      (p) => { store.set(null); alert(t("已經和 {name} 成為好友。之後可以在「管理 → 邀請好友」直接邀他加入行程。", { name: p.name })); },
+      (e: Error) => { store.set(null); alert(t("好友連結沒有成功：{err}", { err: t(e.message) })); },
     ).finally(() => { adding = false; });
   }, [uid]);
 }

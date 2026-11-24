@@ -5,6 +5,7 @@ import { COUNTRY_NAME, KIND_TIP, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, expla
 import type { Pick, StopKind } from "../cards";
 import { useNow } from "../now";
 import { useTrip } from "../trip";
+import { t, tr } from "../i18n";
 import { useRecommend } from "./CardPick";
 import { openCoupons, useCouponsOn } from "./Coupons";
 
@@ -43,13 +44,13 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
       <div className="dialog quickpick" role="dialog" aria-modal="true" aria-labelledby="qp-title">
         <header>
           <div>
-            <h3 id="qp-title">捷徑</h3>
-            <small>{r.enabled ? `現在刷哪張：在${COUNTRY_NAME[r.dest]}，依你勾的 ${r.mine.length} 張卡算。結帳幣別選當地貨幣。` : "站在店門口最常用的東西。"}</small>
+            <h3 id="qp-title">{t("捷徑")}</h3>
+            <small>{r.enabled ? t("現在刷哪張：在{country}，依你勾的 {n} 張卡算。結帳幣別選當地貨幣。", { country: COUNTRY_NAME[r.dest], n: r.mine.length }) : t("站在店門口最常用的東西。")}</small>
           </div>
-          <button ref={closeRef} type="button" className="x" aria-label="關閉" onClick={onClose}>×</button>
+          <button ref={closeRef} type="button" className="x" aria-label={t("關閉")} onClick={onClose}>×</button>
         </header>
-        {couponsOn && <button type="button" className="btn big qpshort" onClick={() => { onClose(); openCoupons(); }}><MenuIcon name="coupon" size={20} />藥妝優惠券<small>出示條碼、找附近的店</small></button>}
-        {!r.enabled && <p className="note qptip">到 <a href="#cards" onClick={onClose}>信用卡</a> 勾你有的卡{r.on ? "" : "並打開推薦開關"}，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。</p>}
+        {couponsOn && <button type="button" className="btn big qpshort" onClick={() => { onClose(); openCoupons(); }}><MenuIcon name="coupon" size={20} />{t("藥妝優惠券")}<small>{t("出示條碼、找附近的店")}</small></button>}
+        {!r.enabled && <p className="note qptip">{tr(r.on ? "到 <a>信用卡</a> 勾你有的卡，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。" : "到 <a>信用卡</a> 勾你有的卡並打開推薦開關，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。", { a: (c) => <a href="#cards" onClick={onClose}>{c}</a> })}</p>}
         {r.enabled && <ul className="qprows">
           {rows.map(({ k, top, fallback }) => top && (
             <li key={k} className={top.stale ? "stale" : ""}>
@@ -57,9 +58,9 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
               <div className="qpmain">
                 <span className="qpl">{RATE_KIND_NAME[k]}</span>
                 <span className="qpcard">{top.card.name}</span>
-                <span className="qpwhy">{explain(top)}{top.stale ? "・優惠標示已到期，要確認" : ""}</span>
+                <span className="qpwhy">{explain(top)}{top.stale ? t("・優惠標示已到期，要確認") : ""}</span>
                 {top.rate?.cond && <span className="qpcond">{top.rate.cond}</span>}
-                {fallback && <span className="qpfb">不收 {top.card.network.map((n) => NETWORK_NAME[n] ?? n).join("／")} 就用 <b>{fallback.card.short || fallback.card.name}</b>（淨 {pct(fallback.net)}）</span>}
+                {fallback && <span className="qpfb">{tr("不收 {nets} 就用 <b>{card}</b>（淨 {net}）", { b: (c) => <b>{c}</b> }, { nets: top.card.network.map((n) => NETWORK_NAME[n] ?? n).join(t("／")), card: fallback.card.short || fallback.card.name, net: pct(fallback.net) })}</span>}
               </div>
               <b className={`qpnet${top.net < 0 ? " neg" : ""}`}>{pct(top.net)}</b>
             </li>
@@ -67,8 +68,8 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
         </ul>}
         {r.enabled && <p className="note qptip">{KIND_TIP.shop}</p>}
         <div className="actions">
-          <a className="btn" href="#cards" onClick={onClose}>我的信用卡 ›</a>
-          <button type="button" className="btn primary" onClick={onClose}>知道了</button>
+          <a className="btn" href="#cards" onClick={onClose}>{t("我的信用卡 ›")}</a>
+          <button type="button" className="btn primary" onClick={onClose}>{t("知道了")}</button>
         </div>
       </div>
     </>
@@ -85,7 +86,7 @@ export function QuickPickFab() {
   if (!show) return null;
   return (
     <>
-      <button type="button" className="cardfab" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} title="捷徑：現在刷哪張卡、藥妝優惠券"><MenuIcon name="bolt" size={18} />捷徑</button>
+      <button type="button" className="cardfab" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} title={t("捷徑：現在刷哪張卡、藥妝優惠券")}><MenuIcon name="bolt" size={18} />{t("捷徑")}</button>
       {open && <QuickPickSheet onClose={() => setOpen(false)} />}
     </>
   );

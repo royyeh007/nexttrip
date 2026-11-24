@@ -7,6 +7,7 @@ import { KIND, SEAL } from "../labels";
 import { useNow } from "../now";
 import { useTrip } from "../trip";
 import { CardChip } from "./CardPick";
+import { t, wk } from "../i18n";
 
 /** Every day of the viewed family's itinerary on one page: date, city, hotel, and the stops as a compact chain. */
 export function Overview({ onOpen }: { onOpen: (day: Day, stop: Stop, arrive?: LinkedLeg) => void }) {
@@ -19,17 +20,17 @@ export function Overview({ onOpen }: { onOpen: (day: Day, stop: Stop, arrive?: L
   return (
     <>
       <section className="dayhead">
-        <h2>行程總覽</h2>
-        <p className="note">{labelOf(viewFam)}的每一天一頁看完。點日期進那一天，點地點看詳細資訊。頁首可以切換看別家。</p>
+        <h2>{t("行程總覽")}</h2>
+        <p className="note">{t("{label}的每一天一頁看完。點日期進那一天，點地點看詳細資訊。頁首可以切換看別家。", { label: labelOf(viewFam) })}</p>
       </section>
       <div className="toolbar">
-        <div className="modebar" role="group" aria-label="顯示多少">
-          <button type="button" className={!brief ? "on" : ""} onClick={() => setBrief(false)}>全部地點</button>
-          <button type="button" className={brief ? "on" : ""} onClick={() => setBrief(true)}>只看吃、住、已訂</button>
+        <div className="modebar" role="group" aria-label={t("顯示多少")}>
+          <button type="button" className={!brief ? "on" : ""} onClick={() => setBrief(false)}>{t("全部地點")}</button>
+          <button type="button" className={brief ? "on" : ""} onClick={() => setBrief(true)}>{t("只看吃、住、已訂")}</button>
         </div>
-        <button type="button" className="btn noprint" onClick={() => window.print()}>列印／存成 PDF</button>
+        <button type="button" className="btn noprint" onClick={() => window.print()}>{t("列印／存成 PDF")}</button>
       </div>
-      {days.length === 0 && <p className="note">還沒有任何日期。</p>}
+      {days.length === 0 && <p className="note">{t("還沒有任何日期。")}</p>}
       <ol className="overview">
         {days.map((d) => {
           const { arrive } = linkLegs(d);
@@ -37,14 +38,14 @@ export function Overview({ onOpen }: { onOpen: (day: Day, stop: Stop, arrive?: L
           return (
             <li key={d.id + (d.fam ?? []).join(",")} className={d.id === now.date ? "today" : ""}>
               <a className="ovhead" href={`#${d.id}`}>
-                <span className="ovdate"><b>{d.d}</b><small>{d.w}</small></span>
+                <span className="ovdate"><b>{d.d}</b><small>{wk(d.w)}</small></span>
                 <span className="ovmain">
                   <span className="ovtitle">{d.title}</span>
-                  <span className="ovmeta">{d.city}{hotelFor(d, viewFam) && ` ・ 住 ${hotelFor(d, viewFam)}`}{d.fam && ` ・ ${d.fam.map(labelOf).join("＋")}的版本`}</span>
+                  <span className="ovmeta">{d.city}{hotelFor(d, viewFam) && ` ・ ${t("住 {hotel}", { hotel: hotelFor(d, viewFam) })}`}{d.fam && ` ・ ${t("{names}的版本", { names: d.fam.map(labelOf).join("＋") })}`}</span>
                 </span>
               </a>
               {stops.length === 0
-                ? <p className="note ovempty">{d.items.length === 0 ? "還沒有行程" : "這天沒有吃、住或已訂的項目"}</p>
+                ? <p className="note ovempty">{d.items.length === 0 ? t("還沒有行程") : t("這天沒有吃、住或已訂的項目")}</p>
                 : (
                   <ul className="ovstops">
                     {stops.map(({ it, i }) => (

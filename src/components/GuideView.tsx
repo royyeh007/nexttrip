@@ -1,9 +1,10 @@
 import { Fragment } from "react";
-import { ACTION_RE, QUICK_START, ROLE_NAMES, ROLE_SUMMARY, guideFor } from "../../supabase/functions/_shared/guide";
+import { ACTION_RE, guideFor, quickStart, roleNames, roleSummary } from "../../supabase/functions/_shared/guide";
 import type { GuideRole } from "../../supabase/functions/_shared/guide";
 import { askClaude } from "./Chat";
 import { useTrip } from "../trip";
 import { MenuIcon, PersonIcon, SuitcaseIcon } from "./Logo";
+import { lang, t } from "../i18n";
 
 /**
  * The guide's text is shared with the chat helper, so it names buttons with plain characters (🧳 Trip醬, 👤 你的名字).
@@ -58,18 +59,18 @@ function Rich({ text, go, interactive }: { text: string; go: (t: string) => void
 
 /** The how-to page, showing only what this role can do. `compact` = the read-only version on the trip picker. */
 export function GuideView({ role, compact = false }: { role: GuideRole; compact?: boolean }) {
-  const sections = guideFor(role);
+  const sections = guideFor(role, lang);
   const go = useGo(!compact);
   return (
     <>
       {!compact && (
         <section className="dayhead">
-          <h2>使用教學</h2>
+          <h2>{t("使用教學")}</h2>
           <div className="gcard">
-            <div className="grole"><span className={`tag ${role === "admin" ? "admin" : role === "viewer" ? "none" : "shared"}`}>{ROLE_NAMES[role]}</span><span>{ROLE_SUMMARY[role]}</span></div>
+            <div className="grole"><span className={`tag ${role === "admin" ? "admin" : role === "viewer" ? "none" : "shared"}`}>{roleNames(lang)[role]}</span><span>{roleSummary(lang)[role]}</span></div>
             <div className="gquick">
-              <small>常用</small>
-              {QUICK_START[role].map((a) => <button key={a.target} type="button" className="btn" onClick={() => go(a.target)}><Label target={a.target} label={a.label} size={20} /></button>)}
+              <small>{t("常用")}</small>
+              {quickStart(lang)[role].map((a) => <button key={a.target} type="button" className="btn" onClick={() => go(a.target)}><Label target={a.target} label={a.label} size={20} /></button>)}
             </div>
           </div>
         </section>
@@ -89,8 +90,8 @@ export function GuideView({ role, compact = false }: { role: GuideRole; compact?
         ))}
         {role !== "viewer" && !compact && (
           <div className="gcard gask">
-            <span>還有問題？</span>
-            <button type="button" className="btn primary" onClick={() => go("chat")}><SuitcaseIcon size={22} />Trip醬：這個網站怎麼用</button>
+            <span>{t("還有問題？")}</span>
+            <button type="button" className="btn primary" onClick={() => go("chat")}><SuitcaseIcon size={22} />{t("Trip醬：這個網站怎麼用")}</button>
           </div>
         )}
       </div>

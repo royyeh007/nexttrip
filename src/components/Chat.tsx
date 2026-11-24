@@ -8,6 +8,7 @@ import { ProposalCard } from "./Proposals";
 import { openInfoPage } from "./InfoView";
 import { Markdown } from "../md";
 import { stripForeignImages } from "../images";
+import { t, lang } from "../i18n";
 
 interface Prop { id: string; proposal: Proposal }
 interface Msg { id: string; role: "user" | "assistant"; content: string; proposals: Prop[]; status: "pending" | "done" | "error"; created_at: string }
@@ -15,18 +16,18 @@ interface Msg { id: string; role: "user" | "assistant"; content: string; proposa
 /** The function gives up after about 2.5 minutes; a reply still "pending" long after that was cut off and will never arrive. */
 const GIVE_UP_MS = 5 * 60_000;
 const staleToError = (m: Msg): Msg => (m.status === "pending" && Date.now() - new Date(m.created_at).getTime() > GIVE_UP_MS
-  ? { ...m, status: "error", content: "出錯了：這一題沒有答完，請再問一次" } : m);
+  ? { ...m, status: "error", content: t("出錯了：這一題沒有答完，請再問一次") } : m);
 
 /** Example questions, using this trip's real dates and places. */
 function examples(days: { id: string; city: string }[], start: string, end: string) {
   const first = days[0], last = days[days.length - 1];
   const d1 = dateOf(first?.id ?? start).d, d2 = dateOf(days[1]?.id ?? end).d, dl = dateOf(last?.id ?? end).d;
   return [
-    `${d1} 的行程是什麼？晚餐有訂位嗎？`,
-    `${d2} 怎麼去${days[1]?.city ?? last?.city ?? "下一個城市"}？`,
-    `我們家 ${d1} 15:00 到機場，晚上住 ○○ 飯店，幫我加進去`,
-    `${dl} 我們家想住別間飯店，其他照舊`,
-    "這個網站怎麼加一天？",
+    t("{d} 的行程是什麼？晚餐有訂位嗎？", { d: d1 }),
+    t("{d} 怎麼去{city}？", { d: d2, city: days[1]?.city ?? last?.city ?? t("下一個城市") }),
+    t("我們家 {d} 15:00 到機場，晚上住 ○○ 飯店，幫我加進去", { d: d1 }),
+    t("{d} 我們家想住別間飯店，其他照舊", { d: dl }),
+    t("這個網站怎麼加一天？"),
   ];
 }
 
@@ -57,7 +58,7 @@ export function ChatWidget() {
     if (!supabase || !uid || !tripId) return null;
     // the newest 60 (ascending + limit gave the *oldest* 60: after ~30 questions a reload showed only old conversation)
     const { data, error } = await supabase.from("chat_messages").select("id, role, content, proposals, status, created_at").eq("trip_id", tripId).eq("user_id", uid).order("created_at", { ascending: false }).limit(60);
-    if (error) { setErr(`讀不到對話紀錄：${error.message}`); setLoaded(true); return null; }
+    if (error) { setErr(t("讀不到對話紀錄：{msg}", { msg: t(error.message) })); setLoaded(true); return null; }
     const rows = ((data ?? []) as Msg[]).reverse().map(staleToError);
     setMsgs(rows);
     setLoaded(true);
@@ -120,11 +121,11 @@ export function ChatWidget() {
     setMsgs((ms) => [...ms, { id: tmpUser, role: "user", content, proposals: [], status: "done", created_at: now }, { id: tmpBot, role: "assistant", content: "", proposals: [], status: "pending", created_at: now }]);
     try {
       // the function answers with an id right away and keeps working in the background
-      const res = await invoke<{ id: string }>("chat", { trip_id: current?.id, text: content }, { timeoutMs: 45_000 });
+      const res = await invoke<{ id: string }>("chat", { trip_id: current?.id, text: content, lang }, { timeoutMs: 45_000 });
       // the server has the real rows now; swap the placeholder id so polling picks it up
       setMsgs((ms) => ms.map((m) => (m.id === tmpBot ? { ...m, id: res.id } : m)));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(e instanceof Error ? t(e.message) : String(e));
       // Did it reach the server after all (only the response got lost)? Then the reply is on its way: show the real rows
       // and do not invite a second, paid, copy of the same question. Otherwise put the text back so nothing has to be retyped.
       const rows = await load();
@@ -143,7 +144,7 @@ export function ChatWidget() {
     const i = msgs.findIndex((x) => x.id === m.id);
     const q = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content.trim() : "";
     const firstLine = m.content.split("\n").find((l) => l.trim())?.replace(/^[#*\-\s]+/, "").trim() ?? "";
-    const title = (q || firstLine || "Trip醬的回答").replace(/\s+/g, " ").slice(0, 40);
+    const title = (q || firstLine || t("Trip醬的回答")).replace(/\s+/g, " ").slice(0, 40);
     // the answer may quote web pages: keep its text and links, but not pictures hosted elsewhere (see stripForeignImages)
     const answer = stripForeignImages(m.content);
     const id = (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10));
@@ -151,44 +152,39 @@ export function ChatWidget() {
       trip_id: current.id, id, title, body: (q ? `> ${q.replace(/\n+/g, " ")}\n\n` : "") + answer, blocks: null,
       sort: Math.max(-1, ...trip.info.map((p) => p.sort)) + 1, created_by: member.user_id, updated_by: member.user_id, updated_by_name: member.name,
     });
-    if (error) { setErr(`存不進其他資訊：${error.message}`); return; }
+    if (error) { setErr(t("存不進其他資訊：{msg}", { msg: t(error.message) })); return; }
     setSaved((s) => ({ ...s, [m.id]: id }));
     await reload();
   };
 
   const clear = async () => {
-    if (!supabase || !member || !current || !confirm("清除你在這個行程的對話紀錄？")) return;
+    if (!supabase || !member || !current || !confirm(t("清除你在這個行程的對話紀錄？"))) return;
     const { error } = await supabase.from("chat_messages").delete().eq("trip_id", current.id).eq("user_id", member.user_id);
-    if (error) { setErr(`清不掉：${error.message}`); return; }
+    if (error) { setErr(t("清不掉：{msg}", { msg: t(error.message) })); return; }
     setMsgs([]); setErr(null);
   };
 
   return (
     <>
       <button type="button" className="chatfab" aria-expanded={open} aria-controls="chatpanel" onClick={() => setOpen((o) => !o)}>
-        <SuitcaseIcon size={30} />Trip醬
-        {unread && <span className="dot" aria-label="有新回覆" />}
+        <SuitcaseIcon size={30} />{t("Trip醬")}
+        {unread && <span className="dot" aria-label={t("有新回覆")} />}
       </button>
       {open && <div className="chatscrim" onClick={() => setOpen(false)} />}
-      <section id="chatpanel" className="chatpanel" hidden={!open} role="dialog" aria-label="Trip醬">
+      <section id="chatpanel" className="chatpanel" hidden={!open} role="dialog" aria-label={t("Trip醬")}>
         <header>
           <SuitcaseIcon size={34} />
           <div>
-            <b>Trip醬</b>
-            <small>問行程細節，或直接說要改什麼。切出去也沒關係，回覆會留著。</small>
+            <b>{t("Trip醬")}</b>
+            <small>{t("問行程細節，或直接說要改什麼。切出去也沒關係，回覆會留著。")}</small>
           </div>
-          <button type="button" className="x" aria-label="關閉" onClick={() => setOpen(false)}>×</button>
+          <button type="button" className="x" aria-label={t("關閉")} onClick={() => setOpen(false)}>×</button>
         </header>
         <div className="msgs">
           {loaded && msgs.length === 0 && (
             <>
               <div className="msg bot intro">
-                嗨！我可以幫你：
-                {"\n"}・查行程：幾點、在哪、訂位碼、怎麼去
-                {"\n"}・改行程：說想改什麼，整理好按「確認」就更新
-                {"\n"}・補你們家自己的日子：直接描述那天的安排
-                {"\n"}・這個網站怎麼用
-                {"\n"}試試看點下面的例子 👇
+                {t("嗨！我可以幫你：\n・查行程：幾點、在哪、訂位碼、怎麼去\n・改行程：說想改什麼，整理好按「確認」就更新\n・補你們家自己的日子：直接描述那天的安排\n・這個網站怎麼用\n試試看點下面的例子 👇")}
               </div>
               <div className="chips">
                 {EXAMPLES.map((e) => <button key={e} type="button" className="chip-btn" onClick={() => send(e)} disabled={busy}>{e}</button>)}
@@ -197,30 +193,30 @@ export function ChatWidget() {
           )}
           {msgs.map((m) => (
             <div key={m.id} className={`msg ${m.role === "user" ? "user" : "bot"}${m.status === "pending" ? " thinking" : ""}${m.status === "error" ? " err" : ""}`}>
-              {m.status === "pending" ? "想一下…（切出去也沒關係，回來會有答案）"
+              {m.status === "pending" ? t("想一下…（切出去也沒關係，回來會有答案）")
                 // the assistant answers in Markdown (lists, bold, source links): render it so links can be tapped
                 : m.role === "assistant" && m.status === "done" ? <Markdown text={m.content} />
                 : m.content}
               {m.role === "assistant" && m.status === "done" && m.content && !m.id.startsWith("tmp-") && (
                 saved[m.id]
-                  ? <div className="saverow"><span className="chip">已存到其他資訊</span><button type="button" className="link" onClick={() => { setOpen(false); openInfoPage(saved[m.id]); }}>打開 ›</button></div>
-                  : <div className="saverow"><button type="button" className="link" onClick={() => saveInfo(m)}>存到其他資訊</button></div>
+                  ? <div className="saverow"><span className="chip">{t("已存到其他資訊")}</span><button type="button" className="link" onClick={() => { setOpen(false); openInfoPage(saved[m.id]); }}>{t("打開 ›")}</button></div>
+                  : <div className="saverow"><button type="button" className="link" onClick={() => saveInfo(m)}>{t("存到其他資訊")}</button></div>
               )}
               {m.proposals.map((p) => decided[p.id]
-                ? <div key={p.id} className="chip">{decided[p.id] === "approved" ? "已更新到行程" : "已取消"}</div>
+                ? <div key={p.id} className="chip">{decided[p.id] === "approved" ? t("已更新到行程") : t("已取消")}</div>
                 : <ProposalCard key={p.id} id={p.id} proposal={p.proposal} onDone={(s) => setDecided((d) => ({ ...d, [p.id]: s }))} />)}
             </div>
           ))}
-          {err && <div className="msg bot err">送不出去：{err}</div>}
+          {err && <div className="msg bot err">{t("送不出去：{msg}", { msg: err })}</div>}
           <div ref={endRef} />
         </div>
         <form className="chatform" onSubmit={(e) => { e.preventDefault(); send(); }}>
-          <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="輸入問題或想改的行程…"
+          <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder={t("輸入問題或想改的行程…")}
             maxLength={4000}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); send(); } }} />
-          <button type="submit" className="btn primary" disabled={busy || !text.trim()}>送出</button>
+          <button type="submit" className="btn primary" disabled={busy || !text.trim()}>{t("送出")}</button>
         </form>
-        {msgs.length > 0 && <button type="button" className="link clear" onClick={clear}>清除對話</button>}
+        {msgs.length > 0 && <button type="button" className="link clear" onClick={clear}>{t("清除對話")}</button>}
       </section>
     </>
   );

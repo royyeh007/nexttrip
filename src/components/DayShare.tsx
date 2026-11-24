@@ -3,6 +3,7 @@ import { useTrip } from "../trip";
 import { daysFor } from "../data";
 import type { Day, Family } from "../data";
 import { supabase } from "../supabase";
+import { t, list } from "../i18n";
 
 /**
  * 「這一天和誰一起」：一個地方決定這一家這一天跟哪幾家看同一份行程。
@@ -35,13 +36,13 @@ export function DayShare({ day, family, onClose }: { day: Day; family: Family; o
 
   const apply = async () => {
     if (!supabase || busy) return;
-    if (mode === "pick" && replaced.length > 0 && !confirm(`${replaced.map(label).join("、")}那一天原本的行程會被「${label(effBase)}」那一份取代，原本那一份會刪掉。確定嗎？`)) return;
-    if (mode === "everyone" && day.fam && day.items.length > 0 && !confirm(`改回大家一起的版本？${day.fam.length > 1 ? `${family.label}會離開這一份（其他家不受影響）。` : `${family.label}自己的這一份會刪掉。`}`)) return;
+    if (mode === "pick" && replaced.length > 0 && !confirm(t("{names}那一天原本的行程會被「{base}」那一份取代，原本那一份會刪掉。確定嗎？", { names: list(replaced.map(label)), base: label(effBase) }))) return;
+    if (mode === "everyone" && day.fam && day.items.length > 0 && !confirm(day.fam.length > 1 ? t("改回大家一起的版本？{family}會離開這一份（其他家不受影響）。", { family: family.label }) : t("改回大家一起的版本？{family}自己的這一份會刪掉。", { family: family.label }))) return;
     setBusy(true); setErr(null);
     const { error } = await supabase.rpc("day_set_sharing", mode === "everyone"
       ? { p_trip: current.id, p_date: day.id, p_everyone: true, p_family: family.id }
       : { p_trip: current.id, p_date: day.id, p_with: picked, p_base: effBase, p_family: family.id });
-    if (error) { setBusy(false); setErr(error.code === "PGRST202" ? "這個功能要先升級資料庫（make db-push）" : error.message); return; }
+    if (error) { setBusy(false); setErr(error.code === "PGRST202" ? t("這個功能要先升級資料庫（make db-push）") : t(error.message)); return; }
     await reload();
     setBusy(false);
     onClose();
@@ -49,17 +50,17 @@ export function DayShare({ day, family, onClose }: { day: Day; family: Family; o
 
   return (
     <div className="panel dayshare">
-      <h3>{family.label}這一天和誰一起</h3>
+      <h3>{t("{family}這一天和誰一起", { family: family.label })}</h3>
       <div className="sharechoices">
         {hasEveryone && (
           <label className={mode === "everyone" ? "on" : undefined}>
             <input type="radio" name="dayshare" checked={mode === "everyone"} onChange={() => setMode("everyone")} />
-            <span><b>大家一起</b><small>每一家看同一份，誰改了大家都看到</small></span>
+            <span><b>{t("大家一起")}</b><small>{t("每一家看同一份，誰改了大家都看到")}</small></span>
           </label>
         )}
         <label className={mode === "pick" ? "on" : undefined}>
           <input type="radio" name="dayshare" checked={mode === "pick"} onChange={() => setMode("pick")} />
-          <span><b>{picked.length ? `和 ${picked.map(label).join("、")} 一起` : "只有我們家"}</b><small>在下面點要一起的家；都不點就是自己一份</small></span>
+          <span><b>{picked.length ? t("和 {names} 一起", { names: list(picked.map(label)) }) : t("只有我們家")}</b><small>{t("在下面點要一起的家；都不點就是自己一份")}</small></span>
         </label>
       </div>
       {mode === "pick" && (
@@ -72,21 +73,21 @@ export function DayShare({ day, family, onClose }: { day: Day; family: Family; o
             })}
           </div>
           {withPlans.length > 0 && (
-            <label className="basepick">用哪一份當共用的行程
+            <label className="basepick">{t("用哪一份當共用的行程")}
               <select value={effBase} onChange={(e) => setBase(e.target.value)}>
-                <option value={family.id}>{family.label}現在這一份（{day.items.filter((it) => !("leg" in it)).length} 站）</option>
-                {withPlans.map((f) => <option key={f} value={f}>{label(f)}那一份（{rowOf(f)!.items.filter((it) => !("leg" in it)).length} 站）</option>)}
+                <option value={family.id}>{t("{family}現在這一份（{n} 站）", { family: family.label, n: day.items.filter((it) => !("leg" in it)).length })}</option>
+                {withPlans.map((f) => <option key={f} value={f}>{t("{family}那一份（{n} 站）", { family: label(f), n: rowOf(f)!.items.filter((it) => !("leg" in it)).length })}</option>)}
               </select>
             </label>
           )}
-          {picked.length > 0 && <p className="note">共用之後是同一份：任何一家改了，這幾家都會變。住宿可以各填各的；只有某一站不一起，可以在那一站的「誰參加」調整。</p>}
-          {blocked && <p className="err">{replaced.filter((f) => f !== family.id).map(label).join("、")}那一天已經有自己排好的行程，不能直接蓋掉。可以在上面改成用他們那一份，或請管理員處理。</p>}
+          {picked.length > 0 && <p className="note">{t("共用之後是同一份：任何一家改了，這幾家都會變。住宿可以各填各的；只有某一站不一起，可以在那一站的「誰參加」調整。")}</p>}
+          {blocked && <p className="err">{t("{names}那一天已經有自己排好的行程，不能直接蓋掉。可以在上面改成用他們那一份，或請管理員處理。", { names: list(replaced.filter((f) => f !== family.id).map(label)) })}</p>}
         </>
       )}
       {err && <p className="err">{err}</p>}
       <div className="actions">
-        <button type="button" className="btn primary" onClick={apply} disabled={busy || unchanged || (mode === "pick" && blocked)}>{busy ? "處理中…" : "套用"}</button>
-        <button type="button" className="btn" onClick={onClose} disabled={busy}>取消</button>
+        <button type="button" className="btn primary" onClick={apply} disabled={busy || unchanged || (mode === "pick" && blocked)}>{busy ? t("處理中…") : t("套用")}</button>
+        <button type="button" className="btn" onClick={onClose} disabled={busy}>{t("取消")}</button>
       </div>
     </div>
   );

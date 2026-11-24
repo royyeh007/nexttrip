@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { FunctionsHttpError } from "@supabase/supabase-js";
+import { t } from "./i18n";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -17,22 +18,23 @@ export const readSignal = () => AbortSignal.timeout(READ_TIMEOUT_MS);
  * Pass `signal` to let the person cancel.
  */
 export async function invoke<T>(name: string, body: Record<string, unknown>, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<T> {
-  if (!supabase) throw new Error("Supabase 還沒設定");
+  if (!supabase) throw new Error(t("Supabase 還沒設定"));
   const timeout = opts.timeoutMs ?? 150_000;
   let res;
   try {
     res = await supabase.functions.invoke<T>(name, { body, timeout, signal: opts.signal });
   } catch (e) {
-    throw new Error(opts.signal?.aborted ? "已取消" : e instanceof Error ? e.message : String(e));
+    throw new Error(opts.signal?.aborted ? t("已取消") : t(e instanceof Error ? e.message : String(e)));
   }
   const { data, error } = res;
   if (error) {
-    if (opts.signal?.aborted) throw new Error("已取消");
+    if (opts.signal?.aborted) throw new Error(t("已取消"));
     const ctx = (error as FunctionsHttpError).context;
     let msg = error.message;
     try { const j = await ctx?.json(); if (j?.error) msg = j.error; } catch { /* not json */ }
-    if (/abort|timed? ?out|timeout/i.test(msg)) msg = "等太久沒有回應，可能是網路不穩，稍後再試";
-    else if (/failed to (send|fetch)|network|load failed/i.test(msg)) msg = "連不上伺服器，檢查一下網路再試";
+    if (/abort|timed? ?out|timeout/i.test(msg)) msg = t("等太久沒有回應，可能是網路不穩，稍後再試");
+    else if (/failed to (send|fetch)|network|load failed/i.test(msg)) msg = t("連不上伺服器，檢查一下網路再試");
+    else msg = t(msg);
     throw new Error(msg);
   }
   return data as T;

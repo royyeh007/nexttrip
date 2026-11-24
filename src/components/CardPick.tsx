@@ -4,6 +4,7 @@ import type { Kind } from "../data";
 import { KIND_TIP, countryOf, explain, pct, rank, useCardsOn } from "../cards";
 import type { Card, Country, Pick } from "../cards";
 import { useTrip } from "../trip";
+import { list, t, tr } from "../i18n";
 
 export interface Recommender {
   /** chips and sections should render */
@@ -37,7 +38,7 @@ export function CardChip({ kind, date }: { kind: Kind; date?: string }) {
   const top = r.pick(kind, date)[0];
   if (!top) return null;
   return (
-    <span className={`cardpick${top.stale ? " stale" : ""}`} title={explain(top) + (top.stale ? "（優惠標示已到期，要確認）" : "")}>
+    <span className={`cardpick${top.stale ? " stale" : ""}`} title={explain(top) + (top.stale ? t("（優惠標示已到期，要確認）") : "")}>
       <MenuIcon name="cards" size={15} />{top.card.short || top.card.name}<small>{pct(top.net)}</small>
     </span>
   );
@@ -50,29 +51,30 @@ export function CardSection({ kind, date }: { kind: Kind; date: string }) {
   if (r.mine.length === 0) {
     return (
       <div className="sec cardsec">
-        <h4>刷哪張卡</h4>
-        <p className="note">到 <a href="#cards">信用卡</a> 勾你有的卡，每一站就會告訴你刷哪張最划算（回饋最多、手續費最少）。</p>
+        <h4>{t("刷哪張卡")}</h4>
+        <p className="note">{tr("到 <a>信用卡</a> 勾你有的卡，每一站就會告訴你刷哪張最划算（回饋最多、手續費最少）。", { a: (c) => <a href="#cards">{c}</a> })}</p>
       </div>
     );
   }
   const picks = r.pick(kind, date);
   const top = picks[0];
-  const month = date ? `${Number(date.slice(5, 7))} 月` : "之後";
+  // 「12 月」 is itself the key: the English side has the twelve month names
+  const month = date ? t(`${Number(date.slice(5, 7))} 月`) : "";
   return (
     <div className="sec cardsec">
-      <h4>刷哪張卡</h4>
+      <h4>{t("刷哪張卡")}</h4>
       <div className="cardtop">
         <span className="cardpick big"><MenuIcon name="cards" size={18} />{top.card.name}</span>
-        <b className={`net${top.net < 0 ? " neg" : ""}`}>淨回饋 {pct(top.net)}</b>
+        <b className={`net${top.net < 0 ? " neg" : ""}`}>{t("淨回饋 {net}", { net: pct(top.net) })}</b>
       </div>
       <p className="why">{explain(top)}</p>
-      {top.rate?.cond && <p className="note">條件：{top.rate.cond}</p>}
-      {top.stale && <p className="note warn"><MenuIcon name="warn" size={14} />這個優惠標示到 {top.rate!.until!.replace(/-0?/g, "/").slice(5)}，{month}是否延續請先問銀行；下面「其次」的卡也可以考慮。</p>}
+      {top.rate?.cond && <p className="note">{t("條件：{cond}", { cond: top.rate.cond })}</p>}
+      {top.stale && <p className="note warn"><MenuIcon name="warn" size={14} />{month ? t("這個優惠標示到 {until}，{month}是否延續請先問銀行；下面「其次」的卡也可以考慮。", { until: top.rate!.until!.replace(/-0?/g, "/").slice(5), month }) : t("這個優惠標示到 {until}，之後是否延續請先問銀行；下面「其次」的卡也可以考慮。", { until: top.rate!.until!.replace(/-0?/g, "/").slice(5) })}</p>}
       {picks.length > 1 && (
-        <p className="note">其次：{picks.slice(1, 4).map((p) => `${p.card.short || p.card.name} ${pct(p.net)}${p.stale ? "（要確認）" : ""}`).join("、")}</p>
+        <p className="note">{t("其次：{cards}", { cards: list(picks.slice(1, 4).map((p) => `${p.card.short || p.card.name} ${pct(p.net)}${p.stale ? t("（要確認）") : ""}`)) })}</p>
       )}
       <p className="note tip">{KIND_TIP[kind]}</p>
-      <a className="link" href="#cards">我的信用卡 ›</a>
+      <a className="link" href="#cards">{t("我的信用卡 ›")}</a>
     </div>
   );
 }

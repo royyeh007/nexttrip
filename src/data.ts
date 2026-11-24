@@ -41,6 +41,7 @@ export const daysBetween = (a: string, b: string) => Math.round((new Date(b + "T
 export { resolveDate } from "../supabase/functions/_shared/flightText";
 export type { DateRange } from "../supabase/functions/_shared/flightText";
 import type { DateRange } from "../supabase/functions/_shared/flightText";
+import { t } from "./i18n";
 
 /** Does this family have an itinerary for this day? */
 export const hasDay = (d: Day, f: FamilyId) => !d.fam || d.fam.includes(f);
@@ -61,7 +62,7 @@ export function daysFor(days: Day[], f: FamilyId): Day[] {
 // ---------- trips & people ----------
 /** admin 管理員、member 成員（改自己家和大家一起的）、viewer 觀察員（只能看，不能用聊天機器人） */
 export type Role = "member" | "admin" | "viewer";
-export const ROLE_LABEL: Record<Role, string> = { admin: "管理員", member: "成員", viewer: "觀察員" };
+export const ROLE_LABEL: Record<Role, string> = { admin: t("管理員"), member: t("成員"), viewer: t("觀察員") };
 export const isViewer = (m: { role: Role } | null | undefined) => m?.role === "viewer";
 /** `icon`: the picture the admin picked for this trip (an id from src/tripIcons.tsx). */
 export interface TripSettings { day_places?: Record<string, string[]>; icon?: string }

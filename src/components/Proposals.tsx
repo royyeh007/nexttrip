@@ -7,8 +7,9 @@ import { invoke, supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { fillTripDays } from "../days";
 import { whereDay } from "../dayEdit";
+import { t, tr, wk } from "../i18n";
 
-export const STATUS: Record<UploadRow["status"], string> = { pending: "等你確認", approved: "已更新", rejected: "已取消", failed: "解析失敗" };
+export const STATUS: Record<UploadRow["status"], string> = { pending: t("等你確認"), approved: t("已更新"), rejected: t("已取消"), failed: t("解析失敗") };
 
 /** Compact read-only rendering of a proposal. */
 export function ProposalDays({ p }: { p: Proposal }) {
@@ -16,11 +17,11 @@ export function ProposalDays({ p }: { p: Proposal }) {
   return (
     <div className="preview">
       {p.summary && <p><b>{p.summary}</b></p>}
-      {p.flights.length > 0 && <p>航班：{p.flights.join("／")}</p>}
-      {p.joins.map((j, i) => <p key={i}>{dateOf(j.date_id).d}：跟{labelOf(j.with)}一起{j.from ? `（${j.from} 起）` : ""}</p>)}
+      {p.flights.length > 0 && <p>{t("航班：{flights}", { flights: p.flights.join("／") })}</p>}
+      {p.joins.map((j, i) => <p key={i}>{j.from ? t("{date}：跟{family}一起（{from} 起）", { date: dateOf(j.date_id).d, family: labelOf(j.with), from: j.from }) : t("{date}：跟{family}一起", { date: dateOf(j.date_id).d, family: labelOf(j.with) })}</p>)}
       {p.days.map((day) => (
         <details key={day.id + day.scope} open={p.days.length <= 2}>
-          <summary>{day.d}（{day.w}）{day.scope === "shared" ? "・大家一起" : `・${labelOf(p.family_id)}`} ・ {day.title}{day.hotel && ` ・ 住 ${day.hotel}`}</summary>
+          <summary>{t("{d}（{w}）", { d: day.d, w: wk(day.w) })}・{day.scope === "shared" ? t("大家一起") : labelOf(p.family_id)} ・ {day.title}{day.hotel && ` ・ ${t("住 {hotel}", { hotel: day.hotel })}`}</summary>
           <ul>
             {day.items.map((it, i) => isLeg(it)
               ? <li key={i} className="pl">→ {it.txt}</li>
@@ -35,7 +36,7 @@ export function ProposalDays({ p }: { p: Proposal }) {
 
 /** Write a confirmed proposal into the live itinerary of one trip (RLS limits members to their own family's days and shared days). */
 export async function applyProposal(id: string, p: Proposal, tripId: string, days: Day[], families: Family[], reviewedBy: string) {
-  if (!supabase) throw new Error("Supabase 還沒設定");
+  if (!supabase) throw new Error(t("Supabase 還沒設定"));
   const now = new Date().toISOString();
   for (const day of p.days) {
     const fam = day.scope === "shared" ? null : [p.family_id];
@@ -95,7 +96,7 @@ export async function applyProposal(id: string, p: Proposal, tripId: string, day
         // Fallback that this person is allowed to do: their own version of the day, copied from the other family's
         // (it will not follow later changes over there; an admin, or that family, can make it a real joint day).
         const { error } = await supabase.from("days").upsert(
-          { trip_id: tripId, date_id: j.date_id, fam: [p.family_id], d: target.d, w: target.w, city: target.city, title: `和${labelIn(families, j.with)}一起：${target.title}`.slice(0, 80), hotel: target.hotel, items: target.items, updated_at: now },
+          { trip_id: tripId, date_id: j.date_id, fam: [p.family_id], d: target.d, w: target.w, city: target.city, title: t("和{family}一起：{title}", { family: labelIn(families, j.with), title: target.title }).slice(0, 80), hotel: target.hotel, items: target.items, updated_at: now },
           { onConflict: "trip_id,date_id,fam" },
         );
         if (error) throw new Error(error.message);
@@ -104,7 +105,7 @@ export async function applyProposal(id: string, p: Proposal, tripId: string, day
       const idx = target.items.findIndex((it) => !isLeg(it) && it.t === j.from);
       const items = idx >= 0 ? target.items.slice(idx) : target.items;
       const { error } = await supabase.from("days").upsert(
-        { trip_id: tripId, date_id: j.date_id, fam: [p.family_id], d: target.d, w: target.w, city: target.city, title: `${j.from} 起和${labelIn(families, j.with)}一起`, hotel: target.hotel, items, updated_at: now },
+        { trip_id: tripId, date_id: j.date_id, fam: [p.family_id], d: target.d, w: target.w, city: target.city, title: t("{from} 起和{family}一起", { from: j.from, family: labelIn(families, j.with) }), hotel: target.hotel, items, updated_at: now },
         { onConflict: "trip_id,date_id,fam" },
       );
       if (error) throw new Error(error.message);
@@ -147,7 +148,7 @@ export function ProposalCard({ id, proposal, meta, onDone }: { id: string; propo
         await applyProposal(id, proposal, current.id, trip.days, trip.families, member.user_id);
         if (widens && extend && member.role === "admin" && supabase && newStart && newEnd) {
           const { error } = await supabase.from("trips").update({ start_date: newStart, end_date: newEnd }).eq("id", current.id);
-          if (error) throw new Error(`行程日期沒改成：${error.message}`);
+          if (error) throw new Error(t("行程日期沒改成：{msg}", { msg: t(error.message) }));
           try { await fillTripDays(current.id, newStart, newEnd, current.place, trip.days.filter((d) => !d.fam).map((d) => d.id)); } catch { /* days can be added later */ }
           await refreshMemberships();
         }
@@ -156,7 +157,7 @@ export function ProposalCard({ id, proposal, meta, onDone }: { id: string; propo
       else await cancelProposal(id, member.user_id);
       setDone(ok ? "approved" : "rejected");
       onDone?.(ok ? "approved" : "rejected");
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setErr(e instanceof Error ? t(e.message) : String(e)); }
     finally { setBusy(false); }
   };
   return (
@@ -167,18 +168,18 @@ export function ProposalCard({ id, proposal, meta, onDone }: { id: string; propo
         member?.role === "admin" ? (
           <label className="extendrow">
             <input type="checkbox" checked={extend} onChange={(e) => setExtend(e.target.checked)} />
-            <span>同時把行程日期改成 <b>{dateOf(newStart!).d} – {dateOf(newEnd!).d}</b>（原本 {dateOf(current.start_date).d} – {dateOf(current.end_date).d}），多出來的日子會補上空白的「大家一起」版本</span>
+            <span>{tr("同時把行程日期改成 <b>{from} – {to}</b>（原本 {oldFrom} – {oldTo}），多出來的日子會補上空白的「大家一起」版本", { b: (c) => <b>{c}</b> }, { from: dateOf(newStart!).d, to: dateOf(newEnd!).d, oldFrom: dateOf(current.start_date).d, oldTo: dateOf(current.end_date).d })}</span>
           </label>
         ) : (
-          <p className="note extendrow">有日期在行程範圍（{dateOf(current.start_date).d} – {dateOf(current.end_date).d}）之外：確認後會加進你們家的行程；要延長整個行程的日期請找管理員。</p>
+          <p className="note extendrow">{t("有日期在行程範圍（{from} – {to}）之外：確認後會加進你們家的行程；要延長整個行程的日期請找管理員。", { from: dateOf(current.start_date).d, to: dateOf(current.end_date).d })}</p>
         )
       )}
       {done ? (
         <span className={`status ${done}`}>{STATUS[done]}</span>
       ) : (
         <div className="actions">
-          <button type="button" className="btn primary" disabled={busy} onClick={() => act(true)}>{busy ? "更新中…" : "確認，更新行程"}</button>
-          <button type="button" className="btn" disabled={busy} onClick={() => act(false)}>取消</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => act(true)}>{busy ? t("更新中…") : t("確認，更新行程")}</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => act(false)}>{t("取消")}</button>
         </div>
       )}
       {err && <p className="err">{err}</p>}

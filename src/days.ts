@@ -1,5 +1,6 @@
 import { addDays, dateOf } from "./data";
 import { supabase } from "./supabase";
+import { t } from "./i18n";
 
 /**
  * One empty "everyone together" day for every date from start to end that does not have one yet,
@@ -12,7 +13,7 @@ export async function fillTripDays(tripId: string, start: string, end: string, p
   for (let d = start, n = 1; d <= end && n <= 120; d = addDays(d, 1), n++) {
     if (have.has(d)) continue;
     const { d: dd, w } = dateOf(d);
-    rows.push({ trip_id: tripId, date_id: d, fam: null, d: dd, w, city: place.trim() || "待定", title: `第 ${n} 天`, hotel: "", items: [] });
+    rows.push({ trip_id: tripId, date_id: d, fam: null, d: dd, w, city: place.trim() || t("待定"), title: t("第 {n} 天", { n }), hotel: "", items: [] });
   }
   if (rows.length === 0) return 0;
   const { error } = await supabase.from("days").upsert(rows, { onConflict: "trip_id,date_id,fam", ignoreDuplicates: true });

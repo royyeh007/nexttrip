@@ -9,8 +9,10 @@ import { TripIcon, tripIconId } from "../tripIcons";
 import { LogoMark, Wordmark } from "./Logo";
 import { HouseholdPanel } from "./PeopleView";
 import { setBackdropOn, useBackdropOn } from "./Backdrop";
+import { lang, setLang, t, tr } from "../i18n";
+import type { Lang } from "../i18n";
 
-const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const msgOf = (e: unknown) => t(e instanceof Error ? e.message : String(e));
 const PersonLine = ({ p }: { p: Person }) => <span className="pname"><b>{p.name}</b>{p.email && <small>{p.email}</small>}</span>;
 
 /** 帳號・好友的獨立頁面：不屬於任何行程，從帳號選單或選行程頁進來，「返回」回到原本那一頁。 */
@@ -20,8 +22,8 @@ export function AccountPage() {
     <div className="wrap acctpage">
       <header className="hero">
         <div className="fambar">
-          <button type="button" className="btn small" onClick={closeAccount}>‹ 返回</button>
-          <button type="button" className="link who-am-i" onClick={signOut}>登出</button>
+          <button type="button" className="btn small" onClick={closeAccount}>{t("‹ 返回")}</button>
+          <button type="button" className="link who-am-i" onClick={signOut}>{t("登出")}</button>
         </div>
         <h1 className="brand"><LogoMark size={44} /><Wordmark height={26} /></h1>
       </header>
@@ -61,69 +63,76 @@ function AccountView() {
   const copy = async () => {
     if (!profile) return;
     try { await navigator.clipboard.writeText(friendLink(profile.friend_code)); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    catch { prompt("複製這個好友連結", friendLink(profile.friend_code)); }
+    catch { prompt(t("複製這個好友連結"), friendLink(profile.friend_code)); }
   };
 
   return (
     <>
-      <section className="dayhead"><h2>帳號・家人・好友</h2><p className="note">{session?.user.email}</p></section>
-      {state === "loading" && <p className="note">載入中…</p>}
-      {state === "notready" && <div className="panel"><p className="note">好友和帳號設定要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。</p></div>}
-      {state === "error" && <div className="panel"><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>再試一次</button></div>}
+      <section className="dayhead"><h2>{t("帳號・家人・好友")}</h2><p className="note">{session?.user.email}</p></section>
+      {state === "loading" && <p className="note">{t("載入中…")}</p>}
+      {state === "notready" && <div className="panel"><p className="note">{tr("好友和帳號設定要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。", { code: (c) => <code>{c}</code> })}</p></div>}
+      {state === "error" && <div className="panel"><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>{t("再試一次")}</button></div>}
       {state === "ok" && profile && (
         <>
           <div className="panel admin">
-            <h3>顯示名稱</h3>
-            <p className="note">好友清單和你收到、送出的邀請裡，別人看到的是這個名字。每個行程裡的名字可以另外改（帳號選單 → 改我的名字）。</p>
+            <h3>{t("顯示名稱")}</h3>
+            <p className="note">{t("好友清單和你收到、送出的邀請裡，別人看到的是這個名字。每個行程裡的名字可以另外改（帳號選單 → 改我的名字）。")}</p>
             <div className="addrow pair">
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="例：Roy" aria-label="顯示名稱" />
-              <button type="button" className="btn" disabled={busy || name.trim() === profile.name} onClick={() => run(async () => { await friendsApi.setName(name.trim()); return "已儲存"; })}>儲存</button>
+              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder={t("例：Roy")} aria-label={t("顯示名稱")} />
+              <button type="button" className="btn" disabled={busy || name.trim() === profile.name} onClick={() => run(async () => { await friendsApi.setName(name.trim()); return t("已儲存"); })}>{t("儲存")}</button>
             </div>
           </div>
 
           <HouseholdPanel />
 
           <div className="panel admin">
-            <h3>外觀</h3>
+            <h3>{t("外觀")}</h3>
             <label className="setrow">
-              <span><b>會動的背景</b><small>畫面後面那一幅風景，依行程的地點和季節自動換。只影響這支手機。</small></span>
+              <span><b>{t("會動的背景")}</b><small>{t("畫面後面那一幅風景，依行程的地點和季節自動換。只影響這支手機。")}</small></span>
               <span className="switch"><input type="checkbox" checked={backdropOn} onChange={(e) => setBackdropOn(e.target.checked)} /><span className="track" aria-hidden="true" /></span>
+            </label>
+            <label className="setrow">
+              <span><b>{lang === "zh" ? "語言 / Language" : "Language / 語言"}</b><small>{t("畫面上的文字用哪一種語言。只影響這支手機。")}</small></span>
+              <select className="langsel" value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+              </select>
             </label>
           </div>
 
           <div className="panel admin">
-            <h3>我的好友碼</h3>
-            <p className="note">把連結傳給對方，他點開、登入後你們就互為好友。之後建立行程可以直接邀他，不用再傳邀請連結。</p>
+            <h3>{t("我的好友碼")}</h3>
+            <p className="note">{t("把連結傳給對方，他點開、登入後你們就互為好友。之後建立行程可以直接邀他，不用再傳邀請連結。")}</p>
             <div className="invite">
               <code>{profile.friend_code}</code>
-              <button type="button" className="btn" onClick={copy}>{copied ? "已複製" : "複製好友連結"}</button>
-              <button type="button" className="link" disabled={busy} onClick={() => { if (confirm("換一個新的好友碼？舊的連結會立刻失效，已經加的好友不受影響。")) run(async () => { await friendsApi.resetCode(); return "已換成新的好友碼"; }); }}>換一個新的</button>
+              <button type="button" className="btn" onClick={copy}>{copied ? t("已複製") : t("複製好友連結")}</button>
+              <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(t("換一個新的好友碼？舊的連結會立刻失效，已經加的好友不受影響。"))) run(async () => { await friendsApi.resetCode(); return t("已換成新的好友碼"); }); }}>{t("換一個新的")}</button>
             </div>
             <div className="addrow pair">
-              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="貼上對方的好友碼或好友連結" autoCapitalize="none" autoCorrect="off" aria-label="對方的好友碼" />
-              <button type="button" className="btn primary" disabled={busy || !code.trim()} onClick={() => run(async () => { const p = await friendsApi.add(friendCodeOf(code)); setCode(""); return `已經和 ${p.name} 成為好友`; })}>加好友</button>
+              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("貼上對方的好友碼或好友連結")} autoCapitalize="none" autoCorrect="off" aria-label={t("對方的好友碼")} />
+              <button type="button" className="btn primary" disabled={busy || !code.trim()} onClick={() => run(async () => { const p = await friendsApi.add(friendCodeOf(code)); setCode(""); return t("已經和 {name} 成為好友", { name: p.name }); })}>{t("加好友")}</button>
             </div>
           </div>
 
           <div className="panel admin">
-            <h3>好友（{friends.length}）</h3>
-            {friends.length === 0 && <p className="note">還沒有好友。把上面的好友連結傳給家人朋友，或從下面「一起旅行過的人」直接加。</p>}
+            <h3>{t("好友（{n}）", { n: friends.length })}</h3>
+            {friends.length === 0 && <p className="note">{t("還沒有好友。把上面的好友連結傳給家人朋友，或從下面「一起旅行過的人」直接加。")}</p>}
             {friends.map((p) => (
               <div key={p.user_id} className="invite person">
                 <PersonLine p={p} />
-                <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(`解除和 ${p.name} 的好友關係？你們還在同一個行程的話，行程不受影響。`)) run(async () => { await friendsApi.remove(p.user_id); }); }}>解除好友</button>
+                <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(t("解除和 {name} 的好友關係？你們還在同一個行程的話，行程不受影響。", { name: p.name }))) run(async () => { await friendsApi.remove(p.user_id); }); }}>{t("解除好友")}</button>
               </div>
             ))}
           </div>
 
           {others.length > 0 && (
             <div className="panel admin">
-              <h3>一起旅行過的人</h3>
-              <p className="note">跟你在同一個行程裡、還不是好友的人。</p>
+              <h3>{t("一起旅行過的人")}</h3>
+              <p className="note">{t("跟你在同一個行程裡、還不是好友的人。")}</p>
               {others.map((p) => (
                 <div key={p.user_id} className="invite person">
                   <PersonLine p={p} />
-                  <button type="button" className="btn" disabled={busy} onClick={() => run(async () => { await friendsApi.addUser(p.user_id); return `已經和 ${p.name} 成為好友`; })}>＋ 加好友</button>
+                  <button type="button" className="btn" disabled={busy} onClick={() => run(async () => { await friendsApi.addUser(p.user_id); return t("已經和 {name} 成為好友", { name: p.name }); })}>{t("＋ 加好友")}</button>
                 </div>
               ))}
             </div>
@@ -166,33 +175,33 @@ export function InviteFriends() {
 
   return (
     <div className="panel admin">
-      <h3>邀請好友</h3>
-      <p className="note">不用傳連結：對方打開網站，在「我的行程」那一頁會看到邀請，可以選加入或不加入。要先互為好友（<button type="button" className="link" onClick={openAccount}>帳號・家人・好友</button>）。</p>
+      <h3>{t("邀請好友")}</h3>
+      <p className="note">{tr("不用傳連結：對方打開網站，在「我的行程」那一頁會看到邀請，可以選加入或不加入。要先互為好友（<btn>帳號・家人・好友</btn>）。", { btn: (c) => <button type="button" className="link" onClick={openAccount}>{c}</button> })}</p>
       {sent.map((s) => (
         <div key={s.id} className="invite person">
           <PersonLine p={s} />
-          <span className={`status ${s.status === "pending" ? "pending" : "rejected"}`}>{s.status === "pending" ? "等對方回覆" : "對方選了不加入"}</span>
-          <span className="muted">{ROLE_LABEL[s.role]}</span>
-          <button type="button" className="link" disabled={busy} onClick={() => run(() => friendsApi.cancel(s.id))}>{s.status === "pending" ? "收回" : "清掉"}</button>
+          <span className={`status ${s.status === "pending" ? "pending" : "rejected"}`}>{s.status === "pending" ? t("等對方回覆") : t("對方選了不加入")}</span>
+          <span className="muted">{t(ROLE_LABEL[s.role])}</span>
+          <button type="button" className="link" disabled={busy} onClick={() => run(() => friendsApi.cancel(s.id))}>{s.status === "pending" ? t("收回") : t("清掉")}</button>
         </div>
       ))}
       {canInvite.length > 0 && (
-        <label>邀請時的角色
+        <label>{t("邀請時的角色")}
           <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            <option value="member">成員（可以改自己家和大家一起的）</option>
-            <option value="viewer">觀察員（只能看）</option>
-            <option value="admin">管理員</option>
+            <option value="member">{t("成員（可以改自己家和大家一起的）")}</option>
+            <option value="viewer">{t("觀察員（只能看）")}</option>
+            <option value="admin">{t("管理員")}</option>
           </select>
         </label>
       )}
       {canInvite.map((p) => (
         <div key={p.user_id} className="invite person">
           <PersonLine p={p} />
-          <button type="button" className="btn" disabled={busy} onClick={() => run(() => friendsApi.invite(tripId, p.user_id, role))}>{asked.has(p.user_id) ? "再邀一次" : "邀請"}</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => run(() => friendsApi.invite(tripId, p.user_id, role))}>{asked.has(p.user_id) ? t("再邀一次") : t("邀請")}</button>
         </div>
       ))}
-      {friends.length === 0 && <p className="note">你還沒有好友。</p>}
-      {friends.length > 0 && canInvite.length === 0 && sent.length === 0 && <p className="note">你的好友都已經在這個行程裡了。</p>}
+      {friends.length === 0 && <p className="note">{t("你還沒有好友。")}</p>}
+      {friends.length > 0 && canInvite.length === 0 && sent.length === 0 && <p className="note">{t("你的好友都已經在這個行程裡了。")}</p>}
       {msg && <p className="err">{msg}</p>}
     </div>
   );
@@ -208,7 +217,7 @@ function InvitationCard({ inv, onJoined }: { inv: TripInvitation; onJoined: (tri
   const ready = fam === "new" ? !!newFam.trim() : !!fam;
   const answer = async (accept: boolean) => {
     if (busy) return;
-    if (!accept && !confirm(`不加入「${inv.trip.name}」？邀請你的人會看到你選了不加入，之後他可以再邀一次。`)) return;
+    if (!accept && !confirm(t("不加入「{name}」？邀請你的人會看到你選了不加入，之後他可以再邀一次。", { name: inv.trip.name }))) return;
     setBusy(true); setErr(null);
     try {
       const id = await friendsApi.respond(inv.id, accept, fam === "new" ? null : fam, fam === "new" ? newFam.trim() : null, name.trim() || null);
@@ -222,24 +231,24 @@ function InvitationCard({ inv, onJoined }: { inv: TripInvitation; onJoined: (tri
         <TripIcon id={tripIconId(inv.trip.settings)} size={48} />
         <div>
           <h3>{inv.trip.name}</h3>
-          <p className="note">{dotDate(inv.trip.start_date)} — {dotDate(inv.trip.end_date)}{inv.trip.place && ` ・ ${inv.trip.place}`}</p>
-          <p className="note">{inv.invited_by ? `${inv.invited_by} 邀請你加入` : "你收到邀請"}{inv.role !== "member" && `（${ROLE_LABEL[inv.role]}${inv.role === "viewer" ? "：只能看" : ""}）`}</p>
+          <p className="note">{dotDate(inv.trip.start_date)} — {dotDate(inv.trip.end_date)}{inv.trip.place && `${t(" ・ ")}${inv.trip.place}`}</p>
+          <p className="note">{inv.invited_by ? t("{name} 邀請你加入", { name: inv.invited_by }) : t("你收到邀請")}{inv.role !== "member" && (inv.role === "viewer" ? t("（{role}：只能看）", { role: t(ROLE_LABEL[inv.role]) }) : t("（{role}）", { role: t(ROLE_LABEL[inv.role]) }))}</p>
         </div>
       </div>
       <div className="formgrid">
-        <label>{inv.role === "viewer" ? "跟著看哪一家的行程" : "你是哪一家"}
+        <label>{inv.role === "viewer" ? t("跟著看哪一家的行程") : t("你是哪一家")}
           <select value={fam} onChange={(e) => setFam(e.target.value)}>
-            {inv.families.length > 0 && <option value="">請選擇</option>}
+            {inv.families.length > 0 && <option value="">{t("請選擇")}</option>}
             {inv.families.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-            <option value="new">＋ 新的一家</option>
+            <option value="new">{t("＋ 新的一家")}</option>
           </select>
         </label>
-        {fam === "new" && <label>新的一家叫什麼<input value={newFam} onChange={(e) => setNewFam(e.target.value)} maxLength={40} placeholder="例：Iris 家" /></label>}
-        <label>你在這個行程裡的名字<input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>
+        {fam === "new" && <label>{t("新的一家叫什麼")}<input value={newFam} onChange={(e) => setNewFam(e.target.value)} maxLength={40} placeholder={t("例：Iris 家")} /></label>}
+        <label>{t("你在這個行程裡的名字")}<input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>
       </div>
       <div className="actions">
-        <button type="button" className="btn primary" disabled={busy || !ready} onClick={() => answer(true)}>{busy ? "處理中…" : "加入"}</button>
-        <button type="button" className="btn" disabled={busy} onClick={() => answer(false)}>不加入</button>
+        <button type="button" className="btn primary" disabled={busy || !ready} onClick={() => answer(true)}>{busy ? t("處理中…") : t("加入")}</button>
+        <button type="button" className="btn" disabled={busy} onClick={() => answer(false)}>{t("不加入")}</button>
         {err && <span className="err">{err}</span>}
       </div>
     </div>
@@ -253,7 +262,7 @@ export function MyInvitations({ onJoined }: { onJoined: (tripId: string) => void
   if (list.length === 0) return null;
   return (
     <>
-      <h2>行程邀請（{list.length}）</h2>
+      <h2>{t("行程邀請（{n}）", { n: list.length })}</h2>
       {list.map((inv) => <InvitationCard key={inv.id} inv={inv} onJoined={onJoined} />)}
     </>
   );

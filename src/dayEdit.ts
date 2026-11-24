@@ -2,6 +2,7 @@ import { isLeg } from "./data";
 import type { Day, Item, Leg, Stop } from "./data";
 import { toMinutes } from "./now";
 import { supabase } from "./supabase";
+import { t } from "./i18n";
 
 /** Same row of `days` (same date and same fam set)? */
 export const sameDayRow = (a: Day, b: Day) => a.id === b.id && JSON.stringify(a.fam ?? null) === JSON.stringify(b.fam ?? null);
@@ -32,16 +33,16 @@ export function whereDay<T>(q: T, tripId: string, day: Pick<Day, "rowId" | "id" 
  * `mutate` gets the fresh items and returns the new list (or null to abort). Returns an error message or null.
  */
 export async function editDayItems(tripId: string, day: Day, mutate: (items: Item[]) => Item[] | null): Promise<string | null> {
-  if (!supabase) return "Supabase 還沒設定";
+  if (!supabase) return t("Supabase 還沒設定");
   const { data: fresh, error: readErr } = await whereDay(supabase.from("days").select("id, items, updated_at"), tripId, day).maybeSingle();
-  if (readErr || !fresh) return readErr?.message ?? "這一天已經不存在了";
+  if (readErr || !fresh) return t(readErr?.message ?? "這一天已經不存在了");
   const next = mutate(fresh.items as Item[]);
-  if (!next) return "這個地點已經被改掉了，重新打開再試";
+  if (!next) return t("這個地點已經被改掉了，重新打開再試");
   // only if nobody saved this row between our read and our write (otherwise their change would be lost)
   const { data: saved, error } = await supabase.from("days").update({ items: next, updated_at: new Date().toISOString() })
     .eq("id", fresh.id as string).eq("updated_at", fresh.updated_at as string).select("id");
-  if (error) return error.message;
-  if (!saved?.length) return "剛剛有人也改了這一天，請再按一次";
+  if (error) return t(error.message);
+  if (!saved?.length) return t("剛剛有人也改了這一天，請再按一次");
   return null;
 }
 

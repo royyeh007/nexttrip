@@ -1,6 +1,7 @@
 import { describe, placeByKey, placesFor, roleOf } from "../weather";
 import type { DayWeather, WIcon } from "../weather";
 import type { WeatherState } from "../useWeather";
+import { t, lang } from "../i18n";
 
 const base = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
 const cloud = "M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 11.2 3.5 3.5 0 0 0 7 18z";
@@ -34,19 +35,19 @@ function Line({ w }: { w: DayWeather }) {
         <span className="wx-l">{label}</span>
         <span className="wx-t"><b>{r(w.max)}°</b> / {r(w.min)}°</span>
         <span className="wx-xs">
-          {w.pop != null && <span className="wx-x">降雨機率 {w.pop}%</span>}
-          {w.snow != null && w.snow > 0 && <span className="wx-x">預計降雪 {w.snow.toFixed(1)} cm</span>}
+          {w.pop != null && <span className="wx-x">{t("降雨機率 {pop}%", { pop: w.pop })}</span>}
+          {w.snow != null && w.snow > 0 && <span className="wx-x">{t("預計降雪 {cm} cm", { cm: w.snow.toFixed(1) })}</span>}
         </span>
       </>
     );
   }
   return (
     <>
-      <span className="wx-l">多半{label}</span>
+      <span className="wx-l">{t("多半{label}", { label })}</span>
       <span className="wx-t"><b>{r(w.max)}°</b> / {r(w.min)}°</span>
       <span className="wx-xs">
-        {w.pop != null && <span className="wx-x">往年有 {w.pop}% 的日子下雨或下雪</span>}
-        {w.snow != null && w.snow > 0 && <span className="wx-x">{w.snow}% 的日子下雪</span>}
+        {w.pop != null && <span className="wx-x">{t("往年有 {pop}% 的日子下雨或下雪", { pop: w.pop })}</span>}
+        {w.snow != null && w.snow > 0 && <span className="wx-x">{t("{snow}% 的日子下雪", { snow: w.snow })}</span>}
       </span>
     </>
   );
@@ -57,15 +58,15 @@ export function DayWeatherPanel({ date, city, wx }: { date: string; city: string
   if (keys.length === 0) return null;
   const day = wx.data?.[date] ?? {};
   const anyForecast = keys.some((k) => day[k]?.kind === "forecast");
-  const updated = wx.updatedAt ? new Date(wx.updatedAt).toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+  const updated = wx.updatedAt ? new Date(wx.updatedAt).toLocaleString(lang === "en" ? "en-US" : "zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
   return (
-    <section className="wx" aria-label="天氣">
+    <section className="wx" aria-label={t("天氣")}>
       <div className="wx-head">
-        <span className={`wx-tag ${anyForecast ? "live" : ""}`}>{anyForecast ? "天氣預報" : "往年同日平均"}</span>
+        <span className={`wx-tag ${anyForecast ? "live" : ""}`}>{anyForecast ? t("天氣預報") : t("往年同日平均")}</span>
         <span className="wx-note">
           {anyForecast
-            ? `每 30 分鐘自動更新${updated ? `・更新於 ${updated}` : ""}`
-            : "過去十年同一天的平均；出發前約 16 天會自動換成正式預報"}
+            ? (updated ? t("每 30 分鐘自動更新・更新於 {time}", { time: updated }) : t("每 30 分鐘自動更新"))
+            : t("過去十年同一天的平均；出發前約 16 天會自動換成正式預報")}
         </span>
       </div>
       <div className="wx-rows">
@@ -76,8 +77,8 @@ export function DayWeatherPanel({ date, city, wx }: { date: string; city: string
           return (
             <div className="wx-row" key={k}>
               {w ? <WxIcon icon={describe(w.code).icon} /> : <span className="wx-i" />}
-              <span className="wx-p"><small>{roleOf(keys.length, i)}</small>{place.name}</span>
-              {w ? <Line w={w} /> : <span className="wx-x wx-xs">{wx.loading ? "載入中…" : "天氣資料暫時抓不到，稍後會自動重試"}</span>}
+              <span className="wx-p"><small>{roleOf(keys.length, i)}</small>{t(place.name)}</span>
+              {w ? <Line w={w} /> : <span className="wx-x wx-xs">{wx.loading ? t("載入中…") : t("天氣資料暫時抓不到，稍後會自動重試")}</span>}
             </div>
           );
         })}

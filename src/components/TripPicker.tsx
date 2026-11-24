@@ -7,6 +7,7 @@ import { GuideView } from "./GuideView";
 import { LogoMark, MenuIcon, PersonIcon, Wordmark } from "./Logo";
 import { MyInvitations } from "./AccountView";
 import { TripIcon, tripIconId } from "../tripIcons";
+import { t } from "../i18n";
 
 function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
   const { session } = useTrip();
@@ -24,7 +25,7 @@ function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; 
     if (!supabase) return;
     setBusy(true); setErr(null);
     const { data, error } = await supabase.rpc("create_trip", { p_name: name.trim(), p_start: start, p_end: end, p_place: place.trim(), p_family_label: famLabel.trim(), p_my_name: myName.trim() });
-    if (error) { setErr(error.message); setBusy(false); return; }
+    if (error) { setErr(t(error.message)); setBusy(false); return; }
     // every date gets an empty "everyone" day so the trip is ready to fill in
     try { await fillTripDays(String(data), start, end, place); } catch { /* the days can be added later from the date strip */ }
     onCreated(String(data));
@@ -32,19 +33,19 @@ function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; 
 
   return (
     <div className="panel">
-      <h3>建立新行程</h3>
-      <p className="note">建立的人就是這個行程的管理員，之後可以邀請家人、管理團員。開始到結束的每一天會先建好空白的日子。</p>
+      <h3>{t("建立新行程")}</h3>
+      <p className="note">{t("建立的人就是這個行程的管理員，之後可以邀請家人、管理團員。開始到結束的每一天會先建好空白的日子。")}</p>
       <div className="formgrid">
-        <label>行程名稱<input value={name} onChange={(e) => setName(e.target.value)} placeholder="例：2027 春天京都" /></label>
-        <label>去哪裡（可空）<input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="例：日本・京都、大阪" /></label>
-        <label>開始日期<input type="date" value={start} onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value); }} /></label>
-        <label>結束日期<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
-        <label>你們這一家叫什麼<input value={famLabel} onChange={(e) => setFamLabel(e.target.value)} placeholder="例：Lily 家" /></label>
-        <label>你的名字<input value={myName} onChange={(e) => setMyName(e.target.value)} placeholder="例：小明" /></label>
+        <label>{t("行程名稱")}<input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("例：2027 春天京都")} /></label>
+        <label>{t("去哪裡（可空）")}<input value={place} onChange={(e) => setPlace(e.target.value)} placeholder={t("例：日本・京都、大阪")} /></label>
+        <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value); }} /></label>
+        <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
+        <label>{t("你們這一家叫什麼")}<input value={famLabel} onChange={(e) => setFamLabel(e.target.value)} placeholder={t("例：Lily 家")} /></label>
+        <label>{t("你的名字")}<input value={myName} onChange={(e) => setMyName(e.target.value)} placeholder={t("例：小明")} /></label>
       </div>
       <div className="actions">
-        <button type="button" className="btn primary" onClick={submit} disabled={busy || !name.trim() || !start || !end}>{busy ? "建立中…" : "建立行程"}</button>
-        <button type="button" className="btn" onClick={onCancel} disabled={busy}>取消</button>
+        <button type="button" className="btn primary" onClick={submit} disabled={busy || !name.trim() || !start || !end}>{busy ? t("建立中…") : t("建立行程")}</button>
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>{t("取消")}</button>
       </div>
       {err && <p className="err">{err}</p>}
     </div>
@@ -63,19 +64,19 @@ function HomeMenu() {
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, []);
-  const full: string = session?.user.user_metadata?.full_name ?? session?.user.email?.split("@")[0] ?? "我";
+  const full: string = session?.user.user_metadata?.full_name ?? session?.user.email?.split("@")[0] ?? t("我");
   return (
     <details className="menu" ref={ref}>
-      <summary aria-label="帳號選單" title="帳號・好友、登出">
+      <summary aria-label={t("帳號選單")} title={t("帳號・好友、登出")}>
         <PersonIcon />
         <span className="mname">{full.split(/\s+/)[0]}</span>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </summary>
       <div className="list">
         <small>{session?.user.email}</small>
-        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />帳號・家人・好友</button>
-        <button type="button" onClick={() => { close(); document.getElementById("guide-home")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><MenuIcon name="guide" />使用教學</button>
-        <button type="button" onClick={signOut}><MenuIcon name="signout" />登出</button>
+        <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />{t("帳號・家人・好友")}</button>
+        <button type="button" onClick={() => { close(); document.getElementById("guide-home")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><MenuIcon name="guide" />{t("使用教學")}</button>
+        <button type="button" onClick={signOut}><MenuIcon name="signout" />{t("登出")}</button>
       </div>
     </details>
   );
@@ -93,46 +94,46 @@ export function TripPicker() {
           <h1 className="brand"><LogoMark size={48} /><Wordmark height={26} /></h1>
           <HomeMenu />
         </div>
-        <p className="note">{memberships.length ? "選一個行程進去，或建立新的、加入別人的。" : "這個網站只給被邀請的人用。輸入家人傳給你的邀請碼加入他們的行程；加入之後就可以建立自己的行程。"}</p>
+        <p className="note">{memberships.length ? t("選一個行程進去，或建立新的、加入別人的。") : t("這個網站只給被邀請的人用。輸入家人傳給你的邀請碼加入他們的行程；加入之後就可以建立自己的行程。")}</p>
       </header>
 
       <MyInvitations onJoined={async (id) => { await refreshMemberships(); enterTrip(id); }} />
 
       {memberships.length > 0 && (
         <>
-          <h2>我的行程</h2>
+          <h2>{t("我的行程")}</h2>
           <div className="tripcards">
             {memberships.map((m) => (
               <button key={m.trip_id} type="button" className="tripcard" onClick={() => enterTrip(m.trip_id)}>
                 <TripIcon id={tripIconId(m.trip.settings)} size={48} />
                 <span className="tn">{m.trip.name}</span>
-                <span className="td"><span>{dotDate(m.trip.start_date)} — {dotDate(m.trip.end_date)}</span><span>{tripLength(m.trip)} 天</span></span>
+                <span className="td"><span>{dotDate(m.trip.start_date)} — {dotDate(m.trip.end_date)}</span><span>{tripLength(m.trip) === 1 ? t("1 天") : t("{n} 天", { n: tripLength(m.trip) })}</span></span>
                 {m.trip.place && <span className="tp">{m.trip.place}</span>}
                 <span className="tm">
-                  {m.role === "admin" && <span className="tag admin">管理員</span>}
-                  {m.role === "viewer" && <span className="tag none">觀察員</span>}
+                  {m.role === "admin" && <span className="tag admin">{t("管理員")}</span>}
+                  {m.role === "viewer" && <span className="tag none">{t("觀察員")}</span>}
                   <span className="muted">{m.name ?? m.email ?? ""}</span>
                 </span>
-                <span className="go">進入 ›</span>
+                <span className="go">{t("進入 ›")}</span>
               </button>
             ))}
           </div>
         </>
       )}
 
-      <h2>{memberships.length ? "建立或加入" : "加入"}</h2>
+      <h2>{memberships.length ? t("建立或加入") : t("加入")}</h2>
       {creating ? (
         <CreateTrip onCreated={async (id) => { await refreshMemberships(); enterTrip(id); }} onCancel={() => setCreating(false)} />
       ) : (
         <div className="panel startrow">
-          {memberships.length > 0 && <button type="button" className="btn primary" onClick={() => setCreating(true)}>＋ 建立新行程</button>}
+          {memberships.length > 0 && <button type="button" className="btn primary" onClick={() => setCreating(true)}>{t("＋ 建立新行程")}</button>}
           <div className="addrow pair">
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="有邀請碼？貼在這裡" aria-label="邀請碼" autoCapitalize="none" autoCorrect="off" onKeyDown={(e) => e.key === "Enter" && code.trim() && setInvite(code.trim())} />
-            <button type="button" className="btn" onClick={() => setInvite(code.trim())} disabled={!code.trim()}>用邀請碼加入</button>
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("有邀請碼？貼在這裡")} aria-label={t("邀請碼")} autoCapitalize="none" autoCorrect="off" onKeyDown={(e) => e.key === "Enter" && code.trim() && setInvite(code.trim())} />
+            <button type="button" className="btn" onClick={() => setInvite(code.trim())} disabled={!code.trim()}>{t("用邀請碼加入")}</button>
           </div>
         </div>
       )}
-      <h2 id="guide-home">使用教學</h2>
+      <h2 id="guide-home">{t("使用教學")}</h2>
       <GuideView role="member" compact />
     </div>
   );

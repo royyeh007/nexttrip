@@ -19,7 +19,7 @@ import type { Card } from "../_shared/cards.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
 
-function rules(ctx: GuideCtx) {
+function rules(ctx: GuideCtx, lang: "zh" | "en" = "zh") {
   const { trip } = ctx;
   const shared = ctx.sharedDates.length ? ctx.sharedDates.map((d) => dateOf(d).d).join("、") : "目前沒有";
   return `你是「${trip.name}」行程網頁裡的小幫手，名字叫「Trip醬」，用繁體中文、台灣用語回答，語氣輕鬆簡短。
@@ -69,7 +69,7 @@ ${formatGuide(ctx)}
 - 需要上網（讀連結、查店家、營業時間、交通、天氣這些行程資料裡沒有的事）但你目前沒有 web_search／web_fetch 工具時，直接呼叫 lookup_online，不要先回文字、也不要說查不到；系統會換成能上網的模式重新回答。
 
 【網站怎麼用，被問到時照這個回答；依對方的角色（最後一段有寫）只講他用得到的】
-${guideText()}
+${guideText(lang)}
 - 網站裡也有「使用教學」頁（帳號按鈕 → 使用教學），會照角色顯示。右下角就是我，名字叫 Trip醬。`;
 }
 
@@ -92,7 +92,9 @@ const MAX_HISTORY_TURN = 2000; // 歷史裡每一則最多帶幾個字：很長�
 const DEADLINE_MS = 135_000;   // 整個函式 150 秒會被平台砍掉；在那之前把「想一下…」改成錯誤，網頁才不會一直等
 
 Deno.serve(handle(async (req) => {
-  const body = await readJson<{ text?: unknown; trip_id?: string }>(req);
+  const body = await readJson<{ text?: unknown; trip_id?: string; lang?: unknown }>(req);
+  // 使用者在網站上選的語言：選英文的人用英文回答（行程裡的地點名稱、備註照原文，不翻譯）
+  const lang: "zh" | "en" = body.lang === "en" ? "en" : "zh";
   const { user, admin, member, trip, uid, who } = await requireMember(req, body, { editor: true });
   const text = (typeof body.text === "string" ? body.text : "").trim();
   if (!text) throw new HttpError(400, "沒有訊息");
@@ -246,7 +248,7 @@ Deno.serve(handle(async (req) => {
         // 一般問答 low 就夠；貼連結或查地點要上網核對，用 medium
         output_config: { effort: web ? "medium" : "low" },
         system: [
-          { type: "text", text: rules(guideCtx) },
+          { type: "text", text: rules(guideCtx, lang) + (lang === "en" ? "\n\n【語言】這位使用者的介面是英文：請一律用自然的英文回答（即使他用別的語言提問時才跟著他的語言）。行程裡的地點名稱、店名、備註保留原文，必要時在後面用括號補英文。你的名字用英文寫作 Trip-chan。提案（proposal）裡新增的文字（地點名稱以外的說明、交通、提醒）也用英文寫。" : "") },
           // 行程資料：同一個行程的人相同，快取共用（改行程會自動失效）
           { type: "text", text: `目前的行程資料（JSON）：\n${JSON.stringify(context, slim)}`, cache_control: cache },
           { type: "text", text: `這趟誰會去（people：每個人是哪一家 family、大人 adult 或小孩 child、旅行第一天的年齡 age、備註 note；被問到幾個人、幾大幾小、小孩幾歲、飲食禁忌時用這份，沒有這份就說還沒有人勾選）、備註、待辦、聯絡資料、「其他資訊」的分頁清單（JSON）：\n${JSON.stringify(side, slim)}`, cache_control: cache },

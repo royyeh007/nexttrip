@@ -6,6 +6,7 @@ import { tripRange } from "../data";
 import type { DateRange } from "../data";
 import { useTrip } from "../trip";
 import { parseFlightText } from "../../supabase/functions/_shared/flightText";
+import { t, lang } from "../i18n";
 
 /** "去 BR192 12/26 松山 07:15 → 羽田 T3 11:00（座位 42B）" → parsed pieces (the airline/number/date part is shared with the server) */
 export function parseFlight(text: string, fallbackDate?: string, range?: DateRange | null) {
@@ -91,26 +92,26 @@ export function useFlightStatus(text: string, date?: string) {
   return { f, res, err, today, isLive };
 }
 
-export const delayText = (st: Status) => (st.delayMin == null ? "" : st.delayMin > 0 ? `晚 ${st.delayMin} 分` : st.delayMin < 0 ? `早 ${-st.delayMin} 分` : "準時");
+export const delayText = (st: Status) => (st.delayMin == null ? "" : st.delayMin > 0 ? t("晚 {n} 分", { n: st.delayMin }) : st.delayMin < 0 ? t("早 {n} 分", { n: -st.delayMin }) : t("準時"));
 export const toneOf = (st: Status) => (st.delayMin != null && st.delayMin >= 15 ? "bad" : st.delayMin != null && st.delayMin < 0 ? "ok" : "");
 
 function Links({ f }: { f: NonNullable<ReturnType<typeof parseFlight>> }) {
   return (
     <span className="fl-links">
       <a href={`https://www.flightradar24.com/data/flights/${f.code.toLowerCase()}`} target="_blank" rel="noopener">Flightradar24</a>
-      {f.viaNarita && <a href="https://www.narita-airport.jp/en/flight/" target="_blank" rel="noopener">成田官網</a>}
-      {f.viaHaneda && <a href="https://tokyo-haneda.com/en/flight/" target="_blank" rel="noopener">羽田官網</a>}
-      {f.viaTaoyuan && <a href="https://www.taoyuan-airport.com/flight_depart" target="_blank" rel="noopener">桃園官網</a>}
+      {f.viaNarita && <a href="https://www.narita-airport.jp/en/flight/" target="_blank" rel="noopener">{t("成田官網")}</a>}
+      {f.viaHaneda && <a href="https://tokyo-haneda.com/en/flight/" target="_blank" rel="noopener">{t("羽田官網")}</a>}
+      {f.viaTaoyuan && <a href="https://www.taoyuan-airport.com/flight_depart" target="_blank" rel="noopener">{t("桃園官網")}</a>}
     </span>
   );
 }
 
 function Meta({ res, f, today }: { res: Result | undefined; f: NonNullable<ReturnType<typeof parseFlight>>; today: boolean }) {
-  const when = res?.fetchedAt ? new Date(res.fetchedAt).toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
-  const phaseLabel = res?.phase === "live" ? "當天即時" : res?.phase === "eve" ? "出發前一天查的" : res?.phase === "info" ? "新增時查的" : today ? "即時" : "";
+  const when = res?.fetchedAt ? new Date(res.fetchedAt).toLocaleString(lang === "en" ? "en-US" : "zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
+  const phaseLabel = res?.phase === "live" ? t("當天即時") : res?.phase === "eve" ? t("出發前一天查的") : res?.phase === "info" ? t("新增時查的") : today ? t("即時") : "";
   const src = res?.statuses[0]?.source;
-  const upd = !res?.fetchedAt && res?.statuses[0]?.updated ? `更新 ${res.statuses[0].updated.slice(-5)}` : null;
-  return <div className="fl-status muted">{src && `資料來源：${src}`}{phaseLabel && `・${phaseLabel}`}{when && `・${when}`}{upd && `・${upd}`}{res?.note && `・${res.note}`} <Links f={f} /></div>;
+  const upd = !res?.fetchedAt && res?.statuses[0]?.updated ? t("更新 {time}", { time: res.statuses[0].updated.slice(-5) }) : null;
+  return <div className="fl-status muted">{src && t("資料來源：{src}", { src: t(src) })}{phaseLabel && `${t("・")}${phaseLabel}`}{when && `${t("・")}${when}`}{upd && `${t("・")}${upd}`}{res?.note && `${t("・")}${t(res.note)}`} <Links f={f} /></div>;
 }
 
 function Line({ st, today }: { st: Status; today: boolean }) {
@@ -118,13 +119,13 @@ function Line({ st, today }: { st: Status; today: boolean }) {
   return (
     <div className={`fl-status live ${today ? toneOf(st) : ""}`}>
       <span className="fl-tag">{st.airportName}{today ? " LIVE" : ""}</span>
-      <span>{st.kind === "arr" ? "抵達" : "起飛"}{today ? "預定" : "表定"} {st.sched}{today && st.actual ? `，實際 ${st.actual}` : today && st.est ? `，預計 ${st.est}` : ""}{today && delay && `（${delay}）`}</span>
-      {today && st.remark && <span className="fl-remark">{st.remark}</span>}
+      <span>{st.kind === "arr" ? (today ? t("抵達預定 {time}", { time: st.sched }) : t("抵達表定 {time}", { time: st.sched })) : (today ? t("起飛預定 {time}", { time: st.sched }) : t("起飛表定 {time}", { time: st.sched }))}{today && st.actual ? t("，實際 {time}", { time: st.actual }) : today && st.est ? t("，預計 {time}", { time: st.est }) : ""}{today && delay && t("（{text}）", { text: delay })}</span>
+      {today && st.remark && <span className="fl-remark">{t(st.remark)}</span>}
       <span className="muted">
         {st.terminal && `T${st.terminal} `}
-        {today && st.gate ? `登機門 ${st.gate}` : st.kind === "dep" ? (today ? "登機門未公布" : "登機門當天公布") : ""}
-        {today && st.counter && st.kind === "dep" && `・櫃台 ${st.counter}`}
-        {today && st.baggage && st.kind === "arr" && `・行李轉盤 ${st.baggage}`}
+        {today && st.gate ? t("登機門 {gate}", { gate: st.gate }) : st.kind === "dep" ? (today ? t("登機門未公布") : t("登機門當天公布")) : ""}
+        {today && st.counter && st.kind === "dep" && t("・櫃台 {n}", { n: st.counter })}
+        {today && st.baggage && st.kind === "arr" && t("・行李轉盤 {n}", { n: st.baggage })}
       </span>
     </div>
   );
@@ -134,9 +135,9 @@ function Line({ st, today }: { st: Status; today: boolean }) {
 export function FlightStatus({ text, date }: { text: string; date?: string }) {
   const { f, res, err, today, isLive } = useFlightStatus(text, date);
   if (!f) return null;
-  if (err) return <div className="fl-status muted">即時狀態抓不到：{err} <Links f={f} /></div>;
-  if (res === undefined) return <div className="fl-status muted">航班狀態載入中…</div>;
-  if (res.statuses.length === 0) return <div className="fl-status muted">{today ? "今天還查不到" : "還沒有"} {f.code} 的航班資料{res.note ? `（${res.note}）` : ""} <Links f={f} /></div>;
+  if (err) return <div className="fl-status muted">{t("即時狀態抓不到：{err}", { err: t(err) })} <Links f={f} /></div>;
+  if (res === undefined) return <div className="fl-status muted">{t("航班狀態載入中…")}</div>;
+  if (res.statuses.length === 0) return <div className="fl-status muted">{today ? t("今天還查不到 {code} 的航班資料", { code: f.code }) : t("還沒有 {code} 的航班資料", { code: f.code })}{res.note ? t("（{text}）", { text: t(res.note) }) : ""} <Links f={f} /></div>;
   return <>{res.statuses.map((st) => <Line key={st.airport + st.kind} st={st} today={isLive} />)}<Meta res={res} f={f} today={today} /></>;
 }
 
@@ -147,33 +148,33 @@ export function FlightCard({ text, date }: { text: string; date?: string }) {
   const dep = res?.statuses.find((s) => s.kind === "dep");
   const arr = res?.statuses.find((s) => s.kind === "arr");
   const main = dep ?? arr;
-  const status = isLive && main ? (main.actual && main.kind === "dep" ? (main.remark || "已起飛") : main.remark || delayText(main) || "") : "";
+  const status = isLive && main ? (main.actual && main.kind === "dep" ? (t(main.remark) || t("已起飛")) : t(main.remark) || delayText(main) || "") : "";
   const delay = isLive && main ? delayText(main) : "";
   const tone = isLive && main ? toneOf(main) : "";
   const gate = isLive ? (dep?.gate || (arr && !dep ? arr.gate : "")) : "";
-  const gateLabel = gate ? `登機門 ${gate}` : today ? "登機門 未公布" : "登機門 當天公布";
+  const gateLabel = gate ? t("登機門 {gate}", { gate }) : today ? t("登機門 未公布") : t("登機門 當天公布");
   return (
     <div className={`flightcard ${tone}`}>
       <div className="fc-top">
         <span className="fc-code"><ModeIcon mode="flight" />{f.airlineName && f.airlineName !== f.code ? `${f.airlineName} ` : ""}{f.code}</span>
-        {(status || delay) && <span className={`fc-status ${tone}`}>{status}{delay && status !== delay ? `・${delay}` : ""}</span>}
-        {!isLive && today && res && res.statuses.length > 0 && <span className="fc-status">今天的即時資料載入中</span>}
+        {(status || delay) && <span className={`fc-status ${tone}`}>{status}{delay && status !== delay ? `${t("・")}${delay}` : ""}</span>}
+        {!isLive && today && res && res.statuses.length > 0 && <span className="fc-status">{t("今天的即時資料載入中")}</span>}
       </div>
       <div className="fc-route">{f.route}</div>
       {main && (isLive || res?.phase) && (
         <div className="fc-times muted">
-          {dep && <span>起飛{isLive ? "預定" : "表定"} {dep.sched}{isLive && dep.actual ? `・實際 ${dep.actual}` : isLive && dep.est ? `・預計 ${dep.est}` : ""}</span>}
-          {arr && <span>抵達{isLive ? "預定" : "表定"} {arr.sched}{isLive && arr.actual ? `・實際 ${arr.actual}` : isLive && arr.est ? `・預計 ${arr.est}` : ""}</span>}
+          {dep && <span>{isLive ? t("起飛預定 {time}", { time: dep.sched }) : t("起飛表定 {time}", { time: dep.sched })}{isLive && dep.actual ? t("・實際 {time}", { time: dep.actual }) : isLive && dep.est ? t("・預計 {time}", { time: dep.est }) : ""}</span>}
+          {arr && <span>{isLive ? t("抵達預定 {time}", { time: arr.sched }) : t("抵達表定 {time}", { time: arr.sched })}{isLive && arr.actual ? t("・實際 {time}", { time: arr.actual }) : isLive && arr.est ? t("・預計 {time}", { time: arr.est }) : ""}</span>}
         </div>
       )}
       <div className="fc-gate">
         <span className={`fc-big${gate ? "" : " quiet"}`}>{gateLabel}</span>
         {dep?.terminal && <span className="fc-mid">T{dep.terminal}</span>}
-        {isLive && dep?.counter && <span className="fc-mid">櫃台 {dep.counter}</span>}
-        {isLive && arr?.baggage && <span className="fc-mid">行李轉盤 {arr.baggage}</span>}
+        {isLive && dep?.counter && <span className="fc-mid">{t("櫃台 {n}", { n: dep.counter })}</span>}
+        {isLive && arr?.baggage && <span className="fc-mid">{t("行李轉盤 {n}", { n: arr.baggage })}</span>}
       </div>
       {f.extra && <div className="fc-extra muted">{f.extra}</div>}
-      {err ? <div className="fl-status muted">即時狀態抓不到：{err} <Links f={f} /></div> : res === undefined ? <div className="fl-status muted">載入中…</div> : <Meta res={res} f={f} today={today} />}
+      {err ? <div className="fl-status muted">{t("即時狀態抓不到：{err}", { err: t(err) })} <Links f={f} /></div> : res === undefined ? <div className="fl-status muted">{t("載入中…")}</div> : <Meta res={res} f={f} today={today} />}
     </div>
   );
 }

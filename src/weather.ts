@@ -2,6 +2,8 @@
 // Forecast covers ~16 days ahead; before that we show the average of past years for the same dates.
 // Places: a built-in list of common cities, plus anything else a trip mentions, looked up once via Open-Meteo's geocoder.
 
+import { t } from "./i18n";
+
 export interface Place { key: string; name: string; lat: number; lon: number }
 
 export const KNOWN_PLACES: Place[] = [
@@ -101,8 +103,8 @@ export function placesFor(date: string, city: string, dayPlaces?: Record<string,
 }
 
 export function roleOf(n: number, i: number) {
-  if (n < 2) return "整天";
-  return i === 0 ? "出發地" : i === n - 1 ? "目的地" : "途中";
+  if (n < 2) return t("整天");
+  return i === 0 ? t("出發地") : i === n - 1 ? t("目的地") : t("途中");
 }
 
 export interface DayWeather {
@@ -221,16 +223,16 @@ function simplify(c: number) {
 
 export type WIcon = "sun" | "partly" | "cloud" | "fog" | "rain" | "snow" | "storm";
 export function describe(code: number): { label: string; icon: WIcon } {
-  if (code === 0) return { label: "晴", icon: "sun" };
-  if (code <= 2) return { label: "晴時多雲", icon: "partly" };
-  if (code === 3) return { label: "陰", icon: "cloud" };
-  if (code <= 48) return { label: "有霧", icon: "fog" };
-  if (code <= 57) return { label: "毛毛雨", icon: "rain" };
-  if (code <= 67) return { label: code >= 66 ? "凍雨" : "雨", icon: "rain" };
-  if (code <= 77) return { label: "雪", icon: "snow" };
-  if (code <= 82) return { label: "陣雨", icon: "rain" };
-  if (code <= 86) return { label: "陣雪", icon: "snow" };
-  return { label: "雷雨", icon: "storm" };
+  if (code === 0) return { label: t("晴"), icon: "sun" };
+  if (code <= 2) return { label: t("晴時多雲"), icon: "partly" };
+  if (code === 3) return { label: t("陰"), icon: "cloud" };
+  if (code <= 48) return { label: t("有霧"), icon: "fog" };
+  if (code <= 57) return { label: t("毛毛雨"), icon: "rain" };
+  if (code <= 67) return { label: code >= 66 ? t("凍雨") : t("雨"), icon: "rain" };
+  if (code <= 77) return { label: t("雪"), icon: "snow" };
+  if (code <= 82) return { label: t("陣雨"), icon: "rain" };
+  if (code <= 86) return { label: t("陣雪"), icon: "snow" };
+  return { label: t("雷雨"), icon: "storm" };
 }
 
 /** Merge: forecast wins where it exists; otherwise the past-years average. */

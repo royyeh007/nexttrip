@@ -18,7 +18,8 @@ const SYSTEM = `你是旅遊網站「其他資訊」頁的排版小幫手。使�
 - 只輸出 Markdown，不要前言、不要說明你做了什麼。`;
 
 Deno.serve(handle(async (req) => {
-  const body = await readJson<{ trip_id?: string; text?: unknown; title?: unknown }>(req, 100_000);
+  const body = await readJson<{ trip_id?: string; text?: unknown; title?: unknown; lang?: unknown }>(req, 100_000);
+  const english = body.lang === "en";
   const { admin, trip, uid } = await requireMember(req, body, { editor: true });
   const text = (typeof body.text === "string" ? body.text : "").trim();
   const title = (typeof body.title === "string" ? body.title : "").replace(/\s+/g, " ").trim().slice(0, 60);
@@ -35,7 +36,8 @@ Deno.serve(handle(async (req) => {
       // 整理後的長度和原文差不多，中文一個字大約一個 token 以上；原本 3000 會把 3000 字以上的中文截掉
       max_tokens: 10000,
       output_config: { effort: "low" },
-      system: SYSTEM,
+      // 介面選英文的人：整理成英文（原文的店名、商品名、數字照樣保留）
+      system: english ? SYSTEM + "\n- 這位使用者的介面是英文：整頁用自然的英文寫（上面「用繁體中文」「翻成中文」的規則改成用英文、翻成英文）；店名、商品名保留原文，後面可以用括號補英文。「待確認」那一節的標題寫成「## To confirm」。" : SYSTEM,
       messages: [{ role: "user", content: `${title ? `標題（使用者填的，請沿用）：${title}\n` : ""}原文：\n${text}` }],
     });
   } catch (e) {

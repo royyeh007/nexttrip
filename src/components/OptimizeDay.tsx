@@ -5,6 +5,7 @@ import type { Day, Item, Stop } from "../data";
 import { invoke } from "../supabase";
 import { useTrip } from "../trip";
 import { editDayItems } from "../dayEdit";
+import { t, lang } from "../i18n";
 
 interface Result {
   changed: boolean; kmBefore: number; kmAfter: number; order: number[]; before: number[];
@@ -27,17 +28,17 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
 
   const run = async () => {
     if (!current) return;
-    setBusy("定位地點、計算最短路線中（第一次會比較久，約 10–40 秒）…"); setErr(null); setRes(null);
+    setBusy(t("定位地點、計算最短路線中（第一次會比較久，約 10–40 秒）…")); setErr(null); setRes(null);
     try {
-      const r = await invoke<Result>("optimize-day", { trip_id: current.id, date_id: day.id, city: day.city, items: day.items, movable: [...movable] });
+      const r = await invoke<Result>("optimize-day", { trip_id: current.id, date_id: day.id, city: day.city, items: day.items, movable: [...movable], lang });
       setRes(r);
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setErr(e instanceof Error ? t(e.message) : String(e)); }
     finally { setBusy(null); }
   };
 
   const apply = async () => {
     if (!current || !res) return;
-    setBusy("套用中…"); setErr(null);
+    setBusy(t("套用中…")); setErr(null);
     const names = stops.map((s) => s.n).join("|");
     const e = await editDayItems(current.id, day, (fresh) => {
       const cur = fresh.filter((it): it is Stop => !isLeg(it));
@@ -48,7 +49,7 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
       return res.items.map((it) => (isLeg(it) ? it : sharedOf.get(it.n) ?? { ...it, ...(memoOf.get(it.n)?.length ? { memo: memoOf.get(it.n) } : {}), ...(peopleOf.get(it.n) ? { people: peopleOf.get(it.n) } : {}), ...(cur.find((s) => s.n === it.n)?.par ? { par: cur.find((s) => s.n === it.n)!.par } : {}) }));
     });
     setBusy(null);
-    if (e) { setErr(e.startsWith("這個地點") ? "這一天剛剛被別人改過了，請關掉重新計算" : e); return; }
+    if (e) { setErr(e.startsWith("這個地點") || e === t("這個地點已經被改掉了，重新打開再試") ? t("這一天剛剛被別人改過了，請關掉重新計算") : t(e)); return; }
     await reload();
     onClose();
   };
@@ -56,8 +57,8 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
   const saved = res ? Math.round((1 - res.kmAfter / Math.max(res.kmBefore, 0.01)) * 100) : 0;
   return (
     <div className="panel optimize">
-      <h3>優化 {day.d} 的順序</h3>
-      <p className="note">勾選可以調動順序的地點；起點、終點、有訂位的、用餐和車站機場預設不動（可以自己勾）。按「計算」會依地點之間的距離找出移動最短的順序，你看過沒問題再套用。</p>
+      <h3>{t("優化 {d} 的順序", { d: day.d })}</h3>
+      <p className="note">{t("勾選可以調動順序的地點；起點、終點、有訂位的、用餐和車站機場預設不動（可以自己勾）。按「計算」會依地點之間的距離找出移動最短的順序，你看過沒問題再套用。")}</p>
       {!res && (
         <>
           <ul className="optlist">
@@ -69,17 +70,17 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
                     <input type="checkbox" checked={!locked && movable.has(i)} disabled={locked || !!busy} onChange={() => toggle(i)} />
                     <span className="t">{s.t}</span>
                     <span className="n">{s.n}</span>
-                    {locked && <span className="tag none">{i === 0 ? "起點" : "終點"}</span>}
-                    {!locked && s.st === "ok" && <span className="tag shared">已訂位</span>}
-                    {!locked && s.st !== "ok" && timeBound(s) && <span className="tag none">有時間性</span>}
+                    {locked && <span className="tag none">{i === 0 ? t("起點") : t("終點")}</span>}
+                    {!locked && s.st === "ok" && <span className="tag shared">{t("已訂位")}</span>}
+                    {!locked && s.st !== "ok" && timeBound(s) && <span className="tag none">{t("有時間性")}</span>}
                   </label>
                 </li>
               );
             })}
           </ul>
           <div className="actions">
-            <button type="button" className="btn primary" onClick={run} disabled={!!busy || movable.size === 0}>{busy ? "計算中…" : "計算最佳順序"}</button>
-            <button type="button" className="btn" onClick={onClose} disabled={!!busy}>取消</button>
+            <button type="button" className="btn primary" onClick={run} disabled={!!busy || movable.size === 0}>{busy ? t("計算中…") : t("計算最佳順序")}</button>
+            <button type="button" className="btn" onClick={onClose} disabled={!!busy}>{t("取消")}</button>
           </div>
           {busy && <p className="note">{busy}</p>}
         </>
@@ -88,8 +89,8 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
         <>
           <div className="optsum">
             {res.changed
-              ? <><b>{res.kmBefore} km → {res.kmAfter} km</b>{saved > 0 && <span className="tag shared">省 {saved}%</span>}</>
-              : <b>現在的順序已經是最短的了（約 {res.kmBefore} km）</b>}
+              ? <><b>{res.kmBefore} km → {res.kmAfter} km</b>{saved > 0 && <span className="tag shared">{t("省 {n}%", { n: saved })}</span>}</>
+              : <b>{t("現在的順序已經是最短的了（約 {km} km）", { km: res.kmBefore })}</b>}
           </div>
           <ol className="optlist result">
             {res.order.map((i, pos) => {
@@ -97,21 +98,21 @@ export function OptimizeDay({ day, onClose }: { day: Day; onClose: () => void })
               const moved = i !== pos;
               return (
                 <li key={i} className={moved ? "moved" : ""}>
-                  <span className="t">{s.newT}{s.newT !== s.t && <small>原 {s.t}</small>}</span>
+                  <span className="t">{s.newT}{s.newT !== s.t && <small>{t("原 {time}", { time: s.t })}</small>}</span>
                   <span className="n">{s.n}</span>
-                  {moved && <span className="tag own">移動</span>}
-                  {s.source === "estimate" && <span className="tag none" title="找不到精確座標，用 AI 估計的位置">座標估計</span>}
-                  {!s.ll && <span className="tag none">沒座標</span>}
+                  {moved && <span className="tag own">{t("移動")}</span>}
+                  {s.source === "estimate" && <span className="tag none" title={t("找不到精確座標，用 AI 估計的位置")}>{t("座標估計")}</span>}
+                  {!s.ll && <span className="tag none">{t("沒座標")}</span>}
                 </li>
               );
             })}
           </ol>
           {res.warnings.length > 0 && <ul className="notes">{res.warnings.map((w, i) => <li key={i}><MenuIcon name="warn" size={14} />{w}</li>)}</ul>}
-          <p className="note">只算距離，不知道營業時間和你們想先做什麼，所以順序當參考。沒訂位的地點，時間是在前後固定點之間平均分配的，套用後可以再點進去微調；新的交通段會標「待確認」。距離是直線距離，實際路程會更長一些。</p>
+          <p className="note">{t("只算距離，不知道營業時間和你們想先做什麼，所以順序當參考。沒訂位的地點，時間是在前後固定點之間平均分配的，套用後可以再點進去微調；新的交通段會標「待確認」。距離是直線距離，實際路程會更長一些。")}</p>
           <div className="actions">
-            {res.changed && <button type="button" className="btn primary" onClick={apply} disabled={!!busy}>{busy ? "套用中…" : "套用這個順序"}</button>}
-            <button type="button" className="btn" onClick={() => setRes(null)} disabled={!!busy}>重新選擇</button>
-            <button type="button" className="btn" onClick={onClose} disabled={!!busy}>關閉</button>
+            {res.changed && <button type="button" className="btn primary" onClick={apply} disabled={!!busy}>{busy ? t("套用中…") : t("套用這個順序")}</button>}
+            <button type="button" className="btn" onClick={() => setRes(null)} disabled={!!busy}>{t("重新選擇")}</button>
+            <button type="button" className="btn" onClick={onClose} disabled={!!busy}>{t("關閉")}</button>
           </div>
         </>
       )}

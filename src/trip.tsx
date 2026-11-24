@@ -7,6 +7,7 @@ import { labelOf as labelIn } from "./data";
 import type { ContactRow, Day, Family, FamilyId, InfoBlock, InfoPage, Member, Membership, TodoRow, Trip } from "./data";
 import type { Card } from "./cards";
 import { setTimezone } from "./now";
+import { t } from "./i18n";
 
 export interface TripData { families: Family[]; days: Day[]; todos: TodoRow[]; contacts: ContactRow[]; notes: Record<string, string>; info: InfoPage[] }
 /** 信用卡：大家共用的卡片庫 + 這個人勾了哪幾張。`available` false = 資料庫還沒升級（沒有這兩張表）。 */
@@ -58,8 +59,8 @@ const EMPTY: TripData = { families: [], days: [], todos: [], contacts: [], notes
 const NO_CARDS: CardsState = { ready: false, available: true, catalog: [], mine: [] };
 const TripContext = createContext<Ctx | null>(null);
 
-const NO_COPY = "沒有網路，這支手機上也沒有存過這個行程。連上網路後再試";
-const friendly = (msg: string) => (/abort|timed? ?out|timeout/i.test(msg) ? "網路太慢，等太久沒有回應" : /failed to fetch|network|load failed/i.test(msg) ? "連不上伺服器（沒有網路？）" : msg);
+const NO_COPY = t("沒有網路，這支手機上也沒有存過這個行程。連上網路後再試");
+const friendly = (msg: string) => (/abort|timed? ?out|timeout/i.test(msg) ? t("網路太慢，等太久沒有回應") : /failed to fetch|network|load failed/i.test(msg) ? t("連不上伺服器（沒有網路？）") : t(msg));
 /** "The table is not there" (database not upgraded yet), as opposed to a network hiccup. */
 const missingTable = (e: PostgrestError | null) => !!e && (e.code === "42P01" || e.code === "PGRST205" || /does not exist|schema cache/i.test(e.message));
 
@@ -402,7 +403,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
   const families = trip.families;
   const labelOf = useCallback((id: FamilyId) => labelIn(families, id), [families]);
-  const syncState = useMemo<SyncState>(() => ({ message: readOnly ? "沒有網路，登入狀態沒辦法更新" : sync.message, at: sync.at, offline: readOnly }), [sync, readOnly]);
+  const syncState = useMemo<SyncState>(() => ({ message: readOnly ? t("沒有網路，登入狀態沒辦法更新") : sync.message, at: sync.at, offline: readOnly }), [sync, readOnly]);
 
   return (
     <TripContext.Provider value={{

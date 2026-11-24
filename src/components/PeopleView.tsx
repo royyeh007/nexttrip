@@ -9,9 +9,11 @@ import type { Household, HouseholdPerson, PersonKind, TripPerson } from "../peop
 import { editDayItems, findStop } from "../dayEdit";
 import { sharedFamilies, syncShared } from "../shared";
 import { MenuIcon } from "./Logo";
+import { t, tr } from "../i18n";
 
-const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const kindText = (p: { kind: PersonKind; age: number | null }) => (p.kind === "adult" ? "大人" : p.age !== null ? `小孩・${p.age} 歲` : "小孩");
+const msgOf = (e: unknown) => t(e instanceof Error ? e.message : String(e));
+const DOT = t("・");
+const kindText = (p: { kind: PersonKind; age: number | null }) => (p.kind === "adult" ? t("大人") : p.age !== null ? t("小孩・{age} 歲", { age: p.age }) : t("小孩"));
 
 interface Draft { id: string | null; name: string; kind: PersonKind; age: string; birthday: string; note: string }
 const blank: Draft = { id: null, name: "", kind: "child", age: "", birthday: "", note: "" };
@@ -21,16 +23,16 @@ const ageOf = (d: Draft) => (d.kind === "child" && !d.birthday && d.age.trim() !
 function PersonForm({ d, set, withBirthday }: { d: Draft; set: (d: Draft) => void; withBirthday: boolean }) {
   return (
     <div className="formgrid">
-      <label>名字<input value={d.name} onChange={(e) => set({ ...d, name: e.target.value })} maxLength={40} placeholder="例：安安" /></label>
-      <label>大人或小孩
+      <label>{t("名字")}<input value={d.name} onChange={(e) => set({ ...d, name: e.target.value })} maxLength={40} placeholder={t("例：安安")} /></label>
+      <label>{t("大人或小孩")}
         <select value={d.kind} onChange={(e) => set({ ...d, kind: e.target.value as PersonKind })}>
-          <option value="child">小孩</option>
-          <option value="adult">大人</option>
+          <option value="child">{t("小孩")}</option>
+          <option value="adult">{t("大人")}</option>
         </select>
       </label>
-      {d.kind === "child" && <label>年齡{withBirthday && "（有填生日就不用填）"}<input type="number" inputMode="numeric" min={0} max={17} value={d.age} disabled={withBirthday && !!d.birthday} onChange={(e) => set({ ...d, age: e.target.value })} placeholder="例：7" /></label>}
-      {d.kind === "child" && withBirthday && <label>生日（可空；填了年齡每年自動更新）<input type="date" value={d.birthday} onChange={(e) => set({ ...d, birthday: e.target.value })} /></label>}
-      <label>備註（可空）<input value={d.note} onChange={(e) => set({ ...d, note: e.target.value })} maxLength={200} placeholder="例：不吃牛、對花生過敏、要兒童椅" /></label>
+      {d.kind === "child" && <label>{withBirthday ? t("年齡（有填生日就不用填）") : t("年齡")}<input type="number" inputMode="numeric" min={0} max={17} value={d.age} disabled={withBirthday && !!d.birthday} onChange={(e) => set({ ...d, age: e.target.value })} placeholder={t("例：7")} /></label>}
+      {d.kind === "child" && withBirthday && <label>{t("生日（可空；填了年齡每年自動更新）")}<input type="date" value={d.birthday} onChange={(e) => set({ ...d, birthday: e.target.value })} /></label>}
+      <label>{t("備註（可空）")}<input value={d.note} onChange={(e) => set({ ...d, note: e.target.value })} maxLength={200} placeholder={t("例：不吃牛、對花生過敏、要兒童椅")} /></label>
     </div>
   );
 }
@@ -60,42 +62,42 @@ export function HouseholdPanel() {
   };
 
   if (ready === "loading") return null;
-  if (ready === "notready") return <div className="panel"><h3>我的家人</h3><p className="note">這個功能要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。</p></div>;
-  if (ready === "error" || !house) return <div className="panel"><h3>我的家人</h3><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>再試一次</button></div>;
+  if (ready === "notready") return <div className="panel"><h3>{t("我的家人")}</h3><p className="note">{tr("這個功能要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>）。", { code: (c) => <code>{c}</code> })}</p></div>;
+  if (ready === "error" || !house) return <div className="panel"><h3>{t("我的家人")}</h3><p className="err">{msg}</p><button type="button" className="btn" onClick={load}>{t("再試一次")}</button></div>;
 
   const edit = (p: HouseholdPerson) => setDraft({ id: p.id, name: p.name, kind: p.kind, age: p.birthday || p.age === null ? "" : String(p.age), birthday: p.birthday ?? "", note: p.note });
   const save = () => draft && run(async () => {
     await peopleApi.savePerson({ id: draft.id, name: draft.name.trim(), kind: draft.kind, age: ageOf(draft), birthday: draft.kind === "child" && draft.birthday ? draft.birthday : null, note: draft.note.trim() });
     setDraft(null);
-  }, "已儲存");
+  }, t("已儲存"));
   // a friend with an account joins the list in one step: make the adult, then tie it to their account (undo the first half if the second fails)
   const addFriend = (f: Person) => run(async () => {
     const id = await peopleApi.savePerson({ id: null, name: f.name, kind: "adult", age: null, birthday: null, note: "" });
     try { await peopleApi.linkAdult(id, f.user_id); }
     catch (e) { await peopleApi.removePerson(id).catch(() => { /* leave it: it shows in the list and can be removed by hand */ }); throw e; }
     setPicking(false);
-  }, `已經把 ${f.name} 加進來，他現在也能管理這份名單`);
+  }, t("已經把 {name} 加進來，他現在也能管理這份名單", { name: f.name }));
   const accounts = house.people.filter((p) => p.user_id).length;
   const linkable = friends.filter((f) => !house.people.some((p) => p.user_id === f.user_id));
 
   return (
     <div className="panel admin">
-      <h3>我的家人（{house.people.length}）</h3>
-      <p className="note">把會一起旅行的家人加進來，大人、小孩都可以，不需要有帳號。進到行程後勾選這趟誰會去，訂位、買票時就知道幾大幾小、小孩幾歲。生日只有你們家看得到。</p>
+      <h3>{t("我的家人（{n}）", { n: house.people.length })}</h3>
+      <p className="note">{t("把會一起旅行的家人加進來，大人、小孩都可以，不需要有帳號。進到行程後勾選這趟誰會去，訂位、買票時就知道幾大幾小、小孩幾歲。生日只有你們家看得到。")}</p>
       {house.people.map((p) => (
         <div key={p.id} className="invite person">
           <span className="pname">
-            <b>{p.name}{p.is_me && <span className="tag shared">你</span>}</b>
-            <small>{kindText(p)}{p.birthday && `・生日 ${p.birthday}`}{p.note && `・${p.note}`}{p.user_id && !p.is_me && `・帳號 ${p.email ?? ""}（可以一起管理這份名單）`}</small>
+            <b>{p.name}{p.is_me && <span className="tag shared">{t("你")}</span>}</b>
+            <small>{kindText(p)}{p.birthday && `${DOT}${t("生日 {date}", { date: p.birthday })}`}{p.note && `${DOT}${p.note}`}{p.user_id && !p.is_me && `${DOT}${t("帳號 {email}（可以一起管理這份名單）", { email: p.email ?? "" })}`}</small>
           </span>
-          <button type="button" className="link" disabled={busy} onClick={() => edit(p)}>編輯</button>
-          {p.kind === "adult" && !p.user_id && linkable.length > 0 && <button type="button" className="link" disabled={busy} onClick={() => setLinking(linking === p.id ? null : p.id)}>連結帳號</button>}
-          {p.user_id && accounts > 1 && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(p.is_me ? "離開這份家人名單？名單和你的名字都會留著，只是你不能再管理它；之後你會有一份自己的新名單。" : `解除 ${p.name} 的帳號連結？他會留在名單上，但不能再管理這份名單。`)) run(() => peopleApi.unlink(p.id)); }}>{p.is_me ? "離開名單" : "解除連結"}</button>}
-          {!p.user_id && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(`把 ${p.name} 從家人名單移除？他在各個行程的「誰會去」也會一起拿掉。`)) run(() => peopleApi.removePerson(p.id)); }}>移除</button>}
+          <button type="button" className="link" disabled={busy} onClick={() => edit(p)}>{t("編輯")}</button>
+          {p.kind === "adult" && !p.user_id && linkable.length > 0 && <button type="button" className="link" disabled={busy} onClick={() => setLinking(linking === p.id ? null : p.id)}>{t("連結帳號")}</button>}
+          {p.user_id && accounts > 1 && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(p.is_me ? t("離開這份家人名單？名單和你的名字都會留著，只是你不能再管理它；之後你會有一份自己的新名單。") : t("解除 {name} 的帳號連結？他會留在名單上，但不能再管理這份名單。", { name: p.name }))) run(() => peopleApi.unlink(p.id)); }}>{p.is_me ? t("離開名單") : t("解除連結")}</button>}
+          {!p.user_id && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(t("把 {name} 從家人名單移除？他在各個行程的「誰會去」也會一起拿掉。", { name: p.name }))) run(() => peopleApi.removePerson(p.id)); }}>{t("移除")}</button>}
           {linking === p.id && (
             <div className="linkrow">
-              <span className="note">{p.name} 是哪一位好友？連結後他也能改這份名單。</span>
-              {linkable.map((f) => <button key={f.user_id} type="button" className="btn small" disabled={busy} onClick={() => run(async () => { await peopleApi.linkAdult(p.id, f.user_id); setLinking(null); }, `已經把 ${p.name} 連到 ${f.name} 的帳號`)}>{f.name}</button>)}
+              <span className="note">{t("{name} 是哪一位好友？連結後他也能改這份名單。", { name: p.name })}</span>
+              {linkable.map((f) => <button key={f.user_id} type="button" className="btn small" disabled={busy} onClick={() => run(async () => { await peopleApi.linkAdult(p.id, f.user_id); setLinking(null); }, t("已經把 {name} 連到 {friend} 的帳號", { name: p.name, friend: f.name }))}>{f.name}</button>)}
             </div>
           )}
         </div>
@@ -104,25 +106,25 @@ export function HouseholdPanel() {
         <>
           <PersonForm d={draft} set={setDraft} withBirthday />
           <div className="actions">
-            <button type="button" className="btn primary" disabled={busy || !draft.name.trim()} onClick={save}>{busy ? "儲存中…" : draft.id ? "儲存" : "加入名單"}</button>
-            <button type="button" className="btn" disabled={busy} onClick={() => setDraft(null)}>取消</button>
+            <button type="button" className="btn primary" disabled={busy || !draft.name.trim()} onClick={save}>{busy ? t("儲存中…") : draft.id ? t("儲存") : t("加入名單")}</button>
+            <button type="button" className="btn" disabled={busy} onClick={() => setDraft(null)}>{t("取消")}</button>
           </div>
         </>
       ) : picking ? (
         <div className="pickfriend">
-          <p className="note">選一位好友：他會以大人的身分加進名單，之後他也能修改這份名單、勾選這趟誰會去。</p>
+          <p className="note">{t("選一位好友：他會以大人的身分加進名單，之後他也能修改這份名單、勾選這趟誰會去。")}</p>
           <div className="chips">
             {linkable.map((f) => <button key={f.user_id} type="button" className="btn" disabled={busy} onClick={() => addFriend(f)}>{f.name}</button>)}
           </div>
-          <div className="actions"><button type="button" className="btn" disabled={busy} onClick={() => setPicking(false)}>取消</button></div>
+          <div className="actions"><button type="button" className="btn" disabled={busy} onClick={() => setPicking(false)}>{t("取消")}</button></div>
         </div>
       ) : (
         <>
           <div className="actions">
-            <button type="button" className="btn primary" onClick={() => setDraft(blank)}>＋ 加一位家人</button>
-            {linkable.length > 0 && <button type="button" className="btn" onClick={() => setPicking(true)}>＋ 加入有帳號的家人</button>}
+            <button type="button" className="btn primary" onClick={() => setDraft(blank)}>{t("＋ 加一位家人")}</button>
+            {linkable.length > 0 && <button type="button" className="btn" onClick={() => setPicking(true)}>{t("＋ 加入有帳號的家人")}</button>}
           </div>
-          {linkable.length === 0 && <p className="note">家裡另一位大人也有帳號？先和他互加好友（下面的「我的好友碼」），這裡就會多一個「加入有帳號的家人」，加進來之後他也能管理這份名單。</p>}
+          {linkable.length === 0 && <p className="note">{t("家裡另一位大人也有帳號？先和他互加好友（下面的「我的好友碼」），這裡就會多一個「加入有帳號的家人」，加進來之後他也能管理這份名單。")}</p>}
         </>
       )}
       {msg && <p className="note" role="status">{msg}</p>}
@@ -142,7 +144,7 @@ export function PeopleView() {
   useEffect(() => { peopleApi.household().then(setHouse, () => setHouse(null)); }, []);
 
   if (!tripId || !member) return null;
-  if (people === null) return <section className="dayhead"><h2>誰會去</h2><p className="note">這個功能要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>），或是現在連不上伺服器。</p></section>;
+  if (people === null) return <section className="dayhead"><h2>{t("誰會去")}</h2><p className="note">{tr("這個功能要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>），或是現在連不上伺服器。", { code: (c) => <code>{c}</code> })}</p></section>;
 
   const run = async (work: () => Promise<void>) => {
     if (busy) return;
@@ -161,12 +163,12 @@ export function PeopleView() {
   return (
     <>
       <section className="dayhead">
-        <h2>誰會去</h2>
-        <p className="note">全部 {people.length} 人：{headcount(people)}。訂位、買票時照這個數字；每個地點可以再選只有哪些人參加。</p>
+        <h2>{t("誰會去")}</h2>
+        <p className="note">{t("全部 {n} 人：{detail}。訂位、買票時照這個數字；每個地點可以再選只有哪些人參加。", { n: people.length, detail: headcount(people) })}</p>
       </section>
 
       <div className="panel admin">
-        <h3>我們家這趟誰會去</h3>
+        <h3>{t("我們家這趟誰會去")}</h3>
         {house && house.people.length > 0 ? (
           <div className="pickpeople">
             {house.people.map((p) => (
@@ -176,31 +178,31 @@ export function PeopleView() {
               </label>
             ))}
           </div>
-        ) : <p className="note">你的家人名單還是空的。</p>}
-        <p className="note">名單不對？到 <button type="button" className="link" onClick={openAccount}>帳號・好友 → 我的家人</button> 新增或修改，改一次每個行程都會跟著更新。</p>
+        ) : <p className="note">{t("你的家人名單還是空的。")}</p>}
+        <p className="note">{tr("名單不對？到 <btn>帳號・好友 → 我的家人</btn> 新增或修改，改一次每個行程都會跟著更新。", { btn: (c) => <button type="button" className="link" onClick={openAccount}>{c}</button> })}</p>
       </div>
 
       {trip.families.map((f) => {
         const list = people.filter((p) => p.family_id === f.id);
         return (
           <div key={f.id} className="panel admin">
-            <h3>{f.label}<small className="hc">{list.length ? `${list.length} 人：${headcount(list)}` : "還沒有人"}</small></h3>
+            <h3>{f.label}<small className="hc">{list.length ? t("{n} 人：{detail}", { n: list.length, detail: headcount(list) }) : t("還沒有人")}</small></h3>
             {list.map((p) => (
               <div key={p.id} className="invite person">
-                <span className="pname"><b>{p.name}{p.guest && <span className="tag none">代填</span>}</b><small>{kindText(p)}{p.note && `・${p.note}`}</small></span>
-                {p.guest && mayAddFor(f.id) && <button type="button" className="link" disabled={busy} onClick={() => setGuest({ id: p.id, family: f.id, name: p.name, kind: p.kind, age: p.age === null ? "" : String(p.age), birthday: "", note: p.note })}>編輯</button>}
-                {(admin || (p.guest && mayAddFor(f.id))) && !p.mine && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(`把 ${p.name} 從這個行程拿掉？`)) run(() => peopleApi.removeTripPerson(p.id)); }}>拿掉</button>}
+                <span className="pname"><b>{p.name}{p.guest && <span className="tag none">{t("代填")}</span>}</b><small>{kindText(p)}{p.note && `${DOT}${p.note}`}</small></span>
+                {p.guest && mayAddFor(f.id) && <button type="button" className="link" disabled={busy} onClick={() => setGuest({ id: p.id, family: f.id, name: p.name, kind: p.kind, age: p.age === null ? "" : String(p.age), birthday: "", note: p.note })}>{t("編輯")}</button>}
+                {(admin || (p.guest && mayAddFor(f.id))) && !p.mine && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(t("把 {name} 從這個行程拿掉？", { name: p.name }))) run(() => peopleApi.removeTripPerson(p.id)); }}>{t("拿掉")}</button>}
               </div>
             ))}
             {mayAddFor(f.id) && (guest?.family === f.id ? (
               <>
                 <PersonForm d={guest} set={(d) => setGuest({ ...d, family: f.id })} withBirthday={false} />
                 <div className="actions">
-                  <button type="button" className="btn primary" disabled={busy || !guest.name.trim()} onClick={saveGuest}>{guest.id ? "儲存" : "加入"}</button>
-                  <button type="button" className="btn" disabled={busy} onClick={() => setGuest(null)}>取消</button>
+                  <button type="button" className="btn primary" disabled={busy || !guest.name.trim()} onClick={saveGuest}>{guest.id ? t("儲存") : t("加入#add")}</button>
+                  <button type="button" className="btn" disabled={busy} onClick={() => setGuest(null)}>{t("取消")}</button>
                 </div>
               </>
-            ) : <button type="button" className="link" disabled={busy} onClick={() => setGuest({ ...blank, kind: "adult", family: f.id })}>＋ 幫這一家代填一位（沒有帳號的人）</button>)}
+            ) : <button type="button" className="link" disabled={busy} onClick={() => setGuest({ ...blank, kind: "adult", family: f.id })}>{t("＋ 幫這一家代填一位（沒有帳號的人）")}</button>)}
           </div>
         );
       })}
@@ -214,7 +216,7 @@ export function PeopleBanner() {
   const { current, member } = useTrip();
   const people = useTripPeople(current?.id);
   if (!member || !people || people.some((p) => p.mine)) return null;
-  return <a className="peoplebanner" href="#people"><MenuIcon name="people" size={20} />這趟你們家誰會去？點這裡勾選，訂位時就知道幾大幾小 ›</a>;
+  return <a className="peoplebanner" href="#people"><MenuIcon name="people" size={20} />{t("這趟你們家誰會去？點這裡勾選，訂位時就知道幾大幾小 ›")}</a>;
 }
 
 /** The people who can be at a stop: everyone going from the families that have this stop (a shared stop: all of them; otherwise the families this day belongs to). */
@@ -234,7 +236,7 @@ export function StopPeopleChip({ stop, day }: { stop: Stop; day: Day }) {
   // on a day several families share: when everyone going is from one family, say which (that is the exception worth seeing)
   const going = new Set(all.filter((p) => stop.people!.includes(p.id)).map((p) => p.family_id));
   const only = new Set(all.map((p) => p.family_id)).size > 1 && going.size === 1 ? trip.families.find((f) => f.id === [...going][0])?.label : null;
-  return <span className="who"><MenuIcon name="friends" size={14} />{only ? `只有${only}（${n} 人）` : `${n} 人`}</span>;
+  return <span className="who"><MenuIcon name="friends" size={14} />{only ? t("只有{family}（{n} 人）", { family: only, n }) : n === 1 ? t("1 人") : t("{n} 人", { n })}</span>;
 }
 
 /** 地點詳細頁：誰參加。預設全員；點名字可以拿掉或加回來。 */
@@ -264,24 +266,24 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
       return items.map((it, j) => (j === i ? s : it));
     });
     setBusy(false);
-    if (err) { setChosen(before); alert(err); return; }
+    if (err) { setChosen(before); alert(t(err)); return; }
     const warn = await syncShared(current.id, day, stop.sid, { people: next ?? null });
-    if (warn) alert(warn);
+    if (warn) alert(t(warn));
     await reload();
   };
   const toggle = (id: string) => {
     const ids = all.map((p) => p.id).filter((x) => (x === id ? !on(x) : on(x)));
     write(ids.length === all.length ? undefined : ids); // everyone again = drop the field, so people added to the trip later are in by default
   };
-  const text = `${selected.length} 人：${headcount(selected)}`;
-  const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { prompt("複製人數", text); } };
+  const text = t("{n} 人：{detail}", { n: selected.length, detail: headcount(selected) });
+  const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { prompt(t("複製人數"), text); } };
   const famLabel = (id: string) => trip.families.find((f) => f.id === id)?.label ?? id;
   const fams = [...new Set(all.map((p) => p.family_id))];
 
   return (
     <div className="sec stoppeople">
-      <h4>誰參加</h4>
-      <p><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? "已複製" : "複製"}</button></p>
+      <h4>{t("誰參加")}</h4>
+      <p><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? t("已複製") : t("複製")}</button></p>
       {fams.map((f) => (
         <div key={f} className="chips">
           {fams.length > 1 && <small>{famLabel(f)}</small>}
@@ -292,7 +294,7 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
           ))}
         </div>
       ))}
-      {editable && <p className="note">預設全員參加。點名字可以拿掉或加回來。{chosen && <> <button type="button" className="link" disabled={busy} onClick={() => write(undefined)}>改回全員</button></>}</p>}
+      {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{chosen && <> <button type="button" className="link" disabled={busy} onClick={() => write(undefined)}>{t("改回全員")}</button></>}</p>}
     </div>
   );
 }

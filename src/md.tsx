@@ -5,6 +5,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { InfoBlock } from "./data";
+import { t } from "./i18n";
 
 interface Item { text: string; sub: string[] }
 type Block =
@@ -101,7 +102,7 @@ export function inline(text: string): ReactNode[] {
 /** A small picture next to the text; tap to see it big. The one Lightbox lives in App and listens for this event. */
 function Thumb({ src, alt }: { src: string; alt: string }) {
   return (
-    <button type="button" className="thumb" onClick={() => openImage(src, alt)} title={alt ? `${alt}（點一下放大）` : "點一下放大"}>
+    <button type="button" className="thumb" onClick={() => openImage(src, alt)} title={alt ? t("{alt}（點一下放大）", { alt }) : t("點一下放大")}>
       <img src={src} alt={alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
     </button>
   );
@@ -129,8 +130,8 @@ export function Lightbox() {
   }, [img]);
   if (!img) return null;
   return (
-    <div className="lightbox" role="dialog" aria-modal="true" aria-label={img.alt || "放大的圖片"} onClick={() => setImg(null)}>
-      <button ref={closeRef} type="button" className="x" aria-label="關閉" onClick={() => setImg(null)}>×</button>
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label={img.alt || t("放大的圖片")} onClick={() => setImg(null)}>
+      <button ref={closeRef} type="button" className="x" aria-label={t("關閉")} onClick={() => setImg(null)}>×</button>
       <figure onClick={(e) => e.stopPropagation()}>
         <img src={img.src} alt={img.alt} referrerPolicy="no-referrer" />
         {img.alt && <figcaption>{img.alt}</figcaption>}
@@ -203,7 +204,7 @@ export function blocksToMd(blocks: InfoBlock[]): string {
         parts.push(lines.join("\n"));
         break;
       }
-      case "sources": parts.push(["### 資料來源", ...b.items.map((s) => `- [${s.t}](${s.u})`)].join("\n")); break;
+      case "sources": parts.push([`### ${t("資料來源")}`, ...b.items.map((s) => `- [${s.t}](${s.u})`)].join("\n")); break;
     }
   }
   return parts.join("\n\n");

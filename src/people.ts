@@ -2,6 +2,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "./supabase";
 import { NotReady } from "./friends";
+import { t, list } from "./i18n";
 
 export type PersonKind = "adult" | "child";
 /** One person on my family list. `age` = today; `birthday` is only ever sent to the people who manage this list. */
@@ -11,11 +12,11 @@ export interface Household { id: string; people: HouseholdPerson[] }
 export interface TripPerson { id: string; family_id: string; guest: boolean; name: string; kind: PersonKind; age: number | null; note: string; user_id: string | null; person_id: string | null; mine: boolean }
 
 async function call<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
-  if (!supabase) throw new Error("Supabase 還沒設定");
+  if (!supabase) throw new Error(t("Supabase 還沒設定"));
   const { data, error } = await supabase.rpc(fn, args);
   if (error) {
-    if (error.code === "PGRST202" || error.code === "42883") throw new NotReady("這個功能要先升級資料庫（make db-push）");
-    throw new Error(/failed to fetch|network|load failed/i.test(error.message) ? "連不上伺服器，檢查一下網路再試" : error.message);
+    if (error.code === "PGRST202" || error.code === "42883") throw new NotReady(t("這個功能要先升級資料庫（make db-push）"));
+    throw new Error(/failed to fetch|network|load failed/i.test(error.message) ? t("連不上伺服器，檢查一下網路再試") : t(error.message));
   }
   return data as T;
 }
@@ -38,12 +39,14 @@ export const peopleApi = {
 export function headcount(people: { kind: PersonKind; age: number | null }[]): string {
   const adults = people.filter((p) => p.kind === "adult").length;
   const kids = people.filter((p) => p.kind === "child");
-  if (!people.length) return "還沒有人";
+  if (!people.length) return t("還沒有人");
   const ages = kids.map((k) => k.age).filter((a): a is number => a !== null).sort((a, b) => a - b);
-  const kidText = kids.length ? `${kids.length} 小孩${ages.length ? `（${ages.join("、")} 歲${ages.length < kids.length ? "，其他沒填年齡" : ""}）` : ""}` : "";
-  return [adults ? `${adults} 大人` : "", kidText].filter(Boolean).join("＋");
+  const n = kids.length, a = list(ages.map(String));
+  const kidText = !n ? "" : !ages.length ? (n === 1 ? t("1 小孩") : t("{n} 小孩", { n })) : ages.length < n ? t("{n} 小孩（{ages} 歲，其他沒填年齡）", { n, ages: a }) : n === 1 ? t("1 小孩（{ages} 歲）", { ages: a }) : t("{n} 小孩（{ages} 歲）", { n, ages: a });
+  const adultText = !adults ? "" : adults === 1 ? t("1 大人") : t("{n} 大人", { n: adults });
+  return adultText && kidText ? t("{adults}＋{kids}", { adults: adultText, kids: kidText }) : adultText || kidText;
 }
-export const personLabel = (p: { name: string; kind: PersonKind; age: number | null }) => `${p.name}${p.kind === "child" ? (p.age !== null ? `（${p.age} 歲）` : "（小孩）") : ""}`;
+export const personLabel = (p: { name: string; kind: PersonKind; age: number | null }) => (p.kind === "child" ? (p.age !== null ? t("{name}（{age} 歲）", { name: p.name, age: p.age }) : t("{name}（小孩）", { name: p.name })) : p.name);
 
 // ---- 這個行程誰會去：行程頁、地點詳細頁、成員頁都要看，共用一份 ----
 /** `null` = not loaded, or the database has not been upgraded: the pages then simply leave the feature out. */

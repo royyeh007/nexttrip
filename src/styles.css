@@ -1210,3 +1210,11 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 .bd-rain{stroke-width:3;opacity:.85}
 .bd-rainfall{animation:bd-rainfall linear infinite}
 @keyframes bd-rainfall{from{translate:84px -40px}to{translate:-196px 912px}}
+
+/* 語言切換：帳號頁的選單、登入頁下面的兩顆小按鈕 */
+.langsel{flex:none;font:inherit;font-size:.9rem;padding:7px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.langpick{display:flex;justify-content:center;gap:6px;margin:18px 0 0}
+.langpick button{font:inherit;font-size:.84rem;padding:6px 14px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);cursor:pointer}
+.langpick button.on{border-color:var(--ink);color:var(--ink);font-weight:700}
+/* 英文：類別小圓章的字比中文一個字寬（Shop、Stay），改成膠囊形，不然會擠到時間 */
+html[lang="en"] .ovstops .k{width:auto;min-width:20px;padding:0 6px;border-radius:999px;letter-spacing:0}
