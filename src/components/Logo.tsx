@@ -6,8 +6,9 @@ export function LogoMark({ size = 44 }: { size?: number }) {
   return (
     <svg className="logo" viewBox="0 0 512 512" width={size} height={size} aria-hidden="true" focusable="false">
       <rect className="l-tile" width="512" height="512" rx="116" />
-      <path className="l-trail" d="M112 196 Q150 96 300 138" />
-      <g className="l-line l-plane">
+      {/* 虛線的尾端對準紙飛機的中線（機頭到機尾凹口那條線）：跟 public/icon.svg 同一組座標 */}
+      <path className="l-trail" d="M106 122 Q250 169 318 134" />
+      <g className="l-line l-plane" transform="translate(-9 -31) rotate(19 338 160)">
         <path d="M312 138 L392 106 L364 182 L347 153 Z" />
         <path d="M347 153 L392 106" />
       </g>
@@ -31,8 +32,9 @@ export function LogoMark({ size = 44 }: { size?: number }) {
 /** The paper plane on its own, for the start of the route line. */
 export function PaperPlane({ size = 18 }: { size?: number }) {
   return (
-    <svg className="logo plane" viewBox="300 94 104 100" width={size} height={size} aria-hidden="true" focusable="false">
-      <g className="l-line l-plane">
+    <svg className="logo plane" viewBox="316 98 104 92" width={size} height={size} aria-hidden="true" focusable="false">
+      {/* 轉成機身中線水平、機頭朝右：後面接的是一排橫的虛線（路線），方向要一致 */}
+      <g className="l-line l-plane" transform="rotate(46 352 144)">
         <path d="M312 138 L392 106 L364 182 L347 153 Z" />
         <path d="M347 153 L392 106" />
       </g>

@@ -23,6 +23,7 @@ import { MenuIcon, PaperPlane, PersonIcon } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
 import { AccountPage } from "./components/AccountView";
 import { setBackdropContext } from "./components/Backdrop";
+import { TripLoader } from "./components/Loader";
 import { describe, fetchCurrent, placeByKey, placesFor } from "./weather";
 import type { CurrentSky } from "./weather";
 import { PeopleBanner, PeopleView } from "./components/PeopleView";
@@ -69,9 +70,10 @@ function Loading() {
   const [slow, setSlow] = useState(false);
   useEffect(() => { const timer = setTimeout(() => setSlow(true), 7000); return () => clearTimeout(timer); }, []);
   return (
-    <Notice title={t("載入中…")}>
-      {slow && <><p>{t("網路有點慢，還在等回應。")}</p><div className="actions"><button type="button" className="btn" onClick={() => location.reload()}>{t("重新整理")}</button></div></>}
-    </Notice>
+    <div className="wrap pick loadingpage">
+      <TripLoader label={t("載入中…")} />
+      {slow && <div className="notice"><p>{t("網路有點慢，還在等回應。")}</p><div className="actions"><button type="button" className="btn" onClick={() => location.reload()}>{t("重新整理")}</button></div></div>}
+    </div>
   );
 }
 

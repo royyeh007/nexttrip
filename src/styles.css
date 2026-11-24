@@ -1249,3 +1249,44 @@ html[lang="en"] .ovstops .k{width:auto;min-width:20px;padding:0 6px;border-radiu
 .qpreminds{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .qpremind{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid var(--amber);border-radius:12px;background:var(--amber-soft);color:var(--ink);font-size:.9rem;font-weight:700;line-height:1.5}
 .qpremind .micon{flex:none;margin-top:2px}
+
+/* ---- 載入動畫（小行李箱往前跳、紙飛機飄、三顆小圓點） ---- */
+.loadingpage{min-height:70dvh;display:grid;align-content:center;justify-items:center;gap:14px}
+.loadingpage .notice{text-align:center}
+.loadingpage .actions{justify-content:center}
+.triploader{display:grid;justify-items:center;gap:2px}
+.triploader .ld{overflow:visible}
+/* logo 的航跡是白色（畫在黃底上）；這裡直接畫在頁面底色上，改用淡淡的墨色才看得到 */
+.triploader .l-trail,.ld-ground{stroke:var(--muted);opacity:.5}
+.ld-ground{fill:none;stroke-width:9;stroke-linecap:round;stroke-dasharray:2 22}
+.ld-shadow{fill:var(--ink);opacity:.13}
+.ld-hop,.ld-shadow,.ld-eye,.ld-plane{transform-box:fill-box}
+.ld-hop{transform-origin:50% 100%}
+.ld-shadow{transform-origin:50% 50%}
+.ld-eye{transform-origin:50% 50%}
+.ld-plane{transform-origin:20% 60%}
+.ld-label{margin:0;display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:800;font-size:1.15rem;color:var(--ink)}
+.ld-dots{display:inline-flex;gap:5px}
+.ld-dots span{display:block;flex:none;width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);box-sizing:border-box;background:var(--logo-red)}
+.ld-dots span:nth-child(2){background:#ffd257}
+.ld-dots span:nth-child(3){background:#7cc4e8}
+@media (prefers-reduced-motion:no-preference){
+  .ld-hop{animation:ld-hop .72s cubic-bezier(.3,0,.4,1) infinite}
+  .ld-shadow{animation:ld-shadow .72s cubic-bezier(.3,0,.4,1) infinite}
+  .ld-ground{animation:ld-run .72s linear infinite}
+  .ld-trail{animation:ld-trail .9s linear infinite}
+  .ld-plane{animation:ld-plane 2.4s ease-in-out infinite}
+  .ld-eye{animation:ld-blink 3.2s infinite}
+  .ld-dots span{animation:ld-dot .9s ease-in-out infinite}
+  .ld-dots span:nth-child(2){animation-delay:.15s}
+  .ld-dots span:nth-child(3){animation-delay:.3s}
+}
+/* 落地時壓扁一點、起跳時拉長一點，才有軟軟的感覺 */
+@keyframes ld-hop{0%,100%{transform:translateY(0) scale(1.05,.94)}18%{transform:translateY(-6px) scale(.97,1.04)}50%{transform:translateY(-34px) scale(1,1)}82%{transform:translateY(-6px) scale(.98,1.03)}}
+@keyframes ld-shadow{0%,100%{transform:scale(1);opacity:.15}50%{transform:scale(.72);opacity:.07}}
+@keyframes ld-run{to{stroke-dashoffset:48}}
+@keyframes ld-trail{from{stroke-dashoffset:22}to{stroke-dashoffset:0}}
+/* 飛機沿著自己的中線（右上 45 度）往前衝一點再退回來，只微微擺頭 */
+@keyframes ld-plane{0%,100%{transform:translate(0,0) rotate(0)}45%{transform:translate(10px,-10px) rotate(-2deg)}75%{transform:translate(3px,-3px) rotate(2deg)}}
+@keyframes ld-blink{0%,92%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(.12)}}
+@keyframes ld-dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}

@@ -3,9 +3,9 @@
        圖案都在中間 80% 的圓內（Android 會把圖示裁成圓形或圓角）。 -->
   <rect width="512" height="512" fill="#ffe7a8"/>
   <!-- 紙飛機飛過的虛線 -->
-  <path d="M112 196 Q150 96 300 138" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="2 20"/>
-  <!-- 紙飛機 -->
-  <g stroke="#1b2740" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M106 122 Q250 169 318 134" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="2 20"/>
+  <!-- 紙飛機：轉到機身的中線（機頭到機尾凹口）跟虛線尾端同一個方向，虛線從機尾正後方接上來 -->
+  <g transform="translate(-9 -31) rotate(19 338 160)" stroke="#1b2740" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
     <path d="M312 138 L392 106 L364 182 L347 153 Z" fill="#fff"/>
     <path d="M347 153 L392 106" fill="none"/>
   </g>

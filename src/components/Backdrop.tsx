@@ -119,7 +119,8 @@ const Stars = () => <>{Array.from({ length: 34 }, (_, i) => (
 /** The paper plane from the logo, with the dotted line it leaves behind. */
 const Plane = () => (
   <g transform="translate(0 300)">
-    <path className="bd-trail" d="M-10 150 Q110 40 250 92" />
+    {/* 虛線尾端對準飛機的中線（機頭 290,78 到機尾凹口 267,101 那條 45 度線），從機尾正後方接上來 */}
+    <path className="bd-trail" d="M-10 150 Q189 179 259 109" />
     <g className="bd-plane" transform="translate(250 78)">
       <path className="bd-o" fill="#fff" d="M0 16 L40 0 L26 38 L17 23 Z" />
       <path className="bd-o" fill="none" d="M17 23 L40 0" />
