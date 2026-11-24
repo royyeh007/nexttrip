@@ -241,3 +241,21 @@ export function merge(normals: WeatherMap, forecast: WeatherMap, dates: string[]
   for (const date of dates) out[date] = { ...(normals[date] ?? {}), ...(forecast[date] ?? {}) };
   return out;
 }
+
+// ---- 現在的天氣（給背景用）：那個地方「此刻」的天氣和它跟 UTC 差幾分鐘。行程面板上的是出發那天的預報或往年平均，兩者不一樣。 ----
+export interface CurrentSky { code: number; offsetMin: number }
+const currentCache = new Map<string, { at: number; v: CurrentSky }>();
+/** Weather right now at a place (cached 15 minutes in memory). Null when it cannot be fetched. */
+export async function fetchCurrent(place: Place): Promise<CurrentSky | null> {
+  const hit = currentCache.get(place.key);
+  if (hit && Date.now() - hit.at < 15 * 60_000) return hit.v;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=weather_code&timezone=auto`, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    const j = await r.json() as { utc_offset_seconds?: number; current?: { weather_code?: number } };
+    if (typeof j.current?.weather_code !== "number" || typeof j.utc_offset_seconds !== "number") return null;
+    const v = { code: j.current.weather_code, offsetMin: Math.round(j.utc_offset_seconds / 60) };
+    currentCache.set(place.key, { at: Date.now(), v });
+    return v;
+  } catch { return null; }
+}

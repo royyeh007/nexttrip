@@ -23,7 +23,8 @@ import { MenuIcon, PaperPlane, PersonIcon } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
 import { AccountPage } from "./components/AccountView";
 import { setBackdropContext } from "./components/Backdrop";
-import { describe, placesFor } from "./weather";
+import { describe, fetchCurrent, placeByKey, placesFor } from "./weather";
+import type { CurrentSky } from "./weather";
 import { PeopleBanner, PeopleView } from "./components/PeopleView";
 import { useInvitations, usePendingFriend } from "./friends";
 import { Login } from "./components/Login";
@@ -290,13 +291,28 @@ function Main() {
   useEffect(() => { document.title = `${fam.label}・${current?.name ?? t("行程")}`; }, [fam.label, current?.name]);
   // the backdrop follows the day on screen: its city (landmark), its date (season) and its weather there; on the other pages it keeps the last one
   const onScreen = days.find((d) => d.id === view);
-  const skyOnScreen = useMemo(() => {
+  // The backdrop shows that city as it is right now (time of day and current weather), not the forecast for the trip date.
+  // The place list fills in after the weather panel loads, so look the place up again when it does.
+  const placeKeyOnScreen = useMemo(() => {
     if (!onScreen) return null;
     const keys = placesFor(onScreen.id, onScreen.city, wx.dayPlaces);
-    const w = wx.data?.[onScreen.id]?.[keys[keys.length - 1]];
-    return w ? describe(w.code).icon : null;
-  }, [onScreen, wx.data, wx.dayPlaces]);
-  useEffect(() => { if (onScreen) setBackdropContext({ city: onScreen.city, date: onScreen.id, weather: skyOnScreen }); }, [onScreen, skyOnScreen, tripId]);
+    return keys[keys.length - 1] ?? null;
+  }, [onScreen, wx.data, wx.dayPlaces]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [nowSky, setNowSky] = useState<{ key: string; sky: CurrentSky } | null>(null);
+  useEffect(() => {
+    const place = placeKeyOnScreen ? placeByKey(placeKeyOnScreen) : undefined;
+    if (!place) return;
+    let off = false;
+    const load = () => { void fetchCurrent(place).then((sky) => { if (!off && sky) setNowSky({ key: place.key, sky }); }); };
+    load();
+    const timer = setInterval(load, 15 * 60_000);
+    return () => { off = true; clearInterval(timer); };
+  }, [placeKeyOnScreen]);
+  const skyNow = nowSky && nowSky.key === placeKeyOnScreen ? nowSky.sky : null;
+  const lonOnScreen = placeKeyOnScreen ? placeByKey(placeKeyOnScreen)?.lon ?? null : null;
+  useEffect(() => {
+    if (onScreen) setBackdropContext({ city: onScreen.city, date: onScreen.id, weather: skyNow ? describe(skyNow.code).icon : null, lon: lonOnScreen, offsetMin: skyNow?.offsetMin ?? null });
+  }, [onScreen, skyNow, lonOnScreen, tripId]);
   useEffect(() => () => setBackdropContext({ city: "", date: "", weather: null }), [tripId]);
 
   // Scroll affordance for the date strip: fades + arrows that disappear at the ends

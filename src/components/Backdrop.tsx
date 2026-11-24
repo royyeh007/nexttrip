@@ -6,7 +6,7 @@ import { useTrip } from "../trip";
 import type { Trip } from "../data";
 import { BACKDROP_COLORS } from "../../supabase/functions/_shared/backdrops";
 import { useLandmark } from "../backdropStore";
-import { useNow } from "../now";
+import { fakeNow, useNow } from "../now";
 
 const KEY = "jp-backdrop";
 const subs = new Set<() => void>();
@@ -40,11 +40,11 @@ export function sceneFor(trip: Pick<Trip, "name" | "place" | "start_date" | "set
 const LEFT = -600, WIDTH = 1600;
 // ---- 畫面上是哪一天：城市（決定地標）、日期（決定季節）、那天的天氣 ----
 export type Sky = "sun" | "partly" | "cloud" | "fog" | "rain" | "snow" | "storm";
-export interface BackdropContext { city: string; date: string; weather: Sky | null }
+export interface BackdropContext { city: string; date: string; weather: Sky | null; /** longitude of that city, when known: decides day or night there */ lon?: number | null; /** minutes that city is ahead of UTC right now, when known */ offsetMin?: number | null }
 let ctx: BackdropContext = { city: "", date: "", weather: null };
 /** The day page tells the backdrop what is on screen: which city, which date, and that day's weather there (null = not known yet). */
 export function setBackdropContext(next: BackdropContext) {
-  if (next.city === ctx.city && next.date === ctx.date && next.weather === ctx.weather) return;
+  if (next.city === ctx.city && next.date === ctx.date && next.weather === ctx.weather && (next.lon ?? null) === (ctx.lon ?? null) && (next.offsetMin ?? null) === (ctx.offsetMin ?? null)) return;
   ctx = next; subs.forEach((f) => f());
 }
 const useContext = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => ctx);
@@ -58,7 +58,7 @@ export function seasonOf(date: string, tripText: string): Season {
   return south ? ({ spring: "autumn", summer: "winter", autumn: "spring", winter: "summer" } as const)[north] : north;
 }
 export type Phase = "dawn" | "day" | "dusk" | "night";
-/** Morning light, daytime, sunset, night: from the local time where the trip is (minutes since midnight). */
+/** Morning light, daytime, sunset, night: from the local time in the city on screen (minutes since midnight). */
 export const phaseOf = (minutes: number): Phase => (minutes >= 300 && minutes < 420 ? "dawn" : minutes >= 420 && minutes < 990 ? "day" : minutes >= 990 && minutes < 1140 ? "dusk" : "night");
 
 const Tree = ({ x, h = 1 }: { x: number; h?: number }) => (
@@ -208,13 +208,19 @@ export function Art({ scene, phase = "day", season = "summer", weather = null, c
 export function Backdrop() {
   const { current } = useTrip();
   const on = useBackdropOn();
-  const { city, date, weather } = useContext();
+  const { city, date, weather, lon, offsetMin } = useContext();
   const now = useNow();
   const mark = useLandmark(on ? current : null, city);
   if (!on) return null;
   const scene = sceneFor(current);
   const season = seasonOf(date || current?.start_date || now.date, `${current?.name ?? ""} ${current?.place ?? ""}`);
-  const phase = phaseOf(now.minutes);
+  // 白天晚上看「畫面上那一天的城市」現在幾點：一個行程可能跨好幾個時區（芝加哥那一天和東京那一天），
+  // 所以不用整個行程的時區，改用那個城市的經度算當地的太陽時間（經度每 15 度差一小時）。還不知道城市在哪就用行程的時區。
+  // now 每 30 秒更新一次，這裡跟著重算；用 ?now= 預覽某一天時照預覽的時間。
+  const utc = new Date();
+  // 知道那個城市跟 UTC 差多少（抓現在天氣時一起拿到）就用真正的當地時間；還沒拿到先用經度估。
+  const shift = offsetMin ?? (lon == null ? null : Math.round(lon * 4));
+  const phase = phaseOf(fakeNow() || shift == null ? now.minutes : (((utc.getUTCHours() * 60 + utc.getUTCMinutes() + shift) % 1440) + 1440) % 1440);
   return (
     <div className="backdrop" aria-hidden="true" data-scene={scene} data-landmark={mark?.id} data-phase={phase} data-season={season} data-weather={current ? weather ?? undefined : undefined}
       style={{ "--bd-tree": TREE[season] } as React.CSSProperties}>
