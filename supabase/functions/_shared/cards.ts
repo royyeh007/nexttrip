@@ -83,7 +83,7 @@ export const STOP_KINDS: StopKind[] = ["food", "hotel", "shop", "sight", "move"]
 export const KIND_TIP: Record<StopKind, string> = {
   food: "日本小店常只收現金；能刷卡時用這張，結帳選日圓。",
   hotel: "在訂房網站預付的，以當時刷的卡為準；現場付款才用這張。",
-  shop: "退稅時用同一張卡結帳；機器問幣別一律選日圓（JPY），不選台幣。",
+  shop: "退稅時用同一張卡結帳；機器問幣別一律選日圓（JPY），不選自己國家的幣別。",
   sight: "門票、神社常收現金；能刷卡時用這張。",
   move: "售票機多半收現金或 IC 卡；手機 Suica／PASMO 加值可以用這張。",
 };

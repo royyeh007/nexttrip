@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { KIND } from "../labels";
 import { MenuIcon } from "./Logo";
-import { COUNTRY_NAME, kindTip, tx, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, explain, pct } from "../cards";
+import { COUNTRY_NAME, payReminders, tx, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, explain, pct } from "../cards";
 import type { Pick, StopKind } from "../cards";
 import { useNow } from "../now";
 import { useTrip } from "../trip";
@@ -68,10 +68,12 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
             </li>
           ))}
         </ul>}
-        {r.enabled && <p className="note qptip">{kindTip("shop", r.dest)}</p>}
+        <ul className="qpreminds">
+          {payReminders(r.dest).map((line) => <li key={line} className="qpremind"><MenuIcon name="warn" size={18} /><span>{line}</span></li>)}
+        </ul>
         <div className="actions">
-          <a className="btn" href="#cards" onClick={onClose}>{t("我的信用卡 ›")}</a>
-          <button type="button" className="btn primary" onClick={onClose}>{t("知道了")}</button>
+          <a className="btn" href="#cards" onClick={onClose}><MenuIcon name="cards" size={18} />{t("管理我的信用卡")}</a>
+          <button type="button" className="btn primary" onClick={onClose}>{t("關閉")}</button>
         </div>
       </div>
     </>

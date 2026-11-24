@@ -47,6 +47,12 @@ export function kindTip(kind: StopKind, dest: Country): string {
   if (kind === "sight") return t("買門票用這張；小攤位可能只收現金。");
   return dest === "uk" ? t("地鐵和公車直接感應這張卡進出站，進出用同一張。") : t("買車票、叫車用這張；有些售票機只收現金或當地交通卡。");
 }
+/** 「捷徑」最下面那個提醒框：結帳時最容易忘的事，一行一件。 */
+export function payReminders(dest: Country): string[] {
+  const cur = currencyOf(dest);
+  const pick = cur ? t("結帳幣別一律選{cur}，不選本國貨幣。", { cur }) : t("結帳幣別一律選當地貨幣，不選本國貨幣。");
+  return dest === "jp" ? [t("退稅時，用同一張卡結帳。"), pick] : [pick];
+}
 /** 「在某地刷卡的小提醒」裡只跟那個國家有關的幾條（收不收卡、交通怎麼付）。句子裡的 <b> 交給 tr。 */
 export function localTips(dest: Country): string[] {
   if (dest === "jp") return [
