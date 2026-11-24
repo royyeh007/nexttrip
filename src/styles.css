@@ -1220,3 +1220,27 @@ h1,h2,h3,.card .n,.ovtitle{text-wrap:balance}
 html[lang="en"] .ovstops .k{width:auto;min-width:20px;padding:0 6px;border-radius:999px;letter-spacing:0}
 /* 上面那圈淺色光暈是給直接壓在背景上的字用的；有自己底色的按鈕、標籤不要跟著發光（深底白字會糊成一團亮光） */
 .toolbar :is(button:not(.link),.btn,.tag,.modebar),.dayhead :is(button:not(.link),.btn,.tag,.seal),.pick .note :is(button:not(.link),.btn),.othersown :is(button:not(.link),.btn,.tag),.splitfoot :is(button:not(.link),.btn,.tag){text-shadow:none}
+/* 英文的「這趟怎麼刷」：英文欄名和類別比中文寬，手機上四欄排不下（最後一欄會被擠成一個字寬）。
+   改成每一類一小塊：上面一行是類別、推薦的卡、淨回饋，下面整排是原因。 */
+@media (max-width:560px){
+  html[lang="en"] .plantable,html[lang="en"] .plantable tbody{display:block}
+  html[lang="en"] .plantable thead{display:none}
+  html[lang="en"] .plantable tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline;padding:9px 10px;border-bottom:1px solid var(--line)}
+  html[lang="en"] .plantable tr:last-child{border-bottom:0}
+  html[lang="en"] .plantable td{padding:0;border:0;overflow-wrap:normal}
+  html[lang="en"] .plantable td:nth-child(1){font-weight:700}
+  html[lang="en"] .plantable td:nth-child(4){grid-column:1 / -1;color:var(--muted);overflow-wrap:anywhere}
+}
+
+/* 捷徑裡的匯率換算：兩排（貨幣選單＋金額），下面是常用金額和匯率說明 */
+.fx{display:grid;gap:8px;padding:12px;border:1.5px solid var(--line);border-radius:14px;background:var(--paper)}
+.fx h4{margin:0;display:flex;align-items:center;gap:6px;font-size:.95rem}
+.fxrow{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr);gap:8px}
+.fxrow select,.fxrow input{font:inherit;min-width:0;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.fxrow input{font-size:1.2rem;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.fxrow select:focus-visible,.fxrow input:focus-visible,.fxquick button:focus-visible{outline:2px solid var(--ai);outline-offset:1px}
+.fxquick{display:flex;flex-wrap:wrap;gap:6px}
+.fxquick button{font:inherit;font-size:.82rem;padding:4px 11px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.fxquick button.clear{color:var(--muted);border-style:dashed}
+.fx small{color:var(--muted);font-size:.78rem;line-height:1.45}
+.fx small.warn{color:var(--amber)}

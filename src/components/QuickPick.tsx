@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { KIND } from "../labels";
 import { MenuIcon } from "./Logo";
-import { COUNTRY_NAME, KIND_TIP, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, explain, pct } from "../cards";
+import { COUNTRY_NAME, kindTip, tx, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, explain, pct } from "../cards";
 import type { Pick, StopKind } from "../cards";
 import { useNow } from "../now";
 import { useTrip } from "../trip";
 import { t, tr } from "../i18n";
 import { useRecommend } from "./CardPick";
 import { openCoupons, useCouponsOn } from "./Coupons";
+import { Currency } from "./Currency";
 
 const ORDER: StopKind[] = ["food", "shop", "hotel", "move", "sight"];
 /** Visa / Mastercard / JCB are taken almost everywhere in Japan; AmEx, Discover and UnionPay often are not at small shops. */
@@ -49,6 +50,7 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
           </div>
           <button ref={closeRef} type="button" className="x" aria-label={t("關閉")} onClick={onClose}>×</button>
         </header>
+        <Currency />
         {couponsOn && <button type="button" className="btn big qpshort" onClick={() => { onClose(); openCoupons(); }}><MenuIcon name="coupon" size={20} />{t("藥妝優惠券")}<small>{t("出示條碼、找附近的店")}</small></button>}
         {!r.enabled && <p className="note qptip">{tr(r.on ? "到 <a>信用卡</a> 勾你有的卡，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。" : "到 <a>信用卡</a> 勾你有的卡並打開推薦開關，這裡就會列出吃飯、買東西、飯店、交通、門票各刷哪張。", { a: (c) => <a href="#cards" onClick={onClose}>{c}</a> })}</p>}
         {r.enabled && <ul className="qprows">
@@ -59,14 +61,14 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
                 <span className="qpl">{RATE_KIND_NAME[k]}</span>
                 <span className="qpcard">{top.card.name}</span>
                 <span className="qpwhy">{explain(top)}{top.stale ? t("・優惠標示已到期，要確認") : ""}</span>
-                {top.rate?.cond && <span className="qpcond">{top.rate.cond}</span>}
+                {top.rate?.cond && <span className="qpcond">{tx(top.card, top.rate.cond)}</span>}
                 {fallback && <span className="qpfb">{tr("不收 {nets} 就用 <b>{card}</b>（淨 {net}）", { b: (c) => <b>{c}</b> }, { nets: top.card.network.map((n) => NETWORK_NAME[n] ?? n).join(t("／")), card: fallback.card.short || fallback.card.name, net: pct(fallback.net) })}</span>}
               </div>
               <b className={`qpnet${top.net < 0 ? " neg" : ""}`}>{pct(top.net)}</b>
             </li>
           ))}
         </ul>}
-        {r.enabled && <p className="note qptip">{KIND_TIP.shop}</p>}
+        {r.enabled && <p className="note qptip">{kindTip("shop", r.dest)}</p>}
         <div className="actions">
           <a className="btn" href="#cards" onClick={onClose}>{t("我的信用卡 ›")}</a>
           <button type="button" className="btn primary" onClick={onClose}>{t("知道了")}</button>
@@ -76,17 +78,12 @@ function QuickPickSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Bottom-left floating 「捷徑」 button: which card to pull out (when the person has cards and the switch is on) and, on a Japan trip, the drugstore coupons. */
+/** Bottom-left floating 「捷徑」 button (always there inside a trip): the currency converter, which card to pull out (when the person has cards and the switch is on) and, on a Japan trip, the drugstore coupons. */
 export function QuickPickFab() {
-  const r = useRecommend();
   const [open, setOpen] = useState(false);
-  const couponsOn = useCouponsOn();
-  const show = r.enabled || couponsOn;
-  useEffect(() => { if (!show) setOpen(false); }, [show]);
-  if (!show) return null;
   return (
     <>
-      <button type="button" className="cardfab" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} title={t("捷徑：現在刷哪張卡、藥妝優惠券")}><MenuIcon name="bolt" size={18} />{t("捷徑")}</button>
+      <button type="button" className="cardfab" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} title={t("捷徑：匯率換算、現在刷哪張卡、藥妝優惠券")}><MenuIcon name="bolt" size={18} />{t("捷徑")}</button>
       {open && <QuickPickSheet onClose={() => setOpen(false)} />}
     </>
   );

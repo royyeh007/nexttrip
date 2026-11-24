@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MenuIcon } from "./Logo";
-import { COUNTRY_NAME, COUNTRY_ORDER, NETWORKS, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, WHERE_NAME, explain, explainShort, isAbroad, pct, rank, setCardsOn } from "../cards";
+import { COUNTRY_NAME, COUNTRY_ORDER, NETWORKS, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, WHERE_NAME, currencyOf, explain, explainShort, localTips, tx, isAbroad, pct, rank, setCardsOn } from "../cards";
 import type { Card, CardRate, Country, RateKind, RateWhere } from "../cards";
 import { isViewer } from "../data";
 import { invoke, supabase } from "../supabase";
@@ -102,6 +102,8 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
     if (error) { setErr(/row-level security|permission/i.test(error.message) ? t("沒有權限改卡片庫（觀察員只能勾自己有的卡）") : t(error.message)); return; }
     if (!saved) { setErr(t("沒有存進去：這張卡在你編輯的時候被別人改過（或刪掉）了，或你沒有權限。按取消後重新打開「改資料」再改一次。")); await reloadCards(); return; }
     await reloadCards();
+    // 英文對照：存好之後在背景請 AI 把新的中文句子翻成英文（不擋畫面；失敗也沒關係，英文畫面先顯示中文）
+    if (current) void invoke("translate-card", { trip_id: current.id, card_id: d.id }).then(() => reloadCards()).catch(() => { /* 沒翻到：英文畫面先顯示中文 */ });
     onDone(d.id);
   };
 
@@ -169,8 +171,8 @@ function CardRow({ c, dest, date, mine, actions }: { c: Card; dest: Country; dat
         <span><b>{c.name}</b><span className={`tag cc ${c.country}`}>{COUNTRY_NAME[c.country] ?? c.country}</span>{mine && <span className="tag shared">{t("我有")}</span>}</span>
         <span className="cmeta">{c.bank}{c.network.length > 0 && t(" ・ {nets}", { nets: c.network.map((n) => NETWORK_NAME[n] ?? n).join(t("／")) })}{abroad ? t(" ・ 海外手續費 {fee}", { fee: pct(c.fx_fee) }) : t(" ・ 在發卡國內，不收海外手續費")}</span>
         <span className="cwhy">{t("{country}一般消費：{why}", { country: COUNTRY_NAME[dest], why: explain(best) })}{best.stale ? t("（優惠標示已到期，要確認）") : ""}</span>
-        {bonuses.length > 0 && <span className="cwhy">{list(bonuses.map((x) => `${RATE_KIND_NAME[x.kind]} ${pct(x.rate)}${x.note ? t("（{note}）", { note: x.note }) : ""}`))}</span>}
-        {(c.conditions || c.cap) && <span className="cwhy muted">{[c.conditions, c.cap].filter(Boolean).join(" ")}</span>}
+        {bonuses.length > 0 && <span className="cwhy">{list(bonuses.map((x) => `${RATE_KIND_NAME[x.kind]} ${pct(x.rate)}${x.note ? t("（{note}）", { note: tx(c, x.note) }) : ""}`))}</span>}
+        {(c.conditions || c.cap) && <span className="cwhy muted">{[c.conditions, c.cap].filter(Boolean).map((x) => tx(c, x)).join(" ")}</span>}
         <span className="cmeta">{t("查證 {date}", { date: fmtDate(c.checked_at) })}{c.updated_by_name ? t(" ・ {name} 改過", { name: c.updated_by_name }) : ""}{isHttp(c.source) && <>{t(" ・ ")}<a href={c.source.trim()} target="_blank" rel="noopener noreferrer">{t("來源 ↗")}</a></>}</span>
       </div>
       <div className="cacts">{actions}</div>
@@ -235,7 +237,7 @@ export function CardsView() {
   const edit = async (c: Card) => {
     if (!supabase || opening) return;
     setOpening(c.id); setErr(null);
-    const { data, error } = await supabase.from("card_catalog").select("id, name, short, bank, country, network, fx_fee, rates, cap, conditions, source, checked_at, created_by, updated_by_name, updated_at").eq("id", c.id).maybeSingle();
+    const { data, error } = await supabase.from("card_catalog").select("id, name, short, bank, country, network, fx_fee, rates, cap, conditions, source, checked_at, en, created_by, updated_by_name, updated_at").eq("id", c.id).maybeSingle();
     setOpening(null);
     if (error) { setErr(t("讀不到這張卡的最新資料（{why}），等網路好一點再改", { why: error.message })); return; }
     if (!data) { setErr(t("這張卡已經被刪掉了")); await reloadCards(); return; }
@@ -323,7 +325,7 @@ export function CardsView() {
                       <td>{RATE_KIND_NAME[k]}</td>
                       <td><MenuIcon name="cards" size={15} />{p.card.short || p.card.name}{p.stale && <MenuIcon name="warn" size={14} />}</td>
                       <td className={p.net < 0 ? "neg" : ""}>{pct(p.net)}</td>
-                      <td>{explain(p)}{p.rate?.cond ? t("；{cond}", { cond: p.rate.cond }) : ""}{picks.length > 1 ? t("。其次 {cards}", { cards: list(picks.slice(1, 3).map((x) => `${x.card.short || x.card.name} ${pct(x.net)}`)) }) : ""}</td>
+                      <td>{explain(p)}{p.rate?.cond ? t("；{cond}", { cond: tx(p.card, p.rate.cond) }) : ""}{picks.length > 1 ? t("。其次 {cards}", { cards: list(picks.slice(1, 3).map((x) => `${x.card.short || x.card.name} ${pct(x.net)}`)) }) : ""}</td>
                     </tr>
                   );
                 })}
@@ -336,11 +338,12 @@ export function CardsView() {
       <div className="gcard tips">
         <h3>{t("在{country}刷卡的小提醒", { country: destName })}</h3>
         <ul>
-          <li>{tr("店員或機器問要用哪種幣別結帳，一律選<b>當地貨幣（日本選日圓 JPY）</b>。選自己國家的幣別（DCC）會用店家較差的匯率換算，多付 3～7%。", { b: (c) => <b>{c}</b> })}</li>
+          <li>{currencyOf(dest)
+            ? tr("店員或機器問要用哪種幣別結帳，一律選<b>當地貨幣（{cur}）</b>。選自己國家的幣別（DCC）會用店家較差的匯率換算，多付 3～7%。", { b: (c) => <b>{c}</b> }, { cur: currencyOf(dest) })
+            : tr("店員或機器問要用哪種幣別結帳，一律選<b>當地貨幣</b>。選自己國家的幣別（DCC）會用店家較差的匯率換算，多付 3～7%。", { b: (c) => <b>{c}</b> })}</li>
           <li>{tr("<b>海外交易手續費</b>才是大頭：美國卡常見 3%、英國卡 2.99%、台灣卡 1.5%；沒有這筆費用的旅遊卡（Sapphire、Venture、Amex Gold/Platinum、Barclaycard Rewards、Halifax Clarity…）出國時通常勝過回饋高但收 3% 的卡。表上的「淨回饋」已經扣掉了。", { b: (c) => <b>{c}</b> })}</li>
           <li>{t("美國卡的「超市」「加油」加碼多半只限美國境內；餐廳、旅遊類多數全球適用。英國 Amex 的 MR 點數價值偏低，查卡片時注意換算。")}</li>
-          <li>{tr("日本 Visa／Mastercard／JCB 幾乎都收；<b>AmEx 和 Discover</b>（走 JCB 網路）在大店沒問題，小店、拉麵店常常不收，備一張 Visa/Mastercard。感應付款（Apple Pay 的 Visa/Mastercard/AmEx）便利商店、車站、連鎖店都能用。", { b: (c) => <b>{c}</b> })}</li>
-          <li>{t("Apple Pay 的 Suica／PASMO 用美國、英國卡加值可以（Mastercard、AmEx 最穩；部分 Visa 會被拒）。免稅店退稅會看結帳那張卡；小店、神社、售票機常常只收現金。")}</li>
+          {localTips(dest).map((tip) => <li key={tip}>{tr(tip, { b: (c) => <b>{c}</b> })}</li>)}
           <li>{tr("很多加碼要<b>先登錄</b>或在 App 切換方案；到期日多寫到年底，跨年後的條款銀行多在 12 月才公告。", { b: (c) => <b>{c}</b> })}</li>
         </ul>
       </div>

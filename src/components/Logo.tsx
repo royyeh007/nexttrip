@@ -101,6 +101,8 @@ const MENU_ICONS = {
   coupon: <><path d="M3.5 8.6A1.8 1.8 0 0 1 5.3 6.8h13.4a1.8 1.8 0 0 1 1.8 1.8v1.7a1.9 1.9 0 0 0 0 3.6v1.7a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8v-1.7a1.9 1.9 0 0 0 0-3.6Z" fill="#e9573f" /><path d="M10 7.6v9.2" strokeDasharray="1.2 2.6" /></>,
   // 捷徑：閃電
   bolt: <path d="M13.4 2.8 5 13.6h5.8l-1.2 7.6L18 10.4h-5.8Z" fill="#ffd257" />,
+  // 匯率換算：一枚有笑臉的硬幣
+  coin: <><circle cx="12" cy="12" r="8.6" fill="#ffd257" /><path d="M9.3 10.6v.4M14.7 10.6v.4" strokeWidth="2.2" /><path d="M9.6 14.2q2.4 2 4.8 0" /></>,
   // 一起：兩個交疊的圈
   together: <><circle cx="9" cy="12" r="5.4" fill="#ffd257" /><circle cx="15" cy="12" r="5.4" fill="#7cc4e8" fillOpacity=".85" /></>,
   // 注意：三角形驚嘆號

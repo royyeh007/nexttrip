@@ -15,7 +15,7 @@ export interface CardRate { where: RateWhere; kind: RateKind; rate: number; note
 export interface Card {
   id: string; name: string; short: string; bank: string; country: Country; network: string[];
   fx_fee: number; rates: CardRate[]; cap: string; conditions: string; source: string;
-  checked_at: string | null; created_by?: string | null; updated_by_name?: string | null; updated_at?: string;
+  checked_at: string | null; /** 中文句子 → 英文（說明、條件、上限），英文畫面用；translate-card 補 */ en?: Record<string, string> | null; created_by?: string | null; updated_by_name?: string | null; updated_at?: string;
 }
 
 export const COUNTRY_NAME: Record<Country, string> = { us: "美國", uk: "英國", tw: "台灣", jp: "日本", kr: "韓國", other: "其他" };

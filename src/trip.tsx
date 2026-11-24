@@ -248,7 +248,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
     if (!supabase || !uid) { setCards(NO_CARDS); return; }
     if (readOnly) return;
     const [cat, mine] = await Promise.all([
-      supabase.from("card_catalog").select("id, name, short, bank, country, network, fx_fee, rates, cap, conditions, source, checked_at, created_by, updated_by_name, updated_at").order("bank").order("name").abortSignal(readSignal()),
+      supabase.from("card_catalog").select("id, name, short, bank, country, network, fx_fee, rates, cap, conditions, source, checked_at, en, created_by, updated_by_name, updated_at").order("bank").order("name").abortSignal(readSignal()),
       supabase.from("my_cards").select("card_id").eq("user_id", uid).order("added_at").abortSignal(readSignal()),
     ]);
     if (cat.error || mine.error) {

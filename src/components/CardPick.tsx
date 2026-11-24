@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { MenuIcon } from "./Logo";
 import type { Kind } from "../data";
-import { KIND_TIP, countryOf, explain, pct, rank, useCardsOn } from "../cards";
+import { countryOf, kindTip, tx, explain, pct, rank, useCardsOn } from "../cards";
 import type { Card, Country, Pick } from "../cards";
 import { useTrip } from "../trip";
 import { list, t, tr } from "../i18n";
@@ -68,12 +68,12 @@ export function CardSection({ kind, date }: { kind: Kind; date: string }) {
         <b className={`net${top.net < 0 ? " neg" : ""}`}>{t("淨回饋 {net}", { net: pct(top.net) })}</b>
       </div>
       <p className="why">{explain(top)}</p>
-      {top.rate?.cond && <p className="note">{t("條件：{cond}", { cond: top.rate.cond })}</p>}
+      {top.rate?.cond && <p className="note">{t("條件：{cond}", { cond: tx(top.card, top.rate.cond) })}</p>}
       {top.stale && <p className="note warn"><MenuIcon name="warn" size={14} />{month ? t("這個優惠標示到 {until}，{month}是否延續請先問銀行；下面「其次」的卡也可以考慮。", { until: top.rate!.until!.replace(/-0?/g, "/").slice(5), month }) : t("這個優惠標示到 {until}，之後是否延續請先問銀行；下面「其次」的卡也可以考慮。", { until: top.rate!.until!.replace(/-0?/g, "/").slice(5) })}</p>}
       {picks.length > 1 && (
         <p className="note">{t("其次：{cards}", { cards: list(picks.slice(1, 4).map((p) => `${p.card.short || p.card.name} ${pct(p.net)}${p.stale ? t("（要確認）") : ""}`)) })}</p>
       )}
-      <p className="note tip">{KIND_TIP[kind]}</p>
+      <p className="note tip">{kindTip(kind, r.dest)}</p>
       <a className="link" href="#cards">{t("我的信用卡 ›")}</a>
     </div>
   );
