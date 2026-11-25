@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "../supabase";
 import { lang, t } from "../i18n";
 import { MenuIcon } from "./Logo";
@@ -55,12 +55,14 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   const seq = useRef(0);
   const [tick, setTick] = useState(0); // the text often does not change when the IME commits, so the search needs its own nudge
   const listId = useId();
+  const wrap = useRef<HTMLSpanElement>(null);
+  const [box, setBox] = useState<{ left: number; width: number } | null>(null);
 
   useEffect(() => {
     if (off || !typed.current || composing.current) return;
     const q = value.trim();
+    const mine = ++seq.current; // 也讓還在路上的舊查詢作廢：清空欄位後不該再跳出剛才的結果
     if (q.length < 2) { setItems([]); setOpen(false); return; }
-    const mine = ++seq.current;
     const h = setTimeout(async () => {
       try {
         const r = await invoke<{ suggestions: Suggestion[] }>("place-search", { ...(tripId ? { trip_id: tripId } : {}), action: "suggest", kind, input: q, session: session.current, lang, ...(near ? { lat: near.lat, lon: near.lon } : {}) }, { timeoutMs: 10_000 });
@@ -75,6 +77,20 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
     }, 280);
     return () => clearTimeout(h);
   }, [value, tick, tripId, near?.lat, near?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 欄位常在兩欄表單的右半邊：清單要夠寬才讀得到地址，所以往左伸出去，但不超出畫面
+  useLayoutEffect(() => {
+    if (!open || !wrap.current) return;
+    const r = wrap.current.getBoundingClientRect(), vw = document.documentElement.clientWidth, pad = 12;
+    const width = Math.min(Math.max(r.width, 340), vw - pad * 2);
+    const left = Math.max(pad, Math.min(r.left, vw - pad - width)) - r.left;
+    setBox({ left, width });
+  }, [open, items.length]);
+  // 手機鍵盤會蓋住下半個畫面：清單第一次打開時把欄位捲到上面，留位置給清單
+  useEffect(() => {
+    if (!open || !wrap.current || !window.matchMedia?.("(pointer:coarse)").matches) return;
+    wrap.current.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [open]);
 
   const pick = async (s: Suggestion) => {
     seq.current++; typed.current = false;
@@ -92,7 +108,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   };
 
   return (
-    <span className="placeinput">
+    <span className="placeinput" ref={wrap}>
       <input
         value={value} placeholder={placeholder} autoComplete="off" role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
@@ -111,7 +127,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
       />
       {busy && <small className="placebusy" role="status">{t("帶入地址中…")}</small>}
       {open && (
-        <span className="placelist" role="listbox" id={listId}>
+        <span className="placelist" role="listbox" id={listId} style={box ? { left: box.left, width: box.width, right: "auto" } : undefined}>
           {items.map((s, i) => (
             <button key={s.id} type="button" role="option" id={`${listId}-${i}`} aria-selected={i === active} className={i === active ? "on" : undefined}
               onMouseDown={(e) => e.preventDefault()} onClick={() => pick(s)}>
