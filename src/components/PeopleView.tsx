@@ -248,6 +248,7 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const [chosen, setChosen] = useState<string[] | undefined>(stop.people);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [last, setLast] = useState(false);
   // Taps are never refused: the names change at once, and one writer keeps saving the latest choice until nothing newer is waiting.
   // (The buttons used to be disabled during each save, so a quick second tap did nothing, and the reload after each save set the names back.)
   const want = useRef<{ v: string[] | undefined } | null>(null);
@@ -293,6 +294,8 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const toggle = (id: string) => {
     const isOn = (x: string) => !cur.current || cur.current.includes(x); // the choice as last tapped, even if the screen has not redrawn yet
     const ids = all.map((p) => p.id).filter((x) => (x === id ? !isOn(x) : isOn(x)));
+    if (ids.length === 0) { setLast(true); return; } // a stop nobody goes to is not a stop: the last name stays
+    setLast(false);
     write(ids.length === all.length ? undefined : ids); // everyone again = drop the field, so people added to the trip later are in by default
   };
   const text = t("{n} 人：{detail}", { n: selected.length, detail: headcount(selected) });
@@ -313,7 +316,8 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
           ))}
         </div>
       ))}
-      {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{" "}<button type="button" className="link" style={chosen ? undefined : { visibility: "hidden" }} tabIndex={chosen ? undefined : -1} aria-hidden={!chosen} onClick={() => write(undefined)}>{t("改回全員")}</button>{busy && <span className="saving" aria-live="polite">{t("儲存中…")}</span>}</p>}
+      {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{" "}<button type="button" className="link" style={chosen ? undefined : { visibility: "hidden" }} tabIndex={chosen ? undefined : -1} aria-hidden={!chosen} onClick={() => { setLast(false); write(undefined); }}>{t("改回全員")}</button>{busy && <span className="saving" aria-live="polite">{t("儲存中…")}</span>}</p>}
+      {(last || selected.length === 0) && <small className="fielderr" role="alert">{selected.length === 0 ? t("至少要有一個人去：點名字把人加回來") : t("至少要有一個人去。都不去的話，把這一站刪掉。")}</small>}
       <p className="count"><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? t("已複製") : t("複製人數")}</button><small>{t("訂位時可以直接貼給餐廳")}</small></p>
     </div>
   );
