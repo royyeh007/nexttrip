@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DateField } from "./Pickers";
 import { MenuIcon } from "./Logo";
 import { COUNTRY_NAME, COUNTRY_ORDER, NETWORKS, NETWORK_NAME, RATE_KIND_NAME, STOP_KINDS, WHERE_NAME, currencyOf, explain, explainShort, localTips, tx, isAbroad, pct, rank, setCardsOn } from "../cards";
 import type { Card, CardRate, Country, RateKind, RateWhere } from "../cards";
@@ -134,7 +135,7 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
             <select value={r.kind} onChange={(e) => upRate(i, { kind: e.target.value as RateKind })} aria-label={t("買什麼")}>{(Object.keys(RATE_KIND_NAME) as RateKind[]).map((k) => <option key={k} value={k}>{RATE_KIND_NAME[k]}</option>)}</select>
             <input value={r.rate} onChange={(e) => upRate(i, { rate: e.target.value })} inputMode="decimal" placeholder="3" aria-label={t("回饋 %")} />
             <input value={r.note} onChange={(e) => upRate(i, { note: e.target.value })} placeholder={t("例：3x 點數以 1.5¢ 計")} aria-label={t("說明")} />
-            <input value={r.until} onChange={(e) => upRate(i, { until: e.target.value })} placeholder={t("到期 2026-12-31")} inputMode="numeric" aria-label={t("到期日")} />
+            <DateField value={r.until} onChange={(v) => upRate(i, { until: v })} hint={t("到期日")} />
             <input value={r.cond} onChange={(e) => upRate(i, { cond: e.target.value })} placeholder={t("要登錄、上限…")} aria-label={t("條件")} />
             <button type="button" className="link" onClick={() => setD((x) => ({ ...x, rates: x.rates.filter((_, j) => j !== i) }))} aria-label={t("刪這一列")}>✕</button>
           </div>
@@ -145,7 +146,7 @@ function CardEditor({ card, name, country, onDone, onCancel }: { card: Card | nu
         <label>{t("回饋上限")}<input value={d.cap} onChange={(e) => up("cap", e.target.value)} placeholder={t("例：無上限")} maxLength={300} /></label>
         <label>{t("重要條件")}<input value={d.conditions} onChange={(e) => up("conditions", e.target.value)} placeholder={t("例：年費 $95；超市加碼只限美國境內")} maxLength={600} /></label>
         <label>{t("來源網址")}<input value={d.source} onChange={(e) => up("source", e.target.value)} placeholder="https://…" inputMode="url" maxLength={500} /></label>
-        <label>{t("查證日期")}<input value={d.checked_at} onChange={(e) => up("checked_at", e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" /></label>
+        <label>{t("查證日期")}<DateField value={d.checked_at} onChange={(v) => up("checked_at", v)} /></label>
       </div>
       <div className="actions">
         <button type="button" className="btn primary" onClick={save} disabled={!!busy}>{busy === "save" ? t("儲存中…") : t("儲存")}</button>

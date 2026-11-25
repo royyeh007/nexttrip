@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { DueField } from "./Pickers";
 import { canEdit, contactsFromDays, daysFor, isViewer } from "../data";
 import type { ContactRow, FamilyId, TodoRow } from "../data";
 import { supabase } from "../supabase";
@@ -83,7 +84,7 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
             <input type="checkbox" id={`td-${r.id}`} checked={ticking[r.id] ?? r.done} disabled={r.id in ticking || !canEdit(r.fam, member)} onChange={(e) => toggle(r, e.target.checked)} />
             {editing === r.id ? (
               <div className="editrow">
-                <input value={eDue} onChange={(e) => setEDue(e.target.value)} placeholder={t("時間（例：11/20 前）")} />
+                <DueField value={eDue} onChange={setEDue} tripEnd={current?.end_date ?? ""} hint={t("期限（可空）")} />
                 <input value={eText} onChange={(e) => setEText(e.target.value)} placeholder={t("要做什麼")} onKeyDown={(e) => { if (isEnter(e)) save(r); }} />
                 <div className="actions"><button type="button" className="btn primary" onClick={() => save(r)} disabled={busy || !eText.trim()}>{t("儲存")}</button><button type="button" className="btn" onClick={() => setEditing(null)} disabled={busy}>{t("取消")}</button></div>
               </div>
@@ -111,7 +112,7 @@ function Todos({ fam, compact = false }: { fam: FamilyId; compact?: boolean }) {
       <p className="note">{viewFam === mine ? t("大家一起的和你們家的都在這裡，勾選全家都看得到。") : t("這是{family}的清單；你新增的會加到自己家或大家一起。", { family: labelOf(viewFam) })}</p>
       {list}
       {!isViewer(member) && <div className="addrow">
-        <input value={due} onChange={(e) => setDue(e.target.value)} placeholder={t("時間（例：11/20 前）")} />
+        <DueField value={due} onChange={setDue} tripEnd={current?.end_date ?? ""} hint={t("期限（可空）")} />
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("要做什麼")} onKeyDown={(e) => { if (isEnter(e)) add(); }} />
         <ScopePick value={scope} onChange={setScope} mine={mine} />
         <button type="button" className="btn primary" onClick={add} disabled={busy || !text.trim()}>{t("＋ 新增")}</button>

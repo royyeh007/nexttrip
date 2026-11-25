@@ -15,6 +15,9 @@ const newSession = () => { const a = new Uint8Array(16); crypto.getRandomValues(
  * Typing still works as a plain text box: nothing has to be picked. Picking one hands back its name, address and phone (not its coordinates: Google's terms allow keeping those for 30 days only, so the route planner locates the address itself).
  * One "session" runs from the first keystroke to the pick (that is how Google bills it), then a new one starts.
  */
+/** A pasted Google Maps share link (maps.app.goo.gl/…, google.com/maps/…): looked up as a whole instead of searched letter by letter. */
+const MAP_LINK = /https:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|(?:www\.)?google\.[a-z.]{2,6}\/maps|maps\.google\.[a-z.]{2,6}\/)[^\s]*/i;
+
 /** Country names in the reader's language, longest first: Google's second line in Chinese has no separator (「日本東京都」), so the country is the name it starts with. */
 let regions: string[] | null = null;
 const regionNames = () => {
@@ -49,6 +52,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
   const session = useRef(newSession());
   const typed = useRef(false);     // only search for what the person typed here, not for the name the form opened with
   const composing = useRef(false); // 注音／拼音選字中：等選完字再查
@@ -61,7 +65,9 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   useEffect(() => {
     if (off || !typed.current || composing.current) return;
     const q = value.trim();
-    const mine = ++seq.current; // 也讓還在路上的舊查詢作廢：清空欄位後不該再跳出剛才的結果
+    const mine = ++seq.current;
+    const link = kind === "place" && tripId ? q.match(MAP_LINK)?.[0] : undefined;
+    if (link) { setItems([]); setOpen(false); fromLink(link, mine); return; } // 也讓還在路上的舊查詢作廢：清空欄位後不該再跳出剛才的結果
     if (q.length < 2) { setItems([]); setOpen(false); return; }
     const h = setTimeout(async () => {
       try {
@@ -92,6 +98,21 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
     wrap.current.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [open]);
 
+  // 貼上 Google 地圖的分享連結：整個連結交給後端找出是哪個地點，名稱、地址、電話一起帶入
+  const fromLink = async (url: string, mine: number) => {
+    setBusy(true); setNote("");
+    try {
+      const d = await invoke<PickedPlace>("place-search", { trip_id: tripId, action: "link", url, session: session.current, lang, ...(near ? { lat: near.lat, lon: near.lon } : {}) }, { timeoutMs: 15_000 });
+      if (mine !== seq.current) return;
+      typed.current = false;
+      if (!d.name) throw new Error(t("這個連結裡找不到地點，改用打字找找看"));
+      onChange(d.name);
+      onPick?.({ name: d.name, address: d.address || "", tel: d.tel || "" });
+    } catch (e) {
+      if (mine === seq.current) setNote(e instanceof Error && e.message ? e.message : t("這個連結裡找不到地點，改用打字找找看"));
+    } finally { if (mine === seq.current) setBusy(false); session.current = newSession(); }
+  };
+
   const pick = async (s: Suggestion) => {
     seq.current++; typed.current = false;
     setOpen(false); setItems([]);
@@ -112,7 +133,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
       <input
         value={value} placeholder={placeholder} autoComplete="off" role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        onChange={(e) => { typed.current = true; onChange(e.target.value); }}
+        onChange={(e) => { typed.current = true; setNote(""); onChange(e.target.value); }}
         onCompositionStart={() => { composing.current = true; }}
         onCompositionEnd={(e) => { composing.current = false; typed.current = true; onChange((e.target as HTMLInputElement).value); setTick((n) => n + 1); }}
         onFocus={() => { if (items.length) setOpen(true); }}
@@ -126,6 +147,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
         }}
       />
       {busy && <small className="placebusy" role="status">{t("帶入地址中…")}</small>}
+      {!busy && note && <small className="placebusy err" role="alert">{note}</small>}
       {open && (
         <span className="placelist" role="listbox" id={listId} style={box ? { left: box.left, width: box.width, right: "auto" } : undefined}>
           {items.map((s, i) => (

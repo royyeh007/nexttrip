@@ -25,8 +25,48 @@ async function google(url: string, init: RequestInit): Promise<Record<string, un
   return await r.json() as Record<string, unknown>;
 }
 
+// ---- Google 地圖的分享連結 ----
+// 只跟著 Google 自己的網域轉址，只讀轉址的位置（Location），不抓頁面內容；其他網址一律不碰（避免被拿來打別的主機）。
+const MAP_HOST = /^(maps\.app\.goo\.gl|goo\.gl|g\.co|(www\.|maps\.|consent\.)?google\.(com|co\.jp|com\.tw|co\.kr|co\.uk|com\.hk))$/;
+const mapUrl = (raw: string): URL | null => {
+  try { const u = new URL(raw); return u.protocol === "https:" && !u.port && !u.username && MAP_HOST.test(u.hostname) ? u : null; } catch { return null; }
+};
+/** What a Google Maps URL says about the place: its name (may include the address) and, when present, where it is. */
+function readMapUrl(u: URL): { text: string; lat: number | null; lon: number | null } {
+  let text = "";
+  const m = u.pathname.match(/\/maps\/(?:place|search)\/([^/@]+)/);
+  if (m) { try { text = decodeURIComponent(m[1].replace(/\+/g, " ")); } catch { text = m[1].replace(/\+/g, " "); } }
+  if (!text && (u.hostname.startsWith("maps.") || u.pathname.startsWith("/maps"))) text = u.searchParams.get("q") ?? u.searchParams.get("query") ?? "";
+  if (/^https?:/i.test(text)) text = "";
+  const all = u.pathname + u.search;
+  // !3d…!4d… 是那個地點本身；@… 只是地圖的中心，沒有前者才用
+  const pin = all.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/) ?? all.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  const lat = pin ? num(Number(pin[1]), 90) : null, lon = pin ? num(Number(pin[2]), 180) : null;
+  // 搜尋字本身就是座標（長按地圖放的圖釘）：沒有店名可找
+  if (/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(text.trim())) text = "";
+  return { text: text.replace(/\s+/g, " ").trim().slice(0, 200), lat, lon };
+}
+async function resolveMapLink(raw: string): Promise<{ text: string; lat: number | null; lon: number | null }> {
+  let u = mapUrl(raw);
+  if (!u) throw new HttpError(400, "這不是 Google 地圖的連結");
+  for (let hop = 0; hop < 5; hop++) {
+    if (u.hostname.startsWith("consent.")) { const c = mapUrl(u.searchParams.get("continue") ?? ""); if (!c) break; u = c; continue; }
+    const got = readMapUrl(u);
+    if (got.text) return got;
+    let r: Response;
+    try { r = await fetch(u, { redirect: "manual", headers: { "accept-language": "zh-TW,zh;q=0.9,en;q=0.8" }, signal: AbortSignal.timeout(6000) }); }
+    catch { throw new HttpError(504, "連結沒有回應，稍後再試"); }
+    await r.body?.cancel().catch(() => {});
+    const loc = r.status >= 300 && r.status < 400 ? r.headers.get("location") : null;
+    const next = loc ? mapUrl(new URL(loc, u).toString()) : null;
+    if (!next) break;
+    u = next;
+  }
+  throw new HttpError(422, "這個連結裡找不到地點，改用打字找找看");
+}
+
 Deno.serve(handle(async (req) => {
-  const body = await readJson<{ trip_id?: string; action?: unknown; input?: unknown; session?: unknown; lang?: unknown; lat?: unknown; lon?: unknown; place_id?: unknown; kind?: unknown }>(req, 4000);
+  const body = await readJson<{ trip_id?: string; action?: unknown; input?: unknown; session?: unknown; lang?: unknown; lat?: unknown; lon?: unknown; place_id?: unknown; kind?: unknown; url?: unknown }>(req, 4000);
   // 找「城市」可以不帶行程（建立新行程時選主要城市）：那時只要有登入；其他都要是那個行程裡能編輯的人
   const cityOnly = body.kind === "city" && body.action === "suggest" && !body.trip_id;
   let admin, uid: string, tripId: string | null = null, tz = "Asia/Taipei";
@@ -71,6 +111,26 @@ Deno.serve(handle(async (req) => {
     });
     await settle(admin, quota, { input: input.length, n: suggestions.length, ...(body.kind === "city" ? { city: true } : {}) });
     return json({ suggestions });
+  }
+
+  if (body.action === "link") {
+    if (!tripId) throw new HttpError(400, "缺 trip_id");
+    const raw = typeof body.url === "string" ? body.url.trim().slice(0, 1500) : "";
+    const quota = await reserve(admin, "place-details", { tripId, uid, tz });
+    const got = await resolveMapLink(raw);
+    const nearLat = num(body.lat, 90), nearLon = num(body.lon, 180); // 連結裡沒有座標時，偏向那一天的城市
+    const j = await google("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.internationalPhoneNumber" },
+      body: JSON.stringify({ textQuery: got.text, languageCode, pageSize: 1, ...(got.lat != null && got.lon != null ? { locationBias: { circle: { center: { latitude: got.lat, longitude: got.lon }, radius: 500 } } }
+        : nearLat != null && nearLon != null ? { locationBias: { circle: { center: { latitude: nearLat, longitude: nearLon }, radius: 50000 } } } : {}) }),
+    });
+    const p = (Array.isArray(j.places) ? j.places[0] : null) as { id?: unknown; displayName?: { text?: unknown }; formattedAddress?: unknown; internationalPhoneNumber?: unknown } | null;
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");
+    await settle(admin, quota, { link: true, found: !!p });
+    // Google 找不到對應的店：至少把連結裡的名字帶回去
+    if (!p) return json({ name: got.text.split(",")[0].slice(0, 120), address: "", tel: "" });
+    return json({ name: str(p.displayName?.text, 120), address: str(p.formattedAddress, 300), tel: str(p.internationalPhoneNumber, 40) });
   }
 
   if (body.action === "details") {

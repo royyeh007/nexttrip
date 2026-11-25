@@ -1325,3 +1325,27 @@ html[data-loading] .backdrop{display:none}
 .placelist button small{color:var(--muted);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .placeby{padding:5px 12px;text-align:right;font-size:.68rem;color:var(--muted)}
 .placebusy{display:block;margin-top:3px;font-size:.74rem;color:var(--muted)}
+
+/* 一站的編輯表單：細節收在一顆按鈕後面 */
+.morebtn{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-block:4px 10px;padding:9px 12px;border:1px dashed var(--line);border-radius:10px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.morebtn span{display:grid;gap:1px;min-width:0}
+.morebtn b{font-size:.9rem}
+.morebtn small{font-size:.76rem;color:var(--muted)}
+.morebtn .foldchev{flex:none;color:var(--muted);transition:transform .2s ease}
+.morebtn[aria-expanded="true"] .foldchev{transform:rotate(180deg)}
+.pickedline{margin-block:0 8px;overflow-wrap:anywhere}
+.placebusy.err{color:var(--shu)}
+/* 表單變短之後抽屜也跟著變矮，地點清單會掉到畫面外：編輯時抽屜維持夠高，內容靠上 */
+.sheet:has(.editor){min-height:min(88dvh,760px)}
+.sheet:has(.editor) .body{align-content:start;flex:1}
+
+/* 時間、日期用選的：空白時顯示這一格是什麼（手機上空的 date/time 只是一個空框） */
+.dtpick{position:relative;display:block;min-width:0}
+.dtpick input{-webkit-appearance:none;appearance:none;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%;min-width:0;min-height:38px;box-sizing:border-box;line-height:1.4;text-align:left}
+.dtpick input::-webkit-date-and-time-value{text-align:left}
+.dtpick[data-empty="1"]::before{content:attr(data-hint);position:absolute;left:11px;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);opacity:.75;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtpick[data-empty="1"] input:not(:focus){color:transparent}
+.dtpick[data-empty="1"]:focus-within::before{display:none}
+.addrow .dtpick input,.editrow .dtpick input{height:36px;min-height:36px;padding-block:0}
+.cardedit .rrow .dtpick input{font-size:.84rem;padding:6px 8px;min-height:0}
+@media (max-width:640px){.cardedit .rrow .dtpick{grid-column:span 2}}

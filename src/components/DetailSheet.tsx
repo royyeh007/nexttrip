@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { TimeField } from "./Pickers";
 import { PlaceInput } from "./PlaceInput";
 import { placeByKey, placesFor } from "../weather";
 import { FlightStatus } from "./FlightStatus";
@@ -153,6 +154,8 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   const [d, setD] = useState<Draft>(() => (mode === "edit" ? draftOf(stop, arrive) : { ...draftOf(null, undefined), t: stop.t }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // 細節預設收起來；編輯時如果訂位、提醒、交通這些已經有內容就先打開（地址和電話收著時另外顯示一行）
+  const [more, setMore] = useState(() => mode === "edit" && !!(d.who || d.ref || d.book || d.rec || d.info || d.tips || d.legMode || d.legTxt));
   const up = <K extends keyof Draft>(k: K) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setD((x) => ({ ...x, [k]: e.target.value }));
   const hasArrive = mode === "new" ? day.items.some((it) => !isLeg(it)) : mode === "add" || !!arrive || day.items.findIndex((it) => !isLeg(it)) !== day.items.indexOf(stop);
 
@@ -228,8 +231,8 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
         </label>
       )}
       <div className="formgrid">
-        <label>{t("時間")}<input value={d.t} onChange={up("t")} placeholder={t("例：14:40")} inputMode="numeric" /></label>
-        <label>{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("打幾個字找地點，例：淺草寺")} near={near}
+        <label>{t("時間")}<TimeField value={d.t} onChange={(v) => setD((x) => ({ ...x, t: v }))} hint={t("選時間")} /></label>
+        <label>{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("店名或地圖連結")} near={near}
           onChange={(v) => setD((x) => ({ ...x, n: v }))}
           onPick={(p) => setD((x) => {
             const q = [p.name, p.address].filter(Boolean).join(" ").trim();
@@ -237,38 +240,47 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
           })} /></label>
         <label>{t("類型")}<select value={d.k} onChange={up("k")}>{(Object.keys(KIND_NAME) as Kind[]).map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select></label>
         <label>{t("訂位狀態")}<select value={d.st} onChange={up("st")}>{STATUS_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label>
-        <label>{t("Google 地圖搜尋字")}<input value={d.q} onChange={up("q")} placeholder={t("空白就用名稱")} /></label>
-        <label>{t("地址")}<input value={d.addr} onChange={up("addr")} /></label>
-        <label>{t("電話")}<input value={d.tel} onChange={up("tel")} inputMode="tel" /></label>
-        <label>{t("只有誰去（可空）")}<input value={d.who} onChange={up("who")} placeholder={t("例：4 位女生")} /></label>
-        {mode !== "new" && (otherTrips.length > 0 || (mode === "edit" && stop.ref)) && (
-          <label>{t("連到另一個行程（可空）")}
-            <select value={d.ref} onChange={up("ref")}>
-              <option value="">{t("不連結")}</option>
-              {mode === "edit" && stop.ref && !otherTrips.some((m) => m.trip_id === stop.ref!.trip) && <option value={stop.ref.trip}>{t("{name}（你不在這個行程裡）", { name: stop.ref.name })}</option>}
-              {otherTrips.map((m) => <option key={m.trip_id} value={m.trip_id}>{m.trip.name}</option>)}
-            </select>
-          </label>
-        )}
       </div>
       <label className="full">{t("一句話說明")}<input value={d.s} onChange={up("s")} /></label>
-      <div className="formgrid">
-        <label>{t("訂位資訊（一行一項）")}<textarea rows={rowsOf(d.book)} value={d.book} onChange={up("book")} /></label>
-        <label>{t("推薦（一行一項）")}<textarea rows={rowsOf(d.rec)} value={d.rec} onChange={up("rec")} /></label>
-        <label>{t("資訊（一行一項）")}<textarea rows={rowsOf(d.info)} value={d.info} onChange={up("info")} /></label>
-        <label>{t("提醒（一行一項）")}<textarea rows={rowsOf(d.tips)} value={d.tips} onChange={up("tips")} /></label>
-      </div>
-      {hasArrive && (
+      {!more && (d.addr || d.tel) && <p className="note pickedline">{[d.addr, d.tel].filter(Boolean).join("・")}</p>}
+      <button type="button" className="morebtn" aria-expanded={more} onClick={() => setMore((v) => !v)}>
+        <span><b>{t("更多細節")}</b><small>{t("地址、電話、訂位、提醒、交通")}</small></span>
+        <svg className="foldchev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {more && (<>
         <div className="formgrid">
-          <label>{t("從上一站怎麼去")}
-            <select value={d.legMode} onChange={up("legMode")}>
-              <option value="">{t("（不填）")}</option>
-              {(Object.keys(MODE) as Mode[]).map((m) => <option key={m} value={m}>{MODE[m].label}</option>)}
-            </select>
-          </label>
-          <label>{t("交通說明")}<input value={d.legTxt} onChange={up("legTxt")} placeholder={t("例：計程車約 10 分鐘")} /></label>
+          <label>{t("地址")}<input value={d.addr} onChange={up("addr")} /></label>
+          <label>{t("電話")}<input value={d.tel} onChange={up("tel")} inputMode="tel" /></label>
+          <label>{t("地圖上要搜尋的字")}<input value={d.q} onChange={up("q")} placeholder={t("空白就用名稱")} /></label>
+          <label>{t("只有誰去（可空）")}<input value={d.who} onChange={up("who")} placeholder={t("例：4 位女生")} /></label>
+          {mode !== "new" && (otherTrips.length > 0 || (mode === "edit" && stop.ref)) && (
+            <label>{t("連到另一個行程（可空）")}
+              <select value={d.ref} onChange={up("ref")}>
+                <option value="">{t("不連結")}</option>
+                {mode === "edit" && stop.ref && !otherTrips.some((m) => m.trip_id === stop.ref!.trip) && <option value={stop.ref.trip}>{t("{name}（你不在這個行程裡）", { name: stop.ref.name })}</option>}
+                {otherTrips.map((m) => <option key={m.trip_id} value={m.trip_id}>{m.trip.name}</option>)}
+              </select>
+            </label>
+          )}
         </div>
-      )}
+        <div className="formgrid">
+          <label>{t("訂位資訊（一行一項）")}<textarea rows={rowsOf(d.book)} value={d.book} onChange={up("book")} /></label>
+          <label>{t("推薦（一行一項）")}<textarea rows={rowsOf(d.rec)} value={d.rec} onChange={up("rec")} /></label>
+          <label>{t("資訊（一行一項）")}<textarea rows={rowsOf(d.info)} value={d.info} onChange={up("info")} /></label>
+          <label>{t("提醒（一行一項）")}<textarea rows={rowsOf(d.tips)} value={d.tips} onChange={up("tips")} /></label>
+        </div>
+        {hasArrive && (
+          <div className="formgrid">
+            <label>{t("從上一站怎麼去")}
+              <select value={d.legMode} onChange={up("legMode")}>
+                <option value="">{t("（不填）")}</option>
+                {(Object.keys(MODE) as Mode[]).map((m) => <option key={m} value={m}>{MODE[m].label}</option>)}
+              </select>
+            </label>
+            <label>{t("交通說明")}<input value={d.legTxt} onChange={up("legTxt")} placeholder={t("例：計程車約 10 分鐘")} /></label>
+          </div>
+        )}
+      </>)}
       <div className="actions">
         <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? t("儲存中…") : mode === "edit" ? t("儲存") : t("加入#add")}</button>
         <button type="button" className="btn" onClick={onCancel} disabled={busy}>{t("取消")}</button>
