@@ -285,7 +285,6 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   return (
     <div className="sec stoppeople">
       <h4>{t("誰參加")}</h4>
-      <p><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? t("已複製") : t("複製")}</button></p>
       {fams.map((f) => (
         <div key={f} className="chips">
           {fams.length > 1 && <small>{famLabel(f)}</small>}
@@ -297,6 +296,7 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
         </div>
       ))}
       {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{chosen && <> <button type="button" className="link" disabled={busy} onClick={() => write(undefined)}>{t("改回全員")}</button></>}</p>}
+      <p className="count"><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? t("已複製") : t("複製人數")}</button><small>{t("訂位時可以直接貼給餐廳")}</small></p>
     </div>
   );
 }

@@ -1367,3 +1367,8 @@ input[type="date"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date
 .editor label.bad input,.editor label.bad select{border-color:var(--shu);box-shadow:0 0 0 2px color-mix(in srgb,var(--shu) 22%,transparent)}
 .editor label.bad{color:var(--shu)}
 .stoppeople.bad .lbl{color:var(--shu)}
+/* 誰參加：選和沒選的名字一樣大（原本選到的變粗變寬，整排會跟著跳）；人數那一行放在名字下面，長短變了也不會推動名字 */
+.stoppeople .chip{display:inline-flex;align-items:center;min-height:34px;padding:5px 13px;font-size:.88rem;font-weight:700;line-height:1.2}
+.stoppeople .count{margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.stoppeople .count small{flex-basis:100%;color:var(--muted);font-size:.78rem}
+.stoppeople .count .copybtn{margin-left:0;padding:3px 10px;font-size:.8rem}
