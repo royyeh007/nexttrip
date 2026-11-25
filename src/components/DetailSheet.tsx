@@ -18,7 +18,7 @@ import { CardSection } from "./CardPick";
 import { MenuIcon, SuitcaseIcon } from "./Logo";
 import { StopPeople, relevantPeople } from "./PeopleView";
 import { SplitPanel, newPar } from "./Split";
-import { useTripPeople } from "../people";
+import { personLabel, useTripPeople } from "../people";
 import { SharedPanel, rowFamilies } from "./SharedPanel";
 import { contentPatch, sharedFamilies, syncShared } from "../shared";
 import { t, tr, wk } from "../i18n";
@@ -147,6 +147,11 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   const goers = useTripPeople(current?.id);
   const group = goers ? relevantPeople(goers, day, []) : [];
   const canPreset = !stop.par && group.some((p) => p.kind === "child") && group.some((p) => p.kind === "adult");
+  // 新的一站可以直接點名字選誰去（已經存在的站在詳細頁的「誰參加」改）；undefined = 全員
+  const [going, setGoing] = useState<string[] | undefined>(undefined);
+  const pickPeople = mode !== "edit" && group.length > 1 && split !== "child" && split !== "adult";
+  const isGoing = (id: string) => !going || going.includes(id);
+  const toggleGoing = (id: string) => { const ids = group.map((p) => p.id).filter((x) => (x === id ? !isGoing(x) : isGoing(x))); setGoing(ids.length === group.length ? undefined : ids); };
   const otherTrips = memberships.filter((m) => m.trip_id !== current?.id);
   // suggestions lean towards the city this day is in (when the weather already knows where that is)
   const nearPlace = placeByKey(placesFor(day.id, day.city).slice(-1)[0] ?? "");
@@ -165,6 +170,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
     if (d.t.trim() && !/^\d{1,2}:\d{2}$/.test(d.t.trim())) { setErr(t("時間請用 H:MM，例如 9:30、14:00")); return; }
     setBusy(true); setErr(null);
     const next = stopOf(d, mode === "edit" ? stop : undefined);
+    if (pickPeople && going) { if (going.length === 0) { setBusy(false); setErr(t("至少要有一個人去")); return; } next.people = going; }
     // The link to another trip: only touch it when this person changed the choice. Someone who is not in the linked trip
     // (it is not in their list) used to wipe the link for everyone just by editing the time.
     const refTrip = otherTrips.find((m) => m.trip_id === d.ref);
@@ -247,12 +253,24 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
         <svg className="foldchev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {more && (<>
+        {pickPeople && (
+          <div className="stoppeople inform">
+            <span className="lbl">{t("誰參加")}</span>
+            {[...new Set(group.map((p) => p.family_id))].map((f, _, fams) => (
+              <div key={f} className="chips">
+                {fams.length > 1 && <small>{labelOf(f)}</small>}
+                {group.filter((p) => p.family_id === f).map((p) => <button key={p.id} type="button" className={`chip${isGoing(p.id) ? " on" : ""}`} aria-pressed={isGoing(p.id)} onClick={() => toggleGoing(p.id)}>{personLabel(p)}</button>)}
+              </div>
+            ))}
+            <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}</p>
+          </div>
+        )}
         <div className="formgrid">
           <label>{t("訂位狀態")}<select value={d.st} onChange={up("st")}>{STATUS_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label>
-          <label>{t("地址")}<input value={d.addr} onChange={up("addr")} /></label>
           <label>{t("電話")}<input value={d.tel} onChange={up("tel")} inputMode="tel" /></label>
-          <label>{t("地圖上要搜尋的字")}<input value={d.q} onChange={up("q")} placeholder={t("空白就用名稱")} /></label>
-          <label>{t("只有誰去（可空）")}<input value={d.who} onChange={up("who")} placeholder={t("例：4 位女生")} /></label>
+          <label className="wide">{t("地址")}<input value={d.addr} onChange={up("addr")} /></label>
+          <label className="wide">{t("地圖上要搜尋的字")}<input value={d.q} onChange={up("q")} placeholder={t("空白就用名稱")} /></label>
+          {(!pickPeople || d.who) && <label>{t("只有誰去（可空）")}<input value={d.who} onChange={up("who")} placeholder={t("例：4 位女生")} /></label>}
           {mode !== "new" && (otherTrips.length > 0 || (mode === "edit" && stop.ref)) && (
             <label>{t("連到另一個行程（可空）")}
               <select value={d.ref} onChange={up("ref")}>

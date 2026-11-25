@@ -1355,3 +1355,10 @@ input[type="date"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date
 .addday label,.addday .grid{min-width:0}
 .addday .chips{margin-top:2px}
 .addday .chip-btn[aria-pressed="true"]{border-color:var(--ai);font-weight:700}
+/* 表單裡要整行寬的欄位（地址這種長的） */
+.formgrid > label.wide{grid-column:1 / -1}
+/* 手機上「捷徑」和「Trip醬」兩顆浮在抽屜上面：抽屜內容最下面多留一段，按鈕才捲得出來 */
+@media (max-width:640px){.sheet .body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}}
+.stoppeople.inform{margin-block:2px 10px}
+.stoppeople.inform .lbl{font-size:.84rem;color:var(--muted)}
+.stoppeople.inform .note{margin:6px 0 0}
