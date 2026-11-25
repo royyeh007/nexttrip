@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PlaceInput } from "./PlaceInput";
 import { supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { dotDate, tripLength } from "../data";
@@ -34,17 +35,17 @@ function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; 
   return (
     <div className="panel">
       <h3>{t("建立新行程")}</h3>
-      <p className="note">{t("建立的人就是這個行程的管理員，之後可以邀請家人、管理團員。開始到結束的每一天會先建好空白的日子。")}</p>
+      <p className="note">{t("建立的人就是這個行程的管理員，之後可以邀請家人、管理團員。開始到結束的每一天會先建好空白的日子，城市先填主要城市，之後每一天可以各自改。")}</p>
       <div className="formgrid">
         <label>{t("行程名稱")}<input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("例：2027 春天京都")} /></label>
-        <label>{t("去哪裡（可空）")}<input value={place} onChange={(e) => setPlace(e.target.value)} placeholder={t("例：日本・京都、大阪")} /></label>
+        <label>{t("主要城市")}<PlaceInput tripId="" kind="city" withCountry value={place} onChange={setPlace} placeholder={t("打幾個字找城市，例：東京")} /></label>
         <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value); }} /></label>
         <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
         <label>{t("你們這一家叫什麼")}<input value={famLabel} onChange={(e) => setFamLabel(e.target.value)} placeholder={t("例：Lily 家")} /></label>
         <label>{t("你的名字")}<input value={myName} onChange={(e) => setMyName(e.target.value)} placeholder={t("例：小明")} /></label>
       </div>
       <div className="actions">
-        <button type="button" className="btn primary" onClick={submit} disabled={busy || !name.trim() || !start || !end}>{busy ? t("建立中…") : t("建立行程")}</button>
+        <button type="button" className="btn primary" onClick={submit} disabled={busy || !name.trim() || !place.trim() || !start || !end}>{busy ? t("建立中…") : t("建立行程")}</button>
         <button type="button" className="btn" onClick={onCancel} disabled={busy}>{t("取消")}</button>
       </div>
       {err && <p className="err">{err}</p>}

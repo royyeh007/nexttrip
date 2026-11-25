@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InviteFriends } from "./AccountView";
 import { PeopleView } from "./PeopleView";
+import { PlaceInput } from "./PlaceInput";
 import { MenuIcon } from "./Logo";
 import { TRIP_ICONS, TripIcon, tripIconId } from "../tripIcons";
 import { supabase } from "../supabase";
@@ -308,7 +309,7 @@ function Settings() {
         <p className="note">{t("延長日期時，多出來的日子會自動補上空白的「大家一起」版本。")}</p>
         <div className="formgrid">
           <label>{t("行程名稱")}<input value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <label>{t("去哪裡")}<input value={place} onChange={(e) => setPlace(e.target.value)} placeholder={t("例：日本・東京、長野")} /></label>
+          <label>{t("主要城市")}<PlaceInput tripId={current?.id ?? ""} kind="city" withCountry value={place} onChange={setPlace} placeholder={t("打幾個字找城市，例：東京")} /></label>
           <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
           <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
           <label>{t("當地時區（「現在」的線、航班日期用）")}
@@ -345,30 +346,33 @@ function Settings() {
 }
 
 const foldRead = (id: string) => { try { return localStorage.getItem(`jp-fold:${id}`) === "1"; } catch { return false; } };
-/** One section of the page, folded shut until asked for: the page was a long scroll of every panel. Which ones are open is remembered on this device. */
+/**
+ * One section of the page, folded shut until asked for: the page was a long scroll of every panel. Which ones are open is remembered on this device.
+ * What is inside is always there (it loads with the page), so opening is one smooth slide instead of a jump when the data arrives.
+ */
 function Fold({ id, icon, title, lead, force, solo, children }: { id: string; icon: Parameters<typeof MenuIcon>[0]["name"]; title: string; lead: string; force?: boolean; solo?: boolean; children: React.ReactNode }) {
-  const ref = useRef<HTMLDetailsElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(() => !!force || foldRead(id));
-  const [seen, setSeen] = useState(open); // what is inside loads the first time the section is opened, then stays (a half-typed form survives closing it)
   useEffect(() => {
     if (!force) return;
-    setOpen(true); setSeen(true);
+    setOpen(true);
     const h = setTimeout(() => ref.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
     return () => clearTimeout(h);
   }, [force]);
+  const toggle = () => {
+    const o = !open;
+    setOpen(o);
+    try { localStorage.setItem(`jp-fold:${id}`, o ? "1" : "0"); } catch { /* private window: just not remembered */ }
+  };
   return (
-    <details ref={ref} className={`gsec fold${solo ? " solo" : ""}`} open={open} onToggle={(e) => {
-      const o = e.currentTarget.open;
-      setOpen(o); if (o) setSeen(true);
-      try { localStorage.setItem(`jp-fold:${id}`, o ? "1" : "0"); } catch { /* private window: just not remembered */ }
-    }}>
-      <summary>
+    <div ref={ref} className={`fold${solo ? " solo" : ""}`} data-open={open ? "1" : "0"}>
+      <button type="button" className="foldhead" aria-expanded={open} aria-controls={`fold-${id}`} onClick={toggle}>
         <span className="gicon" aria-hidden="true"><MenuIcon name={icon} size={24} /></span>
-        <span className="gtitle"><h3>{title}</h3><small>{lead}</small></span>
-        <span className="chev" aria-hidden="true">›</span>
-      </summary>
-      <div className="foldbody">{seen && children}</div>
-    </details>
+        <span className="gtitle"><b>{title}</b><small>{lead}</small></span>
+        <svg className="foldchev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      <div className="foldwrap" id={`fold-${id}`}><div className="foldbody"><div className="foldin">{children}</div></div></div>
+    </div>
   );
 }
 

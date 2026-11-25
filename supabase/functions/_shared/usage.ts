@@ -53,9 +53,12 @@ export const LIMITS = {
   "match-place": () => ({ user: envInt("MATCH_PLACE_DAILY_USER", 30), trip: envInt("MATCH_PLACE_DAILY_TRIP", 40) }),
   // 卡片庫英文：存一張卡翻一次，只翻缺的句子
   "translate-card": () => ({ user: envInt("TRANSLATE_CARD_DAILY_USER", 40), trip: envInt("TRANSLATE_CARD_DAILY_TRIP", 60) }),
+  // 地點搜尋（Google）：打字時的建議一次算一筆，選定後抓詳細資料一次算一筆（這一筆才是 Google 真正收費的）
+  "place-search": () => ({ user: envInt("PLACE_SEARCH_DAILY_USER", 600), trip: envInt("PLACE_SEARCH_DAILY_TRIP", 2000) }),
+  "place-details": () => ({ user: envInt("PLACE_DETAILS_DAILY_USER", 80), trip: envInt("PLACE_DETAILS_DAILY_TRIP", 200) }),
 } as const;
 export type Kind = keyof typeof LIMITS;
-const KIND_NAME: Record<Kind, string> = { chat: "Trip醬", "parse-upload": "上傳整理", "optimize-day": "幫我排順序", "format-info": "幫我整理", "card-lookup": "幫我查這張卡", "match-place": "背景配對", "translate-card": "卡片庫英文" };
+const KIND_NAME: Record<Kind, string> = { chat: "Trip醬", "parse-upload": "上傳整理", "optimize-day": "幫我排順序", "format-info": "幫我整理", "card-lookup": "幫我查這張卡", "match-place": "背景配對", "translate-card": "卡片庫英文", "place-search": "地點搜尋", "place-details": "地點搜尋" };
 
 export interface Reservation { id: number | null; remaining: number }
 

@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { PlaceInput } from "./PlaceInput";
+import { placeByKey, placesFor } from "../weather";
 import { FlightStatus } from "./FlightStatus";
 import { askClaude } from "./Chat";
 import { famNames, isLeg, isViewer } from "../data";
@@ -145,6 +147,9 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   const group = goers ? relevantPeople(goers, day, []) : [];
   const canPreset = !stop.par && group.some((p) => p.kind === "child") && group.some((p) => p.kind === "adult");
   const otherTrips = memberships.filter((m) => m.trip_id !== current?.id);
+  // suggestions lean towards the city this day is in (when the weather already knows where that is)
+  const nearPlace = placeByKey(placesFor(day.id, day.city).slice(-1)[0] ?? "");
+  const near = nearPlace ? { lat: nearPlace.lat, lon: nearPlace.lon } : null;
   const [d, setD] = useState<Draft>(() => (mode === "edit" ? draftOf(stop, arrive) : { ...draftOf(null, undefined), t: stop.t }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -224,7 +229,12 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       )}
       <div className="formgrid">
         <label>{t("時間")}<input value={d.t} onChange={up("t")} placeholder={t("例：14:40")} inputMode="numeric" /></label>
-        <label>{t("名稱")}<input value={d.n} onChange={up("n")} placeholder={t("例：晚餐：○○")} /></label>
+        <label>{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("打幾個字找地點，例：淺草寺")} near={near}
+          onChange={(v) => setD((x) => ({ ...x, n: v }))}
+          onPick={(p) => setD((x) => {
+            const q = [p.name, p.address].filter(Boolean).join(" ").trim();
+            return { ...x, n: p.name, q, addr: p.address, tel: p.tel || x.tel };
+          })} /></label>
         <label>{t("類型")}<select value={d.k} onChange={up("k")}>{(Object.keys(KIND_NAME) as Kind[]).map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select></label>
         <label>{t("訂位狀態")}<select value={d.st} onChange={up("st")}>{STATUS_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label>
         <label>{t("Google 地圖搜尋字")}<input value={d.q} onChange={up("q")} placeholder={t("空白就用名稱")} /></label>

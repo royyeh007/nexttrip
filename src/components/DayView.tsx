@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useRef, useState } from "react";
+import { PlaceInput } from "./PlaceInput";
 import { DayShare } from "./DayShare";
 import { StopPeopleChip } from "./PeopleView";
 import { SharedChip, rowFamilies } from "./SharedPanel";
@@ -260,7 +261,7 @@ export function DayView({ day, family, onOpen, onRemoved, wx }: { day: Day; fami
           <div className="daymeta-edit">
             <div className="formgrid">
               <label>{t("標題")}<input value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} autoFocus onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) saveMeta(); if (e.key === "Escape") setEditMeta(false); }} /></label>
-              <label>{t("城市")}<input value={meta.city} onChange={(e) => setMeta({ ...meta, city: e.target.value })} placeholder={t("例：東京")} /></label>
+              <label>{t("城市")}<PlaceInput tripId={current?.id ?? ""} kind="city" value={meta.city} onChange={(v) => setMeta((m) => ({ ...m, city: v }))} placeholder={t("例：東京")} /></label>
               <label>{joint ? t("{family}那晚住哪（別家可以各填各的）", { family: family.label }) : t("那晚住哪")}<input value={meta.hotel} onChange={(e) => setMeta({ ...meta, hotel: e.target.value })} placeholder={t("可空")} /></label>
             </div>
             <div className="actions">

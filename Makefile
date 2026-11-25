@@ -113,6 +113,8 @@ fn-deploy:
 	supabase functions deploy format-info --no-verify-jwt
 	supabase functions deploy card-lookup --no-verify-jwt
 	supabase functions deploy match-place --no-verify-jwt
+	supabase functions deploy translate-card --no-verify-jwt
+	supabase functions deploy place-search --no-verify-jwt
 
 ## Store the Claude API key for the Edge Functions. Asks for the key instead of taking it on the command line,
 ## so it does not end up in the terminal scrollback or the shell history; an empty answer changes nothing.
@@ -121,10 +123,16 @@ secrets:
 	if [ -z "$$KEY" ]; then echo "沒有輸入，沒有改動。"; exit 1; fi; \
 	supabase secrets set "ANTHROPIC_API_KEY=$$KEY" >/dev/null && echo "已存進 Supabase。"
 
+## Store the Google Places key for the place search (same way: asked for, never echoed).
+secrets-places:
+	@printf "GOOGLE_PLACES_KEY (輸入時不會顯示)："; stty -echo; read KEY; stty echo; echo; \
+	if [ -z "$$KEY" ]; then echo "沒有輸入，沒有改動。"; exit 1; fi; \
+	supabase secrets set "GOOGLE_PLACES_KEY=$$KEY" >/dev/null && echo "已存進 Supabase。"
+
 ## Everything after `make link`: tables, functions, data (seed only adds what is missing)
 setup: db-push fn-deploy seed
 
-.PHONY: seed seed-overwrite test link db-push fn-deploy secrets setup
+.PHONY: seed seed-overwrite test link db-push fn-deploy secrets secrets-places setup
 
 ## Push auth settings incl. Google login (needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.local).
 ## Shows what will change in the hosted project and asks before applying: read the list, in particular the e-mail sign-up lines.

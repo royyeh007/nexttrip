@@ -49,3 +49,6 @@ verify_jwt = false
 
 [functions.translate-card]
 verify_jwt = false
+
+[functions.place-search]
+verify_jwt = false
