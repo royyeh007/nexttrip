@@ -164,13 +164,30 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   const up = <K extends keyof Draft>(k: K) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setD((x) => ({ ...x, [k]: e.target.value }));
   const hasArrive = mode === "new" ? day.items.some((it) => !isLeg(it)) : mode === "add" || !!arrive || day.items.findIndex((it) => !isLeg(it)) !== day.items.indexOf(stop);
 
+  // 哪一格有問題：把那一格標紅、訊息寫在那一格下面，並且捲過去（訊息只放在最下面的按鈕旁邊時，上面的欄位根本看不到）
+  const [bad, setBad] = useState<{ field: "n" | "t" | "people"; msg: string } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const fail = (field: "n" | "t" | "people", msg: string) => {
+    setErr(null); setBad({ field, msg });
+    if (field === "people") setMore(true);
+    setTimeout(() => {
+      const el = box.current?.querySelector<HTMLElement>(`[data-field="${field}"]`);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.querySelector<HTMLElement>("input")?.focus({ preventScroll: true });
+    }, 60);
+  };
+  const badOf = (f: "n" | "t" | "people") => (bad?.field === f ? <small className="fielderr" role="alert">{bad.msg}</small> : null);
+  useEffect(() => { setBad((b) => (b && ((b.field === "n" && d.n.trim()) || b.field === "t" || b.field === "people") ? null : b)); }, [d.n, d.t, going]);
+
   const save = async () => {
     if (!current) return;
-    if (!d.n.trim()) { setErr(t("名稱不能空")); return; }
-    if (d.t.trim() && !/^\d{1,2}:\d{2}$/.test(d.t.trim())) { setErr(t("時間請用 H:MM，例如 9:30、14:00")); return; }
-    setBusy(true); setErr(null);
+    if (!d.n.trim()) { fail("n", t("還沒填名稱：這一站叫什麼？")); return; }
+    if (d.t.trim() && !/^\d{1,2}:\d{2}$/.test(d.t.trim())) { fail("t", t("時間請用 H:MM，例如 9:30、14:00")); return; }
+    if (pickPeople && going && going.length === 0) { fail("people", t("至少要有一個人去：點名字把人加回來")); return; }
+    setBusy(true); setErr(null); setBad(null);
     const next = stopOf(d, mode === "edit" ? stop : undefined);
-    if (pickPeople && going) { if (going.length === 0) { setBusy(false); setErr(t("至少要有一個人去")); return; } next.people = going; }
+    if (pickPeople && going) next.people = going;
     // The link to another trip: only touch it when this person changed the choice. Someone who is not in the linked trip
     // (it is not in their list) used to wipe the link for everyone just by editing the time.
     const refTrip = otherTrips.find((m) => m.trip_id === d.ref);
@@ -223,7 +240,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   };
 
   return (
-    <div className="sec editor">
+    <div className="sec editor" ref={box}>
       {mode !== "new" && <h4>{mode === "edit" ? t("編輯這一站") : t("在這站後面加一站")}</h4>}
       {users.length > 1 && <p className="note">{users.length === trip.families.length ? (users.length === 2 ? t("這一天是大家共用的同一份：這裡改了，兩家看到的都會變。") : t("這一天是大家共用的同一份：這裡改了，每一家看到的都會變。")) : (users.length === 2 ? t("這一天是{names}共用的同一份：這裡改了，兩家看到的都會變。", { names: famNames(users, labelOf) }) : t("這一天是{names}共用的同一份：這裡改了，每一家看到的都會變。", { names: famNames(users, labelOf) }))}</p>}
       {mode === "add" && (
@@ -237,15 +254,15 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
         </label>
       )}
       <div className="formgrid">
-        <label>{t("時間")}<TimeField value={d.t} onChange={(v) => setD((x) => ({ ...x, t: v }))} hint={t("選時間")} /></label>
+        <label data-field="t" className={bad?.field === "t" ? "bad" : undefined}>{t("時間")}<TimeField value={d.t} onChange={(v) => setD((x) => ({ ...x, t: v }))} hint={t("選時間")} />{badOf("t")}</label>
         <label>{t("類型")}<select value={d.k} onChange={up("k")}>{(Object.keys(KIND_NAME) as Kind[]).map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select></label>
       </div>
-      <label className="full">{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("打字找地點，或貼上地圖連結")} near={near}
+      <label data-field="n" className={`full${bad?.field === "n" ? " bad" : ""}`}>{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("打字找地點，或貼上地圖連結")} near={near}
           onChange={(v) => setD((x) => ({ ...x, n: v }))}
           onPick={(p) => setD((x) => {
             const q = [p.name, p.address].filter(Boolean).join(" ").trim();
             return { ...x, n: p.name, q, addr: p.address, tel: p.tel || x.tel };
-          })} /></label>
+          })} />{badOf("n")}</label>
       {!more && (d.addr || d.tel) && <p className="note pickedline">{[d.addr, d.tel].filter(Boolean).join("・")}</p>}
       <label className="full">{t("一句話說明")}<input value={d.s} onChange={up("s")} /></label>
       <button type="button" className="morebtn" aria-expanded={more} onClick={() => setMore((v) => !v)}>
@@ -254,7 +271,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       </button>
       {more && (<>
         {pickPeople && (
-          <div className="stoppeople inform">
+          <div className={`stoppeople inform${bad?.field === "people" ? " bad" : ""}`} data-field="people">
             <span className="lbl">{t("誰參加")}</span>
             {[...new Set(group.map((p) => p.family_id))].map((f, _, fams) => (
               <div key={f} className="chips">
@@ -263,6 +280,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
               </div>
             ))}
             <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}</p>
+            {badOf("people")}
           </div>
         )}
         <div className="formgrid">
