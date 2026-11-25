@@ -133,7 +133,7 @@ export function HouseholdPanel() {
 }
 
 /** 行程裡的「誰會去」頁（#people）：勾我們家這趟誰去、看每一家有誰、幫沒有帳號的人代填。 */
-export function PeopleView() {
+export function PeopleView({ embedded = false }: { embedded?: boolean }) {
   const { current, member, trip, openAccount } = useTrip();
   const tripId = current?.id;
   const people = useTripPeople(tripId);
@@ -162,10 +162,12 @@ export function PeopleView() {
 
   return (
     <>
-      <section className="dayhead">
-        <h2>{t("誰會去")}</h2>
-        <p className="note">{t("全部 {n} 人：{detail}。訂位、買票時照這個數字；每個地點可以再選只有哪些人參加。", { n: people.length, detail: headcount(people) })}</p>
-      </section>
+      {embedded
+        ? <p className="note foldnote">{t("全部 {n} 人：{detail}。訂位、買票時照這個數字；每個地點可以再選只有哪些人參加。", { n: people.length, detail: headcount(people) })}</p>
+        : <section className="dayhead">
+            <h2>{t("誰會去")}</h2>
+            <p className="note">{t("全部 {n} 人：{detail}。訂位、買票時照這個數字；每個地點可以再選只有哪些人參加。", { n: people.length, detail: headcount(people) })}</p>
+          </section>}
 
       <div className="panel admin">
         <h3>{t("我們家這趟誰會去")}</h3>

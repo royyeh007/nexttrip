@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InviteFriends } from "./AccountView";
+import { PeopleView } from "./PeopleView";
 import { MenuIcon } from "./Logo";
 import { TRIP_ICONS, TripIcon, tripIconId } from "../tripIcons";
 import { supabase } from "../supabase";
@@ -343,20 +344,52 @@ function Settings() {
   );
 }
 
-/** #admin — trip administration (admins only). */
-export function AdminView() {
+const foldRead = (id: string) => { try { return localStorage.getItem(`jp-fold:${id}`) === "1"; } catch { return false; } };
+/** One section of the page, folded shut until asked for: the page was a long scroll of every panel. Which ones are open is remembered on this device. */
+function Fold({ id, icon, title, lead, force, solo, children }: { id: string; icon: Parameters<typeof MenuIcon>[0]["name"]; title: string; lead: string; force?: boolean; solo?: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(() => !!force || foldRead(id));
+  const [seen, setSeen] = useState(open); // what is inside loads the first time the section is opened, then stays (a half-typed form survives closing it)
+  useEffect(() => {
+    if (!force) return;
+    setOpen(true); setSeen(true);
+    const h = setTimeout(() => ref.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
+    return () => clearTimeout(h);
+  }, [force]);
+  return (
+    <details ref={ref} className={`gsec fold${solo ? " solo" : ""}`} open={open} onToggle={(e) => {
+      const o = e.currentTarget.open;
+      setOpen(o); if (o) setSeen(true);
+      try { localStorage.setItem(`jp-fold:${id}`, o ? "1" : "0"); } catch { /* private window: just not remembered */ }
+    }}>
+      <summary>
+        <span className="gicon" aria-hidden="true"><MenuIcon name={icon} size={24} /></span>
+        <span className="gtitle"><h3>{title}</h3><small>{lead}</small></span>
+        <span className="chev" aria-hidden="true">›</span>
+      </summary>
+      <div className="foldbody">{seen && children}</div>
+    </details>
+  );
+}
+
+/** #admin — everything about running this trip. Who is going is for every member; the rest is for admins. (#people opens this page with that section open.) */
+export function AdminView({ focus }: { focus?: "people" }) {
   const { member } = useTrip();
-  if (member?.role !== "admin") {
-    return <section className="dayhead"><h2>{t("管理這個行程")}</h2><p className="note">{t("只有這個行程的管理員可以進來。")}</p></section>;
-  }
+  const admin = member?.role === "admin";
   return (
     <>
-      <section className="dayhead"><h2>{t("管理這個行程")}</h2><p className="note">{t("團員、邀請連結、家庭和行程設定。")}</p></section>
-      <Members />
-      <Invites />
-      <InviteFriends />
-      <Families />
-      <Settings />
+      <section className="dayhead"><h2>{t("管理這個行程")}</h2><p className="note">{admin ? t("點一下展開要看的部分。") : t("勾選你們家這趟誰會去。其他設定只有管理員看得到。")}</p></section>
+      <div className="folds">
+        <Fold id="people" icon="people" title={t("誰會去")} lead={t("勾選我們家這趟誰去、看每一家有誰")} force={focus === "people" || !admin}><PeopleView embedded /></Fold>
+        {admin && (
+          <>
+            <Fold id="members" icon="friends" title={t("團員")} lead={t("誰在這個行程裡、改角色或移除")} solo><Members /></Fold>
+            <Fold id="invites" icon="invite" title={t("邀請")} lead={t("邀請連結、直接邀請好友")}><Invites /><InviteFriends /></Fold>
+            <Fold id="families" icon="together" title={t("家庭")} lead={t("這趟有哪幾家、每一家的名稱")} solo><Families /></Fold>
+            <Fold id="settings" icon="admin" title={t("行程設定")} lead={t("名稱、日期、地點、圖示，還有刪除行程")}><Settings /></Fold>
+          </>
+        )}
+      </div>
     </>
   );
 }

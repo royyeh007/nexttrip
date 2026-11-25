@@ -26,7 +26,7 @@ import { setBackdropContext } from "./components/Backdrop";
 import { TripLoader } from "./components/Loader";
 import { describe, fetchCurrent, placeByKey, placesFor } from "./weather";
 import type { CurrentSky } from "./weather";
-import { PeopleBanner, PeopleView } from "./components/PeopleView";
+import { PeopleBanner } from "./components/PeopleView";
 import { useInvitations, usePendingFriend } from "./friends";
 import { Login } from "./components/Login";
 import { JoinTrip } from "./components/JoinTrip";
@@ -227,9 +227,8 @@ function TripMenu() {
       <div className="list">
         <small>{member?.name ?? member?.email}</small>
         <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />{t("切換行程")}{pending > 0 && <b className="badge">{pending === 1 ? t("1 個邀請") : t("{n} 個邀請", { n: pending })}</b>}</button>
-        <a href="#people" onClick={close}><MenuIcon name="people" />{t("這趟誰會去")}</a>
         <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />{t("帳號・家人・好友")}</button>
-        {member?.role === "admin" && <a href="#admin" onClick={close}><MenuIcon name="admin" />{t("管理這個行程")}</a>}
+        <a href="#admin" onClick={close}><MenuIcon name="admin" />{t("管理這個行程")}</a>
         <a href="#cards" onClick={close}><MenuIcon name="cards" />{t("我的信用卡")}</a>
         <a href="#guide" onClick={close}><MenuIcon name="guide" />{t("使用教學")}</a>
         <button type="button" onClick={rename}><MenuIcon name="rename" />{t("改我的名字")}</button>
@@ -388,7 +387,7 @@ function Main() {
             {(trip.info.length > 0 || !isViewer(member)) && <a className="btn" href="#info" aria-current={view === "info" ? "page" : undefined}><MenuIcon name="info" size={18} />{t("其他資訊")}</a>}
             <a className="btn" href="#cards" aria-current={view === "cards" ? "page" : undefined}><MenuIcon name="cards" size={18} />{t("信用卡")}</a>
             {couponsOn && <button type="button" className="btn" onClick={() => openCoupons()}><MenuIcon name="coupon" size={18} />{t("藥妝優惠券#nav")}</button>}
-            {member?.role === "admin" && <a className="btn" href="#admin" aria-current={view === "admin" ? "page" : undefined}><MenuIcon name="admin" size={18} />{t("管理")}</a>}
+            <a className="btn" href="#admin" aria-current={view === "admin" || view === "people" ? "page" : undefined}><MenuIcon name="admin" size={18} />{t("管理")}</a>
           </div>
         </header>
 
@@ -451,7 +450,7 @@ function Main() {
             : view === "cards" ? <CardsView />
             : view === "admin" ? <AdminView />
             : view === "guide" ? <GuideView role={member?.role ?? "member"} />
-            : view === "people" ? <PeopleView />
+            : view === "people" ? <AdminView focus="people" />
             : cur && mode === "all" ? <AllFamiliesDay dateId={cur.id} onOpen={(day, stop, arrive) => setSelected({ day, stop, arrive })} />
             : cur ? <DayView key={`${cur.id}|${(cur.fam ?? []).join(",")}|${fam.id}`} day={cur} family={fam} wx={wx} onOpen={(stop, arrive) => setSelected({ day: cur, stop, arrive })} onRemoved={() => { location.hash = `#${dayIds.find((id) => id !== cur.id) ?? "todo"}`; }} />
             : !adding && (

@@ -1293,3 +1293,12 @@ html[lang="en"] .ovstops .k{width:auto;min-width:20px;padding:0 6px;border-radiu
 
 /* 載入畫面出現的時候不顯示背景（只留動畫），載完才出現 */
 html[data-loading] .backdrop{display:none}
+
+/* 管理這個行程：每個部分折起來，點了才展開 */
+.folds{display:grid;gap:10px;margin-top:14px}
+.fold .foldbody{padding:0 12px}
+.fold[open] .foldbody{padding-bottom:14px}
+.fold .foldbody>.panel:first-child,.fold .foldnote+.panel{margin-top:0}
+.fold .foldbody .panel{margin-top:10px;background:var(--paper)}
+.fold .foldnote{margin:0 2px 10px}
+.fold.solo .foldbody>.panel>h3:first-child{display:none}
