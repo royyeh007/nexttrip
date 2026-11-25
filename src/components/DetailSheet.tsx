@@ -232,23 +232,23 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       )}
       <div className="formgrid">
         <label>{t("時間")}<TimeField value={d.t} onChange={(v) => setD((x) => ({ ...x, t: v }))} hint={t("選時間")} /></label>
-        <label>{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("店名或地圖連結")} near={near}
+        <label>{t("類型")}<select value={d.k} onChange={up("k")}>{(Object.keys(KIND_NAME) as Kind[]).map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select></label>
+      </div>
+      <label className="full">{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("打字找地點，或貼上地圖連結")} near={near}
           onChange={(v) => setD((x) => ({ ...x, n: v }))}
           onPick={(p) => setD((x) => {
             const q = [p.name, p.address].filter(Boolean).join(" ").trim();
             return { ...x, n: p.name, q, addr: p.address, tel: p.tel || x.tel };
           })} /></label>
-        <label>{t("類型")}<select value={d.k} onChange={up("k")}>{(Object.keys(KIND_NAME) as Kind[]).map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select></label>
-        <label>{t("訂位狀態")}<select value={d.st} onChange={up("st")}>{STATUS_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label>
-      </div>
-      <label className="full">{t("一句話說明")}<input value={d.s} onChange={up("s")} /></label>
       {!more && (d.addr || d.tel) && <p className="note pickedline">{[d.addr, d.tel].filter(Boolean).join("・")}</p>}
+      <label className="full">{t("一句話說明")}<input value={d.s} onChange={up("s")} /></label>
       <button type="button" className="morebtn" aria-expanded={more} onClick={() => setMore((v) => !v)}>
         <span><b>{t("更多細節")}</b><small>{t("地址、電話、訂位、提醒、交通")}</small></span>
         <svg className="foldchev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {more && (<>
         <div className="formgrid">
+          <label>{t("訂位狀態")}<select value={d.st} onChange={up("st")}>{STATUS_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label>
           <label>{t("地址")}<input value={d.addr} onChange={up("addr")} /></label>
           <label>{t("電話")}<input value={d.tel} onChange={up("tel")} inputMode="tel" /></label>
           <label>{t("地圖上要搜尋的字")}<input value={d.q} onChange={up("q")} placeholder={t("空白就用名稱")} /></label>

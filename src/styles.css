@@ -1349,3 +1349,9 @@ html[data-loading] .backdrop{display:none}
 .addrow .dtpick input,.editrow .dtpick input{height:36px;min-height:36px;padding-block:0}
 .cardedit .rrow .dtpick input{font-size:.84rem;padding:6px 8px;min-height:0}
 @media (max-width:640px){.cardedit .rrow .dtpick{grid-column:span 2}}
+/* iOS 的日期、時間欄有自己的最小寬度和置中，會撐出格子外：一律照格子的寬度、靠左 */
+input[type="date"],input[type="time"]{-webkit-appearance:none;appearance:none;box-sizing:border-box;min-width:0;max-width:100%;min-height:38px;line-height:1.4;text-align:left}
+input[type="date"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date-and-time-value{text-align:left;min-height:1.4em}
+.addday label,.addday .grid{min-width:0}
+.addday .chips{margin-top:2px}
+.addday .chip-btn[aria-pressed="true"]{border-color:var(--ai);font-weight:700}

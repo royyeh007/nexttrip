@@ -4,8 +4,8 @@ import type { Family } from "../data";
 import { supabase } from "../supabase";
 import { useTrip } from "../trip";
 import { t } from "../i18n";
+import { PlaceInput } from "./PlaceInput";
 
-const CITIES = ["東京", "長野", "輕井澤", "草津", "成田", "橫濱", "鎌倉", "箱根", "河口湖", "日光", "京都", "大阪", "名古屋", "福岡", "札幌", "沖繩", "首爾", "台北", "其他"];
 
 /** Small form to add a date for this family (e.g. an earlier arrival or later departure). */
 export function AddDay({ family, onDone }: { family: Family; onDone: (dateId?: string) => void }) {
@@ -13,7 +13,9 @@ export function AddDay({ family, onDone }: { family: Family; onDone: (dateId?: s
   const min = current ? addDays(current.start_date, -14) : "";
   const max = current ? addDays(current.end_date, 14) : "";
   const [date, setDate] = useState(current?.start_date ?? "");
-  const [city, setCity] = useState(trip.days[0]?.city ?? "");
+  // 預設跟行程最後一天同一個城市（加的多半是前後多待幾天）；這趟出現過的城市列成按鈕，點一下就好
+  const used = [...new Set(trip.days.map((d) => d.city).filter((c) => c && c !== t("待定") && c.length <= 10 && !/[、，,・]/.test(c)))].slice(0, 6);
+  const [city, setCity] = useState(trip.days[trip.days.length - 1]?.city ?? "");
   const [title, setTitle] = useState("");
   const [hotel, setHotel] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,12 +42,9 @@ export function AddDay({ family, onDone }: { family: Family; onDone: (dateId?: s
       <p className="note">{t("加了之後可以上傳表單／截圖，或點右下角「Trip醬」直接說那天要做什麼。")}</p>
       <div className="grid">
         <label>{t("日期")}<input type="date" value={date} min={min} max={max} onChange={(e) => setDate(e.target.value)} /></label>
-        <label>{t("城市")}
-          <select value={CITIES.includes(city) ? city : "其他"} onChange={(e) => setCity(e.target.value === "其他" ? "" : e.target.value)}>
-            {CITIES.map((c) => <option key={c} value={c}>{c === "其他" ? t("其他") : c}</option>)}
-          </select>
+        <label>{t("城市")}<PlaceInput tripId={current?.id ?? ""} kind="city" value={city} onChange={setCity} placeholder={t("打幾個字找城市")} />
+          {used.length > 1 && <span className="chips">{used.map((c) => <button key={c} type="button" className="chip-btn" aria-pressed={c === city} onClick={() => setCity(c)}>{c}</button>)}</span>}
         </label>
-        {!CITIES.includes(city) && <label>{t("城市名稱")}<input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("例：大阪")} /></label>}
         <label>{t("標題（可空）")}<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("例：提早到東京・迪士尼")} /></label>
         <label>{t("那晚住哪（可空）")}<input value={hotel} onChange={(e) => setHotel(e.target.value)} placeholder={t("例：Conrad Tokyo")} /></label>
       </div>
