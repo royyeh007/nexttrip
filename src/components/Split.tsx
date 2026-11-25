@@ -7,7 +7,7 @@ import type { Day, Item, Stop } from "../data";
 import { useTripPeople } from "../people";
 import type { TripPerson } from "../people";
 import { relevantPeople } from "./PeopleView";
-import { editDayItems } from "../dayEdit";
+import { editDayItems, sortByTime } from "../dayEdit";
 import { MenuIcon } from "./Logo";
 import { t, list, lang } from "../i18n";
 
@@ -63,12 +63,13 @@ export function SplitPanel({ day, stop }: { day: Day; stop: Stop }) {
     setBusy(true);
     const err = await editDayItems(current.id, day, (items) => {
       const left = items.filter((it) => !isLeg(it) && it.par === stop.par && !(it.n === stop.n && it.t === stop.t)).length;
-      return items.map((it): Item => {
+      // back in time order: inside a group the stops sit in the order they were written, which is not the order of a normal day
+      return sortByTime(items.map((it): Item => {
         if (isLeg(it) || it.par !== stop.par) return it;
         // this stop leaves the group; when only one other is left, that one is no longer a group either
         if ((it.n === stop.n && it.t === stop.t) || left <= 1) { const s = { ...it }; delete s.par; return s; }
         return it;
-      });
+      }));
     });
     setBusy(false);
     if (err) alert(err); else await reload();

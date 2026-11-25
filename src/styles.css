@@ -1372,3 +1372,6 @@ input[type="date"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date
 .stoppeople .count{margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
 .stoppeople .count small{flex-basis:100%;color:var(--muted);font-size:.78rem}
 .stoppeople .count .copybtn{margin-left:0;padding:3px 10px;font-size:.8rem}
+/* 手機：按鈕連點不會被當成「點兩下放大」（iOS 會先等一下、有時整頁放大，看起來像沒反應或畫面跳動）；兩指縮放照舊 */
+button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
+.stoppeople .note .saving{margin-left:8px;color:var(--muted)}

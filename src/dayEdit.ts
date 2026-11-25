@@ -46,18 +46,26 @@ export async function editDayItems(tripId: string, day: Day, mutate: (items: Ite
   return null;
 }
 
-/** Stops in time order, each keeping the leg(s) that lead into it. Unsortable times → unchanged. */
+/**
+ * Stops in time order, each keeping the leg(s) that lead into it.
+ * A stop without a time stays right after the stop it was written after (it used to switch sorting off for the whole day).
+ */
 export function sortByTime(items: Item[]): Item[] {
   const units: { legs: Leg[]; stop: Stop }[] = [];
   let legs: Leg[] = [];
   for (const it of items) { if (isLeg(it)) legs.push(it); else { units.push({ legs, stop: it }); legs = []; } }
-  if (units.some((u) => isNaN(toMinutes(u.stop.t)))) return items;
   // 分頭行動 (same `par`) stays together: the whole group sorts by its earliest time, in the order it was written
   const groupStart = new Map<string, number>();
-  for (const u of units) if (u.stop.par) groupStart.set(u.stop.par, Math.min(groupStart.get(u.stop.par) ?? Infinity, toMinutes(u.stop.t)));
-  const key = (u: { stop: Stop }) => (u.stop.par ? groupStart.get(u.stop.par)! : toMinutes(u.stop.t));
-  const sorted = [...units].sort((a, b) => key(a) - key(b));
-  return [...sorted.flatMap((u) => [...u.legs, u.stop]), ...legs];
+  for (const u of units) { const m = toMinutes(u.stop.t); if (u.stop.par && !isNaN(m)) groupStart.set(u.stop.par, Math.min(groupStart.get(u.stop.par) ?? Infinity, m)); }
+  let prev = -Infinity;
+  const keyed = units.map((u, i) => {
+    const own = u.stop.par ? groupStart.get(u.stop.par) ?? NaN : toMinutes(u.stop.t);
+    const key = isNaN(own) ? prev : own;
+    prev = key;
+    return { u, key, i };
+  });
+  keyed.sort((a, b) => (a.key === b.key ? a.i - b.i : a.key < b.key ? -1 : 1));
+  return [...keyed.flatMap(({ u }) => [...u.legs, u.stop]), ...legs];
 }
 
 /** Remove a stop together with the leg that led into it (or, for the first stop, the leg out of it). */

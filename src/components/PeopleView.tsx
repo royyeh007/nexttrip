@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTrip } from "../trip";
 import { canEdit, isViewer } from "../data";
 import type { Day, Stop } from "../data";
@@ -248,7 +248,15 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const [chosen, setChosen] = useState<string[] | undefined>(stop.people);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  useEffect(() => { setChosen(stop.people); }, [stop]);
+  // Taps are never refused: the names change at once, and one writer keeps saving the latest choice until nothing newer is waiting.
+  // (The buttons used to be disabled during each save, so a quick second tap did nothing, and the reload after each save set the names back.)
+  const want = useRef<{ v: string[] | undefined } | null>(null);
+  const writing = useRef(false);
+  const cur = useRef(chosen);
+  cur.current = chosen;
+  const latest = useRef({ day, stop });
+  latest.current = { day, stop };
+  useEffect(() => { if (!writing.current && !want.current) setChosen(stop.people); }, [stop]);
   if (!current || !people) return null;
   const all = relevantPeople(people, day, sharedFamilies(trip.days, trip.families, day.id, stop.sid));
   if (all.length === 0) return null;
@@ -256,25 +264,35 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const on = (id: string) => !chosen || chosen.includes(id);
   const selected = all.filter((p) => on(p.id));
 
-  const write = async (next: string[] | undefined) => {
-    if (busy) return;
-    const before = chosen;
-    setChosen(next); setBusy(true);
-    const err = await editDayItems(current.id, day, (items) => {
-      const i = findStop(items, stop);
-      if (i < 0) return null;
-      const s = { ...(items[i] as Stop) };
-      if (next) s.people = next; else delete s.people;
-      return items.map((it, j) => (j === i ? s : it));
-    });
-    setBusy(false);
-    if (err) { setChosen(before); alert(t(err)); return; }
-    const warn = await syncShared(current.id, day, stop.sid, { people: next ?? null });
-    if (warn) alert(t(warn));
+  const flush = async () => {
+    if (writing.current) return;
+    writing.current = true; setBusy(true);
+    let saved = latest.current.stop.people;
+    let problem: string | null = null;
+    while (want.current) {
+      const next = want.current.v;
+      want.current = null;
+      const { day: d, stop: st } = latest.current;
+      const err = await editDayItems(current.id, d, (items) => {
+        const i = findStop(items, st);
+        if (i < 0) return null;
+        const s = { ...(items[i] as Stop) };
+        if (next) s.people = next; else delete s.people;
+        return items.map((it, j) => (j === i ? s : it));
+      });
+      if (err) { if (!want.current) { problem = err; setChosen(saved); } continue; }
+      saved = next;
+      const warn = await syncShared(current.id, d, st.sid, { people: next ?? null });
+      if (warn && !want.current) problem = warn;
+    }
+    writing.current = false; setBusy(false);
     await reload();
+    if (problem) alert(t(problem));
   };
+  const write = (next: string[] | undefined) => { setChosen(next); cur.current = next; want.current = { v: next }; void flush(); };
   const toggle = (id: string) => {
-    const ids = all.map((p) => p.id).filter((x) => (x === id ? !on(x) : on(x)));
+    const isOn = (x: string) => !cur.current || cur.current.includes(x); // the choice as last tapped, even if the screen has not redrawn yet
+    const ids = all.map((p) => p.id).filter((x) => (x === id ? !isOn(x) : isOn(x)));
     write(ids.length === all.length ? undefined : ids); // everyone again = drop the field, so people added to the trip later are in by default
   };
   const text = t("{n} 人：{detail}", { n: selected.length, detail: headcount(selected) });
@@ -290,12 +308,12 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
           {fams.length > 1 && <small>{famLabel(f)}</small>}
           {all.filter((p) => p.family_id === f).map((p) => (
             editable
-              ? <button key={p.id} type="button" className={`chip${on(p.id) ? " on" : ""}`} aria-pressed={on(p.id)} disabled={busy} onClick={() => toggle(p.id)}>{personLabel(p)}</button>
+              ? <button key={p.id} type="button" className={`chip${on(p.id) ? " on" : ""}`} aria-pressed={on(p.id)} onClick={() => toggle(p.id)}>{personLabel(p)}</button>
               : <span key={p.id} className={`chip${on(p.id) ? " on" : ""}`}>{personLabel(p)}</span>
           ))}
         </div>
       ))}
-      {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{chosen && <> <button type="button" className="link" disabled={busy} onClick={() => write(undefined)}>{t("改回全員")}</button></>}</p>}
+      {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{" "}<button type="button" className="link" style={chosen ? undefined : { visibility: "hidden" }} tabIndex={chosen ? undefined : -1} aria-hidden={!chosen} onClick={() => write(undefined)}>{t("改回全員")}</button>{busy && <span className="saving" aria-live="polite">{t("儲存中…")}</span>}</p>}
       <p className="count"><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? t("已複製") : t("複製人數")}</button><small>{t("訂位時可以直接貼給餐廳")}</small></p>
     </div>
   );
