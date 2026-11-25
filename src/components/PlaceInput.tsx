@@ -15,10 +15,29 @@ const newSession = () => { const a = new Uint8Array(16); crypto.getRandomValues(
  * Typing still works as a plain text box: nothing has to be picked. Picking one hands back its name, address and phone (not its coordinates: Google's terms allow keeping those for 30 days only, so the route planner locates the address itself).
  * One "session" runs from the first keystroke to the pick (that is how Google bills it), then a new one starts.
  */
-/** A city as the trip's place is written: 「日本・東京」 (the country comes from the last part of Google's second line). */
+/** Country names in the reader's language, longest first: Google's second line in Chinese has no separator (「日本東京都」), so the country is the name it starts with. */
+let regions: string[] | null = null;
+const regionNames = () => {
+  if (regions) return regions;
+  const out = new Set<string>();
+  try {
+    const dn = new Intl.DisplayNames([lang === "zh" ? "zh-Hant-TW" : "en"], { type: "region" });
+    const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    for (const a of A) for (const b of A) { const n = dn.of(a + b); if (n && n !== a + b) out.add(n); }
+  } catch { /* 沒有 Intl.DisplayNames：就不帶國家 */ }
+  if (lang === "zh") for (const n of ["臺灣", "韓國", "南韓"]) out.add(n);
+  return (regions = [...out].sort((x, y) => y.length - x.length));
+};
+const countryOf = (sub: string) => {
+  const parts = sub.split(/[,，、]/).map((x) => x.trim()).filter(Boolean);
+  if (lang !== "zh") return parts.pop() ?? "";
+  const hit = regionNames().find((n) => parts.some((x) => x.startsWith(n)));
+  return hit ?? (parts.length === 1 && parts[0].length <= 4 ? parts[0] : "");
+};
+/** A city as the trip's place is written: 「日本・東京」. */
 const cityText = (s: Suggestion, withCountry: boolean) => {
-  const country = s.sub.split(/[,，、]/).map((x) => x.trim()).filter(Boolean).pop();
-  return withCountry && country && country !== s.main ? (lang === "zh" ? `${country}・${s.main}` : `${s.main}, ${country}`) : s.main;
+  const country = withCountry ? countryOf(s.sub) : "";
+  return country && country !== s.main ? (lang === "zh" ? `${country}・${s.main}` : `${s.main}, ${country}`) : s.main;
 };
 
 /**
@@ -65,7 +84,8 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
     onChange(s.main);
     try {
       const d = await invoke<PickedPlace>("place-search", { trip_id: tripId, action: "details", place_id: s.id, session: session.current, lang }, { timeoutMs: 10_000 });
-      onPick?.({ name: d.name || s.main, address: d.address || s.sub, tel: d.tel || "" });
+      // 中文介面下 Google 的完整地址常是羅馬拼音（4-chōme-2-8 Shibakōen…），清單上那一行才是中文，所以中文優先用清單的
+      onPick?.({ name: d.name || s.main, address: (lang === "zh" ? s.sub || d.address : d.address || s.sub) || "", tel: d.tel || "" });
     } catch {
       onPick?.({ name: s.main, address: s.sub, tel: "" }); // the details did not come: keep what the list already showed
     } finally { setBusy(false); session.current = newSession(); }
