@@ -16,9 +16,11 @@ async function google(url: string, init: RequestInit): Promise<Record<string, un
   try { r = await fetch(url, { ...init, signal: AbortSignal.timeout(8000) }); }
   catch { throw new HttpError(504, "地點搜尋沒有回應，稍後再試"); }
   if (!r.ok) {
-    // 不把 Google 的錯誤內容原樣丟回前端（可能帶專案資訊）；留在函式的紀錄裡
-    console.error("place-search google", r.status, (await r.text().catch(() => "")).slice(0, 400));
-    throw new HttpError(502, "地點搜尋暫時不能用");
+    // 不把 Google 的錯誤內容原樣丟回前端（可能帶專案資訊），只回狀態碼和類別；全文留在函式的紀錄裡
+    const raw = (await r.text().catch(() => "")).slice(0, 600);
+    console.error("place-search google", r.status, raw);
+    let why = ""; try { why = (JSON.parse(raw) as { error?: { status?: string } }).error?.status ?? ""; } catch { /* 不是 JSON */ }
+    throw new HttpError(502, `地點搜尋暫時不能用（${r.status} ${why}）`);
   }
   return await r.json() as Record<string, unknown>;
 }
