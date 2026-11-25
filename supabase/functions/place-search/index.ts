@@ -116,21 +116,38 @@ Deno.serve(handle(async (req) => {
   if (body.action === "link") {
     if (!tripId) throw new HttpError(400, "缺 trip_id");
     const raw = typeof body.url === "string" ? body.url.trim().slice(0, 1500) : "";
+    if (!mapUrl(raw)) throw new HttpError(400, "這不是 Google 地圖的連結"); // 不是地圖連結的不算次數
     const quota = await reserve(admin, "place-details", { tripId, uid, tz });
-    const got = await resolveMapLink(raw);
+    let got: Awaited<ReturnType<typeof resolveMapLink>>;
+    try { got = await resolveMapLink(raw); } catch (e) { await settle(admin, quota, { link: true, found: false }); throw e; }
     const nearLat = num(body.lat, 90), nearLon = num(body.lon, 180); // 連結裡沒有座標時，偏向那一天的城市
     const j = await google("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
-      headers: { "content-type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.internationalPhoneNumber" },
+      headers: { "content-type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.internationalPhoneNumber,places.location" },
       body: JSON.stringify({ textQuery: got.text, languageCode, pageSize: 1, ...(got.lat != null && got.lon != null ? { locationBias: { circle: { center: { latitude: got.lat, longitude: got.lon }, radius: 500 } } }
         : nearLat != null && nearLon != null ? { locationBias: { circle: { center: { latitude: nearLat, longitude: nearLon }, radius: 50000 } } } : {}) }),
     });
-    const p = (Array.isArray(j.places) ? j.places[0] : null) as { id?: unknown; displayName?: { text?: unknown }; formattedAddress?: unknown; internationalPhoneNumber?: unknown } | null;
+    const p = (Array.isArray(j.places) ? j.places[0] : null) as { id?: unknown; displayName?: { text?: unknown }; formattedAddress?: unknown; internationalPhoneNumber?: unknown; location?: { latitude?: unknown; longitude?: unknown } } | null;
     const str = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");
     await settle(admin, quota, { link: true, found: !!p });
     // Google 找不到對應的店：至少把連結裡的名字帶回去
     if (!p) return json({ name: got.text.split(",")[0].slice(0, 120), address: "", tel: "" });
-    return json({ name: str(p.displayName?.text, 120), address: str(p.formattedAddress, 300), tel: str(p.internationalPhoneNumber, 40) });
+    let address = str(p.formattedAddress, 300);
+    // 中文介面下完整地址常是羅馬拼音（4-chōme-2-8 Shibakōen…）；建議清單那一行才是中文，所以用店名再查一次清單，拿同一個地點的那一行
+    const name = str(p.displayName?.text, 120), plat = num(p.location?.latitude, 90), plon = num(p.location?.longitude, 180);
+    if (languageCode === "zh-TW" && name && plat != null && plon != null && typeof p.id === "string") {
+      try {
+        const a = await google("https://places.googleapis.com/v1/places:autocomplete", {
+          method: "POST",
+          headers: { "content-type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat" },
+          body: JSON.stringify({ input: name.slice(0, 80), languageCode, locationBias: { circle: { center: { latitude: plat, longitude: plon }, radius: 300 } } }),
+        });
+        const hit = (Array.isArray(a.suggestions) ? a.suggestions : []).map((x) => (x as { placePrediction?: { placeId?: string; structuredFormat?: { secondaryText?: { text?: string } } } }).placePrediction).find((x) => x?.placeId === p.id);
+        const sub = hit?.structuredFormat?.secondaryText?.text;
+        if (sub) address = sub.slice(0, 300);
+      } catch { /* 查不到中文那一行就用原本的地址 */ }
+    }
+    return json({ name, address, tel: str(p.internationalPhoneNumber, 40) });
   }
 
   if (body.action === "details") {
