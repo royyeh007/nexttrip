@@ -9,6 +9,20 @@ import { LogoMark, MenuIcon, PersonIcon, Wordmark } from "./Logo";
 import { MyInvitations } from "./AccountView";
 import { TripIcon, tripIconId } from "../tripIcons";
 import { t } from "../i18n";
+import { fakeNow, useNow } from "../now";
+import { TRIP_SORTS, matchTrip, sortTrips, todayIn, tripStatus, type TripDates, type TripSort, type TripStatus } from "../tripList";
+
+const SORT_KEY = "trip-sort";
+const readSort = (): TripSort => { try { const v = localStorage.getItem(SORT_KEY) as TripSort; return TRIP_SORTS.includes(v) ? v : "time"; } catch { return "time"; } };
+const sortLabel = (s: TripSort) => ({ time: t("照時間：進行中和快到的在前"), newest: t("出發日：新的在前"), recent: t("最近開過的在前"), name: t("照名稱") })[s];
+/** 行程所在時區的今天；用 ?now= 預覽時跟著預覽的日期。 */
+const todayOf = (trip: TripDates) => fakeNow()?.slice(0, 10) ?? todayIn(trip.tz);
+function statusText(s: TripStatus): string {
+  if (s.phase === "past") return t("已結束");
+  if (s.phase === "soon") return s.days === 1 ? t("明天出發") : t("還有 {n} 天", { n: s.days });
+  if (s.length === 1) return t("就是今天");
+  return t("進行中・第 {d} 天，共 {n} 天", { d: s.days, n: s.length });
+}
 
 function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
   const { session } = useTrip();
@@ -87,6 +101,11 @@ export function TripPicker() {
   const { memberships, enterTrip, setInvite, refreshMemberships } = useTrip();
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState("");
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<TripSort>(readSort);
+  useNow(); // 過了午夜，倒數和「進行中」要跟著變
+  const shown = sortTrips(memberships.filter((m) => matchTrip(m.trip, q)), sort, todayOf);
+  const pickSort = (v: TripSort) => { setSort(v); try { localStorage.setItem(SORT_KEY, v); } catch { /* ignore */ } };
 
   return (
     <div className="wrap pick">
@@ -103,11 +122,29 @@ export function TripPicker() {
       {memberships.length > 0 && (
         <>
           <h2>{t("我的行程")}</h2>
+          {memberships.length > 1 && (
+            <div className="tripfind">
+              <label className="tripsearch">
+                <MenuIcon name="search" size={20} />
+                <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("找行程：名稱、城市或日期")} aria-label={t("找行程")} autoCapitalize="none" autoCorrect="off" enterKeyHint="search" />
+              </label>
+              <select value={sort} onChange={(e) => pickSort(e.target.value as TripSort)} aria-label={t("排序")}>
+                {TRIP_SORTS.map((v) => <option key={v} value={v}>{sortLabel(v)}</option>)}
+              </select>
+            </div>
+          )}
+          {shown.length === 0 && (
+            <div className="panel tripnone">
+              <p className="note">{t("沒有符合「{q}」的行程。", { q: q.trim() })}</p>
+              <button type="button" className="btn" onClick={() => setQ("")}>{t("看全部行程")}</button>
+            </div>
+          )}
           <div className="tripcards">
-            {memberships.map((m) => (
-              <button key={m.trip_id} type="button" className="tripcard" onClick={() => enterTrip(m.trip_id)}>
+            {shown.map((m) => { const st = tripStatus(m.trip, todayOf(m.trip)); return (
+              <button key={m.trip_id} type="button" className={`tripcard ${st.phase}`} onClick={() => enterTrip(m.trip_id)}>
                 <TripIcon id={tripIconId(m.trip.settings)} size={48} />
                 <span className="tn">{m.trip.name}</span>
+                <span className={`tstat ${st.phase}`}>{statusText(st)}</span>
                 <span className="td"><span>{dotDate(m.trip.start_date)} — {dotDate(m.trip.end_date)}</span><span>{tripLength(m.trip) === 1 ? t("1 天") : t("{n} 天", { n: tripLength(m.trip) })}</span></span>
                 {m.trip.place && <span className="tp">{m.trip.place}</span>}
                 <span className="tm">
@@ -117,7 +154,7 @@ export function TripPicker() {
                 </span>
                 <span className="go">{t("進入 ›")}</span>
               </button>
-            ))}
+            ); })}
           </div>
         </>
       )}
