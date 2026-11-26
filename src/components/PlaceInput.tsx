@@ -132,7 +132,9 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
     try {
       const d = await invoke<PickedPlace>("place-search", { trip_id: tripId, action: "details", place_id: s.id, session: session.current, lang }, { timeoutMs: 10_000 });
       // 中文介面下 Google 的完整地址常是羅馬拼音（4-chōme-2-8 Shibakōen…），清單上那一行才是中文，所以中文優先用清單的
-      onPick?.({ name: d.name || s.main, address: (lang === "zh" ? s.sub || d.address : d.address || s.sub) || "", tel: d.tel || "" });
+      // 名稱也一樣：清單上是「戶隱神社」，詳細資料回來卻是 Togakushi-Jinja Chusha，使用者點的是清單上那個名字
+      const name = lang === "zh" ? s.main || d.name : d.name || s.main;
+      onPick?.({ name, address: (lang === "zh" ? s.sub || d.address : d.address || s.sub) || "", tel: d.tel || "" });
     } catch {
       onPick?.({ name: s.main, address: s.sub, tel: "" }); // the details did not come: keep what the list already showed
     } finally { setBusy(false); session.current = newSession(); }
