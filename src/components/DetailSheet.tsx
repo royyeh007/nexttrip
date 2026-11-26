@@ -18,7 +18,7 @@ import { CardSection } from "./CardPick";
 import { MenuIcon, SuitcaseIcon } from "./Logo";
 import { StopPeople, relevantPeople } from "./PeopleView";
 import { SplitPanel, newPar } from "./Split";
-import { personLabel, useTripPeople } from "../people";
+import { familiesWithNobody, personLabel, useTripPeople } from "../people";
 import { SharedPanel, rowFamilies } from "./SharedPanel";
 import { contentPatch, sharedFamilies, syncShared } from "../shared";
 import { t, tr, wk } from "../i18n";
@@ -185,6 +185,8 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
     if (!d.n.trim()) { fail("n", t("還沒填名稱：這一站叫什麼？")); return; }
     if (d.t.trim() && !/^\d{1,2}:\d{2}$/.test(d.t.trim())) { fail("t", t("時間請用 H:MM，例如 9:30、14:00")); return; }
     if (pickPeople && going && going.length === 0) { fail("people", t("至少要有一個人去：點名字把人加回來")); return; }
+    const nobody = pickPeople ? familiesWithNobody(group, going) : [];
+    if (nobody.length) { fail("people", t("{families}沒有人去：每一家至少要有一個人去，點名字把人加回來", { families: nobody.map(labelOf).join(t("、")) })); return; }
     setBusy(true); setErr(null); setBad(null);
     const next = stopOf(d, mode === "edit" ? stop : undefined);
     if (pickPeople && going) next.people = going;

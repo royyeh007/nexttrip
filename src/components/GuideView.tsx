@@ -76,8 +76,8 @@ export function GuideView({ role, compact = false }: { role: GuideRole; compact?
         </section>
       )}
       <div className={`guide${compact ? " compact" : ""}`}>
-        {sections.map((s, i) => (
-          <details key={s.id} className="gsec" open={!compact && i < 2}>
+        {sections.map((s) => (
+          <details key={s.id} className="gsec">
             <summary>
               <span className="gicon" aria-hidden="true">{s.id === "chat" ? <SuitcaseIcon size={26} /> : SECTION_ICON[s.id] ? <MenuIcon name={SECTION_ICON[s.id]} size={24} /> : s.icon}</span>
               <span className="gtitle"><h3>{s.title}</h3>{s.lead && <small><Rich text={s.lead} go={go} interactive={!compact} /></small>}</span>

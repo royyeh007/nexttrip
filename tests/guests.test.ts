@@ -20,3 +20,13 @@ test("空的、只有符號的跳過；名字裡的數字留著；最多 20 位"
   assert.equal(P("R2D2 小孩、R2D2"), "R2D2/child/- R2D2/adult/-");
   assert.equal(parseGuests(Array.from({ length: 30 }, (_, i) => "人" + String.fromCharCode(65 + i)).join("、")).length, 20);
 });
+
+test("每一家至少要有一個人去：找出一個人都沒去的那幾家", async () => {
+  const { familiesWithNobody } = await import("../src/people");
+  const all = [{ id: "a1", family_id: "a" }, { id: "a2", family_id: "a" }, { id: "b1", family_id: "b" }];
+  assert.deepEqual(familiesWithNobody(all, undefined), []);
+  assert.deepEqual(familiesWithNobody(all, ["a1", "b1"]), []);
+  assert.deepEqual(familiesWithNobody(all, ["a1", "a2"]), ["b"]);
+  assert.deepEqual(familiesWithNobody(all, []), ["a", "b"]);
+  assert.deepEqual(familiesWithNobody(all, ["zz"]), ["a", "b"]);
+});

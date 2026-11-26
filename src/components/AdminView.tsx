@@ -376,14 +376,15 @@ function Settings() {
   );
 }
 
-const foldRead = (id: string) => { try { return localStorage.getItem(`jp-fold:${id}`) === "1"; } catch { return false; } };
+// 每次打開這一頁都是全部收起來。以前會記住上次展開哪幾段，舊的記號順手清掉。
+try { for (const k of Object.keys(localStorage)) if (k.startsWith("jp-fold:")) localStorage.removeItem(k); } catch { /* ignore */ }
 /**
- * One section of the page, folded shut until asked for: the page was a long scroll of every panel. Which ones are open is remembered on this device.
+ * One section of the page, folded shut until asked for: the page was a long scroll of every panel. Always shut when the page opens (nothing is remembered); `force` opens the one a link pointed at.
  * What is inside is always there (it loads with the page), so opening is one smooth slide instead of a jump when the data arrives.
  */
 function Fold({ id, icon, title, lead, force, solo, children }: { id: string; icon: Parameters<typeof MenuIcon>[0]["name"]; title: string; lead: string; force?: boolean; solo?: boolean; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(() => !!force || foldRead(id));
+  const [open, setOpen] = useState(!!force);
   useEffect(() => {
     if (!force) return;
     setOpen(true);
@@ -391,9 +392,7 @@ function Fold({ id, icon, title, lead, force, solo, children }: { id: string; ic
     return () => clearTimeout(h);
   }, [force]);
   const toggle = () => {
-    const o = !open;
-    setOpen(o);
-    try { localStorage.setItem(`jp-fold:${id}`, o ? "1" : "0"); } catch { /* private window: just not remembered */ }
+    setOpen(!open);
   };
   return (
     <div ref={ref} className={`fold${solo ? " solo" : ""}`} data-open={open ? "1" : "0"}>

@@ -18,13 +18,19 @@ export function SharedChip({ stop, day }: { stop: Stop; day: Day }) {
   if (fams.length < 2) return null;
   const mine = new Set([viewFam, ...rowFamilies(trip.days, trip.families, day)]);
   const others = fams.filter((f) => !mine.has(f)).map((f) => trip.families.find((x) => x.id === f)?.label ?? f);
-  if (others.length === 0) return null;
+  // 這一天每一家都看同一份行程：沒有東西可以選，一行講完（以前整塊不顯示，看起來像「和誰一起」不見了）
+  if (others.length === 0) return (
+    <div className="sec stoppeople shared">
+      <h4>{t("和誰一起")}</h4>
+      <div className="chips"><span className="chip on fixed">{t("每一家都一起")}</span></div>
+    </div>
+  );
   return <span className="tag together"><MenuIcon name="together" size={14} />{fams.length === trip.families.length ? t("大家一起") : t("和 {names}", { names: list(others) })}</span>;
 }
 
 /**
  * 地點詳細頁：和誰一起。點別家的名字 = 這一站也放進那一家那一天的行程；之後內容每一家同步，交通各家自己排。
- * 只有在「這一天不是每一家都看同一份」的時候才出現（大家一起的版本本來就每一家都看得到）。
+ * 這一天每一家都看同一份行程時只顯示一行「每一家都一起」。
  */
 export function SharedPanel({ day, stop, onGone }: { day: Day; stop: Stop; onGone: () => void }) {
   const { current, member, trip, reload } = useTrip();
@@ -33,7 +39,13 @@ export function SharedPanel({ day, stop, onGone }: { day: Day; stop: Stop; onGon
   const here = rowFamilies(trip.days, trip.families, day);
   const joined = sharedFamilies(trip.days, trip.families, day.id, stop.sid);
   const others = trip.families.filter((f) => !here.includes(f.id));
-  if (others.length === 0) return null;
+  // 這一天每一家都看同一份行程：沒有東西可以選，一行講完（以前整塊不顯示，看起來像「和誰一起」不見了）
+  if (others.length === 0) return (
+    <div className="sec stoppeople shared">
+      <h4>{t("和誰一起")}</h4>
+      <div className="chips"><span className="chip on fixed">{t("每一家都一起")}</span></div>
+    </div>
+  );
   const editable = canEdit(day.fam, member) && !!day.rowId;
   const on = (f: string) => here.includes(f) || joined.includes(f);
   const shared = joined.filter((f) => !here.includes(f)).length > 0;
@@ -60,8 +72,8 @@ export function SharedPanel({ day, stop, onGone }: { day: Day; stop: Stop; onGon
         ))}
       </div>
       {shared
-        ? <p className="note">{trip.families.every((f) => on(f.id)) ? t("每一家都一起。") : null}{t("這一站是共同的：時間、訂位、備註、誰參加，任何一家改了每一家都會更新。前後的交通各家自己排。")}{editable && <> <button type="button" className="link danger" disabled={busy} onClick={() => { if (confirm(t("整個取消「{name}」？每一家那一天的行程都會把它拿掉。", { name: stop.n }))) run(() => sharedApi.unshare(current.id, day.id, stop.sid!, null), true); }}>{t("整個取消")}</button></>}</p>
-        : editable && <p className="note">{t("各家那一天行程不同，但這一站要一起（例如一起吃飯）：點別家的名字，這一站就會出現在他們那一天的行程裡，之後內容每一家同步。")}</p>}
+        ? <p className="note">{t("內容每一家同步，交通各家自己排。")}{editable && <> <button type="button" className="link danger" disabled={busy} onClick={() => { if (confirm(t("整個取消「{name}」？每一家那一天的行程都會把它拿掉。", { name: stop.n }))) run(() => sharedApi.unshare(current.id, day.id, stop.sid!, null), true); }}>{t("整個取消")}</button></>}</p>
+        : editable && <p className="note">{t("點別家的名字，這一站就會加進他們那一天的行程。")}</p>}
     </div>
   );
 }

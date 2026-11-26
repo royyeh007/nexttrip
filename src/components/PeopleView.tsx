@@ -4,7 +4,7 @@ import { canEdit, isViewer } from "../data";
 import type { Day, Stop } from "../data";
 import { NotReady, friendsApi } from "../friends";
 import type { Person } from "../friends";
-import { headcount, parseGuests, peopleApi, personLabel, refreshTripPeople, useTripPeople } from "../people";
+import { familiesWithNobody, headcount, parseGuests, peopleApi, personLabel, refreshTripPeople, useTripPeople } from "../people";
 import type { Household, HouseholdPerson, PersonKind, TripPerson } from "../people";
 import { editDayItems, findStop } from "../dayEdit";
 import { sharedFamilies, syncShared } from "../shared";
@@ -279,7 +279,9 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const [chosen, setChosen] = useState<string[] | undefined>(stop.people);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [last, setLast] = useState(false);
+  // 被擋下來的那一下：哪一家只剩最後一個人（每一家至少要有一個人去）
+  const [last, setLast] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   // Taps are never refused: the names change at once, and one writer keeps saving the latest choice until nothing newer is waiting.
   // (The buttons used to be disabled during each save, so a quick second tap did nothing, and the reload after each save set the names back.)
   const want = useRef<{ v: string[] | undefined } | null>(null);
@@ -331,19 +333,33 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   const toggle = (id: string) => {
     const isOn = (x: string) => !cur.current || cur.current.includes(x); // the choice as last tapped, even if the screen has not redrawn yet
     const ids = all.map((p) => p.id).filter((x) => (x === id ? !isOn(x) : isOn(x)));
-    if (ids.length === 0) { setLast(true); return; } // a stop nobody goes to is not a stop: the last name stays
-    setLast(false);
+    // 這一家在這一站的行程裡，就至少要有一個人去：最後一個名字拿不掉
+    const fam = all.find((p) => p.id === id)?.family_id;
+    if (fam && familiesWithNobody(all, ids).includes(fam)) { setLast(fam); return; }
+    setLast(null);
     write(ids.length === all.length ? undefined : ids); // everyone again = drop the field, so people added to the trip later are in by default
   };
   const text = t("{n} 人：{detail}", { n: selected.length, detail: headcount(selected) });
   const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { prompt(t("複製人數"), text); } };
   const famLabel = (id: string) => trip.families.find((f) => f.id === id)?.label ?? id;
   const fams = [...new Set(all.map((p) => p.family_id))];
+  const nobody = familiesWithNobody(all, chosen);
+  // 這一家是另外加進這一站的（不是看同一份行程）：整家不去可以從「和誰一起」拿掉
+  const removable = (f: string) => !!day.fam && !day.fam.includes(f);
 
+  // 預設收起來只有一行人數；要改誰去再展開（人多的時候名字會佔掉半個畫面）
+  const skipped = all.length - selected.length;
   return (
     <div className="sec stoppeople">
       <h4>{t("誰參加")}</h4>
-      {fams.map((f) => (
+      <p className="count">
+        <b>{text}</b>
+        {skipped > 0 && <span className="skipped">{t("{n} 人不去", { n: skipped })}</span>}
+        <button type="button" className="copybtn" onClick={copy} title={t("訂位時可以直接貼給餐廳")}>{copied ? t("已複製") : t("複製人數")}</button>
+        <button type="button" className="copybtn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? t("收起來") : editable ? t("選誰去") : t("看名單")}</button>
+        {busy && <span className="saving" aria-live="polite">{t("儲存中…")}</span>}
+      </p>
+      {open && fams.map((f) => (
         <div key={f} className="chips">
           {fams.length > 1 && <small>{famLabel(f)}</small>}
           {all.filter((p) => p.family_id === f).map((p) => (
@@ -353,9 +369,11 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
           ))}
         </div>
       ))}
-      {editable && <p className="note">{t("預設全員參加。點名字可以拿掉或加回來。")}{" "}<button type="button" className="link" style={chosen ? undefined : { visibility: "hidden" }} tabIndex={chosen ? undefined : -1} aria-hidden={!chosen} onClick={() => { setLast(false); write(undefined); }}>{t("改回全員")}</button>{busy && <span className="saving" aria-live="polite">{t("儲存中…")}</span>}</p>}
-      {(last || selected.length === 0) && <small className="fielderr" role="alert">{selected.length === 0 ? t("至少要有一個人去：點名字把人加回來") : t("至少要有一個人去。都不去的話，把這一站刪掉。")}</small>}
-      <p className="count"><b>{text}</b> <button type="button" className="copybtn" onClick={copy}>{copied ? t("已複製") : t("複製人數")}</button><small>{t("訂位時可以直接貼給餐廳")}</small></p>
+      {open && editable && <p className="note">{t("點名字可以拿掉或加回來。")}{chosen && <> <button type="button" className="link" onClick={() => { setLast(null); write(undefined); }}>{t("改回全員")}</button></>}</p>}
+      {last && <small className="fielderr" role="alert">{fams.length === 1 ? t("至少要有一個人去。都不去的話，把這一站刪掉。")
+        : removable(last) ? t("{family}至少要有一個人去。整家都不去的話，到上面「和誰一起」把{family}拿掉。", { family: famLabel(last) })
+        : t("{family}在這一站的行程裡，至少要有一個人去。", { family: famLabel(last) })}</small>}
+      {!last && nobody.length > 0 && <small className="fielderr" role="alert">{t("{families}沒有人去：按「選誰去」把人加回來。", { families: nobody.map(famLabel).join(t("、")) })}</small>}
     </div>
   );
 }

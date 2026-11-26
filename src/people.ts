@@ -70,6 +70,13 @@ export function parseGuests(text: string): { name: string; kind: PersonKind; age
   return out;
 }
 
+/** 這一站有哪幾家一個人都沒去（`going` 沒給 = 全員）。在這一站行程裡的每一家至少要有一個人去。 */
+export function familiesWithNobody(all: { id: string; family_id: string }[], going: string[] | undefined): string[] {
+  if (!going) return [];
+  const on = new Set(going);
+  return [...new Set(all.map((p) => p.family_id))].filter((f) => !all.some((p) => p.family_id === f && on.has(p.id)));
+}
+
 // ---- 這個行程誰會去：行程頁、地點詳細頁、成員頁都要看，共用一份 ----
 /** `null` = not loaded, or the database has not been upgraded: the pages then simply leave the feature out. */
 let state: { trip: string; people: TripPerson[] | null } = { trip: "", people: null };

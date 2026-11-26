@@ -1445,3 +1445,8 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .manyguests{display:grid;gap:8px}
 .manyguests textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:100%;box-sizing:border-box}
 .manyguests .note{margin:0}
+
+/* ---------- 地點詳細頁：誰參加收成一行 ---------- */
+.stoppeople .count{margin-top:6px}
+.stoppeople .count .skipped{font-size:.8rem;color:var(--shu);font-weight:700}
+.stoppeople .count .copybtn{min-height:30px;display:inline-flex;align-items:center}

@@ -12,8 +12,8 @@ import { LeaveDialog } from "./LeaveDialog";
 import { fakeNow, useNow } from "../now";
 import { TRIP_SORTS, matchTrip, sortTrips, todayIn, tripStatus, type TripDates, type TripSort, type TripStatus } from "../tripList";
 
-const SORT_KEY = "trip-sort";
-const readSort = (): TripSort => { try { const v = localStorage.getItem(SORT_KEY) as TripSort; return TRIP_SORTS.includes(v) ? v : "time"; } catch { return "time"; } };
+// 排法每次打開首頁都回到「照時間」。以前會記住上次選的，舊的記號順手清掉。
+try { localStorage.removeItem("trip-sort"); } catch { /* ignore */ }
 const sortLabel = (s: TripSort) => ({ time: t("照時間：進行中和快到的在前"), newest: t("出發日：新的在前"), recent: t("最近開過的在前"), name: t("照名稱") })[s];
 /** 行程所在時區的今天；用 ?now= 預覽時跟著預覽的日期。 */
 const todayOf = (trip: TripDates) => fakeNow()?.slice(0, 10) ?? todayIn(trip.tz);
@@ -63,10 +63,10 @@ export function TripPicker() {
   const [leave, setLeave] = useState<string | null>(null);
   const leaving = memberships.find((m) => m.trip_id === leave);
   const managing = memberships.find((m) => m.trip_id === manage && m.role === "admin");
-  const [sort, setSort] = useState<TripSort>(readSort);
+  const [sort, setSort] = useState<TripSort>("time");
   useNow(); // 過了午夜，倒數和「進行中」要跟著變
   const shown = sortTrips(memberships.filter((m) => matchTrip(m.trip, q)), sort, todayOf);
-  const pickSort = (v: TripSort) => { setSort(v); try { localStorage.setItem(SORT_KEY, v); } catch { /* ignore */ } };
+  const pickSort = (v: TripSort) => setSort(v);
 
   return (
     <div className="wrap pick">
