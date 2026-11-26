@@ -1451,3 +1451,11 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .stoppeople .count .skipped{font-size:.8rem;color:var(--shu);font-weight:700}
 .stoppeople .count .copybtn{min-height:30px;display:inline-flex;align-items:center}
 .panel .note.waiting{margin:6px 0 8px;padding:8px 10px;border-radius:8px;background:var(--ai-soft);color:var(--ink)}
+
+/* ---------- 建立新行程：隨機推薦目的地 ---------- */
+.newtrip .formgrid .lucky{grid-column:1 / -1;margin-top:-4px}
+.newtrip .lucky > .link{display:inline-flex;align-items:center;gap:6px;min-height:32px}
+.newtrip .luckybox{display:grid;gap:10px;margin-top:6px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.newtrip .luckybox .note{margin:0}
+.newtrip .luckybox .drawn b{color:var(--ink)}
+.newtrip .wantpick.optional .chip:not(.on){text-decoration:none;border-style:solid;color:var(--ink)}

@@ -7,6 +7,7 @@ import type { Proposal } from "../data";
 import { fillTripDays } from "../days";
 import { MAX_UPLOAD_CHARS, UPLOAD_ACCEPT, fileProblem, storeUpload } from "../upload";
 import { MAX_PROMPT_DAYS, MOVES, PACES, WANTS, buildTripPrompt, proposalRange, shiftProposal, type Move, type Pace, type Want } from "../tripPrompt";
+import { DEST_TAGS, REGIONS, pickDestination, type DestTag, type Destination, type Region } from "../destinations";
 import { ProposalDays, applyProposal } from "./Proposals";
 import { MenuIcon } from "./Logo";
 import { lang, t } from "../i18n";
@@ -18,6 +19,8 @@ interface Parsed { id: string; proposal: Proposal; from: string; span: number; m
 
 const wantLabel = (w: Want) => ({ sight: t("景點"), food: t("餐廳"), hotel: t("住宿"), shop: t("購物"), move: t("交通方式") })[w];
 const paceLabel = (p: Pace) => ({ easy: t("輕鬆"), normal: t("普通"), full: t("緊湊") })[p];
+const regionLabel = (r: Region) => ({ neasia: t("東北亞"), seasia: t("東南亞"), europe: t("歐洲"), namerica: t("北美"), oceania: t("大洋洲"), other: t("中東、非洲、中南美") })[r];
+const destTagLabel = (g: DestTag) => ({ city: t("城市"), food: t("美食"), nature: t("自然風景"), beach: t("海邊"), history: t("古蹟文化"), snow: t("雪"), kids: t("帶小孩") })[g];
 const moveLabel = (m: Move) => ({ any: t("都可以"), transit: t("大眾運輸"), car: t("自己開車"), charter: t("包車、計程車") })[m];
 
 /**
@@ -60,6 +63,16 @@ export function NewTrip({ onCreated, onCancel }: { onCreated: (id: string) => vo
   const [booked, setBooked] = useState("");
   const [notes, setNotes] = useState("");
   const [copied, setCopied] = useState(false);
+  // 還沒決定去哪裡：隨機推薦（每次打開都是收起來的，條件都可以不選）
+  const [lucky, setLucky] = useState(false);
+  const [region, setRegion] = useState<Region | "">("");
+  const [destTags, setDestTags] = useState<DestTag[]>([]);
+  const [drawn, setDrawn] = useState<Destination | null | "none">(null);
+  const draw = () => {
+    const d = pickDestination({ region, tags: destTags }, drawn && drawn !== "none" ? drawn.zh : undefined);
+    setDrawn(d ?? "none");
+    if (d) setAiPlace(lang === "en" ? d.en : d.zh);
+  };
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const prompt = aiPlace.trim() ? buildTripPrompt({ place: aiPlace, start: aiStart, days: aiDays, people, want, pace, move, booked, notes }, lang) : "";
 
@@ -254,6 +267,27 @@ export function NewTrip({ onCreated, onCancel }: { onCreated: (id: string) => vo
           <h4 className="step"><b>1</b>{t("選條件")}</h4>
           <div className="formgrid">
             <label className="wide">{t("去哪裡")}<PlaceInput tripId="" kind="city" withCountry value={aiPlace} onChange={setAiPlace} placeholder={t("打幾個字找城市，例：東京")} /></label>
+            <div className="wide lucky">
+              <button type="button" className="link" aria-expanded={lucky} onClick={() => setLucky((v) => !v)}><MenuIcon name="spark" size={16} />{lucky ? t("收起隨機推薦") : t("還沒決定？隨機推薦一個")}</button>
+              {lucky && (
+                <div className="luckybox">
+                  <label>{t("地區（可以不選）")}<select value={region} onChange={(e) => setRegion(e.target.value as Region | "")}><option value="">{t("都可以")}</option>{REGIONS.map((r) => <option key={r} value={r}>{regionLabel(r)}</option>)}</select></label>
+                  <fieldset className="wantpick optional">
+                    <legend>{t("想玩什麼（可以不選）")}</legend>
+                    <div className="chips">
+                      {DEST_TAGS.map((g) => { const on = destTags.includes(g); return (
+                        <button key={g} type="button" className={`chip${on ? " on" : ""}`} aria-pressed={on} onClick={() => setDestTags(on ? destTags.filter((x) => x !== g) : [...destTags, g])}>{destTagLabel(g)}</button>
+                      ); })}
+                    </div>
+                  </fieldset>
+                  <div className="actions">
+                    <button type="button" className="btn" onClick={draw}>{drawn && drawn !== "none" ? t("再抽一個") : t("幫我抽一個")}</button>
+                  </div>
+                  {drawn === "none" && <p className="note">{t("這個組合沒有適合的，少選一個條件再抽。")}</p>}
+                  {drawn && drawn !== "none" && <p className="note drawn"><b>{lang === "en" ? drawn.en : drawn.zh}</b>{t("：")}{lang === "en" ? drawn.whyEn : drawn.whyZh}{t("。已經填到「去哪裡」，不喜歡就再抽一個，或自己改。")}</p>}
+                </div>
+              )}
+            </div>
             <label>{t("開始日期（還沒決定可以不填）")}<input type="date" value={aiStart} onChange={(e) => setAiStart(e.target.value)} /></label>
             <label>{t("玩幾天")}<input type="number" inputMode="numeric" min={1} max={MAX_PROMPT_DAYS} value={aiDays} onChange={(e) => setAiDays(Math.min(MAX_PROMPT_DAYS, Math.max(1, Number(e.target.value) || 1)))} /></label>
             <label className="wide">{t("誰要去")}<input value={people} maxLength={120} onChange={(e) => setPeople(e.target.value)} placeholder={t("例：2 大人、2 小孩（6 歲、9 歲）")} /></label>
