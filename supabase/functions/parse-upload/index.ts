@@ -7,7 +7,7 @@ import { zodOutputFormat } from "npm:@anthropic-ai/sdk@1.8.0/helpers/zod";
 import { handle, json, HttpError, readJson } from "../_shared/http.ts";
 import { requireMember } from "../_shared/supa.ts";
 import { aiErrorMessage, anthropic, MODEL } from "../_shared/claude.ts";
-import { FreshProposalZ, ProposalZ, formatGuide, normalize } from "../_shared/proposal.ts";
+import { FreshProposalZ, ProposalZ, formatGuide, normalize, tripGuess } from "../_shared/proposal.ts";
 import type { GuideCtx } from "../_shared/proposal.ts";
 import { reserve, settle, sumUsage } from "../_shared/usage.ts";
 
@@ -119,8 +119,8 @@ Deno.serve(handle(async (req) => {
     if (res.stop_reason === "max_tokens") throw new Error("輸出不完整，請把檔案拆小一點（例如一次一天）再試");
     const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
     const raw = JSON.parse(text);
-    const guess = fresh ? FreshProposalZ.parse(raw).trip : null;
-    const proposal = normalize(ProposalZ.parse(raw));
+    const guess = fresh ? tripGuess(FreshProposalZ.parse(raw).trip) : null;
+    const proposal = normalize(ProposalZ.parse(fresh ? { ...raw, joins: [], extend_to: { start_date: null, end_date: null } } : raw));
     if (fresh) {
       // 新行程只有一家：每一天都是大家一起的，沒有「跟別家一起」，日期由使用者確認基本資料時決定
       proposal.days = proposal.days.map((d) => ({ ...d, scope: "shared" as const }));
@@ -137,7 +137,8 @@ Deno.serve(handle(async (req) => {
   } catch (e) {
     const msg = aiErrorMessage(e);
     await admin.from("uploads").update({ status: "failed", error: msg }).eq("id", row.id);
-    await settle(admin, quota, { ...usage, error: msg });
+    // detail：原始的錯誤訊息只記在用量表（管理員才看得到），給使用者的是 msg
+    await settle(admin, quota, { ...usage, error: msg, detail: (e instanceof Error ? e.message : String(e)).slice(0, 400) });
     throw new HttpError(500, `Trip醬解析失敗：${msg}`);
   }
 }));

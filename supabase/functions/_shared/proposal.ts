@@ -104,13 +104,21 @@ export interface GuideCtx {
 }
 
 /** 用上傳建立新行程時，AI 從內容讀到的基本資料；讀不到的是 null，之後請使用者補。 */
+// 欄位都是單純的字串（讀不到 = 空字串）：結構化輸出對「可以是 null」的欄位有數量上限，提案本身已經用得差不多了。
 export const TripGuessZ = z.object({
-  name: z.string().nullable().describe("行程名稱；內容沒寫就照地點和時間取一個短的，例「2027 春天京都」"),
-  place: z.string().nullable().describe("主要城市，寫成「國家・城市」，例「日本・京都」；看不出來就 null"),
-  start_date: DateIdZ.nullable().describe("行程第一天；內容完全沒有日期就 null"),
-  end_date: DateIdZ.nullable().describe("行程最後一天；內容完全沒有日期就 null"),
+  name: z.string().describe("行程名稱；內容沒寫就照地點和時間取一個短的，例「2027 春天京都」"),
+  place: z.string().describe("主要城市，寫成「國家・城市」，例「日本・京都」；看不出來就空字串"),
+  start_date: z.string().describe("行程第一天 YYYY-MM-DD；內容完全沒有日期就空字串"),
+  end_date: z.string().describe("行程最後一天 YYYY-MM-DD；內容完全沒有日期就空字串"),
 });
-export const FreshProposalZ = ProposalZ.extend({ trip: TripGuessZ });
+/** 空字串、格式不對的日期都當作沒讀到。 */
+export function tripGuess(g: z.infer<typeof TripGuessZ>) {
+  const date = (v: string) => (DateIdZ.safeParse(v.trim()).success ? v.trim() : null);
+  return { name: g.name.trim() || null, place: g.place.trim() || null, start_date: date(g.start_date), end_date: date(g.end_date) };
+}
+// 原本的格式已經接近結構化輸出的大小上限（再加欄位會被拒絕：compiled grammar is too large），
+// 新行程用不到 joins 和 extend_to，拿掉換成 trip。
+export const FreshProposalZ = ProposalZ.omit({ joins: true, extend_to: true }).extend({ trip: TripGuessZ });
 
 /** The format rules the AI follows, filled in with this trip's families and shared days. */
 export function formatGuide(ctx: GuideCtx) {
@@ -139,7 +147,7 @@ function freshGuide({ families }: GuideCtx, today: string) {
   return `行程格式說明：
 - 這是一個全新的行程：名稱、主要城市、日期都還沒定，要從內容讀出來填進 trip。今天是 ${today}。
 - 內容裡的日期沒有年份：用今天之後最近的那一次。
-- 內容完全沒有日期（只有「第 1 天」「Day 2」這種）：date_id 從 ${today} 開始一天一天往後排，trip 的 start_date 和 end_date 填 null，並在 notes 寫一條「內容沒有日期」。
+- 內容完全沒有日期（只有「第 1 天」「Day 2」這種）：date_id 從 ${today} 開始一天一天往後排，trip 的 start_date 和 end_date 填空字串，並在 notes 寫一條「內容沒有日期」。
 - 一天 = date_id（YYYY-MM-DD）+ city + title + hotel + items。
 - items 照時間順序：每個地點是 type=stop；兩個地點中間的交通是 type=leg。
 - stop 的 k：餐廳 food、景點 sight、住宿 hotel、購物 shop、機場車站等交通節點 move。
@@ -149,6 +157,6 @@ function freshGuide({ families }: GuideCtx, today: string) {
 - 內容寫「不確定」「無」「自行安排」的欄位當作沒有（null、空字串或空陣列），不要照抄。
 - q 是 Google 地圖的搜尋字：用當地語言的官方店名＋區域（例「ミキモト 銀座本店」）；新開的店、連鎖店或名字很普通的店，一定在 q 後面加上地址。內容有地址就同時填 addr。
 - n 是給人看的名稱：內容同時有當地語言和使用者語言的名稱時，用使用者看得懂的那個（例「淺草寺」）。
-- 每一天的 scope 都填 shared。joins 給空陣列。extend_to 兩個都填 null。
+- 每一天的 scope 都填 shared。
 - 家庭 id：${fams}。`;
 }
