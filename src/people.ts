@@ -48,6 +48,28 @@ export function headcount(people: { kind: PersonKind; age: number | null }[]): s
 }
 export const personLabel = (p: { name: string; kind: PersonKind; age: number | null }) => (p.kind === "child" ? (p.age !== null ? t("{name}（{age} 歲）", { name: p.name, age: p.age }) : t("{name}（小孩）", { name: p.name })) : p.name);
 
+/**
+ * 一次代填好幾位：「Yenchih、Amie、小宇 9 歲」→ 三個人。用頓號、逗號、分號或換行分開。
+ * 名字後面有年齡（9 歲、9y、(9)）或寫「小孩」就是小孩，其他是大人。最多 20 位，名字最多 40 字。
+ */
+export function parseGuests(text: string): { name: string; kind: PersonKind; age: number | null }[] {
+  const out: { name: string; kind: PersonKind; age: number | null }[] = [];
+  for (const raw of text.split(/[、,，;；\n]+/)) {
+    let s = raw.replace(/\s+/g, " ").trim();
+    if (!s) continue;
+    let kind: PersonKind = "adult", age: number | null = null;
+    // 年齡前面要有空格或括號，不然就要有「歲」這種單位（R2D2 的 2 不是年齡）
+    const a = s.match(/(?:[\s(（]+(\d{1,2})\s*(?:歲|岁|才|y\/?o|yrs?|years? old|y)?|(\d{1,2})\s*(?:歲|岁|才))\s*[)）]?$/i);
+    if (a && a.index! > 0) { const n = Number(a[1] ?? a[2]); s = s.slice(0, a.index).trim(); if (n < 18) { kind = "child"; age = n; } }
+    const k = s.match(/[\s(（]*(小孩|小朋友|兒童|child|kid|大人|成人|adult)\s*[)）]?$/i);
+    if (k && k.index! > 0) { s = s.slice(0, k.index).trim(); if (!/大人|成人|adult/i.test(k[1])) kind = "child"; else if (age === null) kind = "adult"; }
+    s = s.replace(/[\s(（:：]+$/, "").slice(0, 40);
+    if (s) out.push({ name: s, kind, age });
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
 // ---- 這個行程誰會去：行程頁、地點詳細頁、成員頁都要看，共用一份 ----
 /** `null` = not loaded, or the database has not been upgraded: the pages then simply leave the feature out. */
 let state: { trip: string; people: TripPerson[] | null } = { trip: "", people: null };

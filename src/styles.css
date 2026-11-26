@@ -973,7 +973,8 @@ button.chip:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
 .stoppeople .note{margin:8px 0 0;font-size:.8rem}
 /* ---- 共同的地點 ---- */
 .tag.together{background:var(--butter);color:var(--ink)}
-.stoppeople.shared .chip.fixed{border-color:var(--line);background:var(--paper);color:var(--muted);font-weight:400}
+/* 看同一份行程的那幾家本來就一起：跟加進來的那一家一樣是「選到的」樣子（以前是灰的，看起來像沒選） */
+.stoppeople.shared .chip.fixed{cursor:default}
 .stoppeople.shared .chip.off{text-decoration:none;border-style:dashed;color:var(--ai)}
 .link.danger{color:var(--shu)}
 /* ---- 分頭行動：同一個時段的幾站框在一起 ---- */
@@ -1438,3 +1439,9 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .newtrip .actions{display:flex;flex-wrap:wrap;gap:8px}
 .newtrip .actions .btn{display:inline-flex;align-items:center;gap:6px}
 .newtrip .resultbox .preview{max-height:46vh;overflow:auto}
+
+/* ---------- 誰會去：一次代填好幾位 ---------- */
+.guestlinks{display:flex;flex-wrap:wrap;gap:6px 18px}
+.manyguests{display:grid;gap:8px}
+.manyguests textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:100%;box-sizing:border-box}
+.manyguests .note{margin:0}

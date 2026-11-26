@@ -4,7 +4,7 @@ import { canEdit, isViewer } from "../data";
 import type { Day, Stop } from "../data";
 import { NotReady, friendsApi } from "../friends";
 import type { Person } from "../friends";
-import { headcount, peopleApi, personLabel, refreshTripPeople, useTripPeople } from "../people";
+import { headcount, parseGuests, peopleApi, personLabel, refreshTripPeople, useTripPeople } from "../people";
 import type { Household, HouseholdPerson, PersonKind, TripPerson } from "../people";
 import { editDayItems, findStop } from "../dayEdit";
 import { sharedFamilies, syncShared } from "../shared";
@@ -139,6 +139,8 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
   const people = useTripPeople(tripId);
   const [house, setHouse] = useState<Household | null>(null);
   const [guest, setGuest] = useState<(Draft & { family: string }) | null>(null);
+  // 一次代填好幾位：打一串名字
+  const [many, setMany] = useState<{ family: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => { peopleApi.household().then(setHouse, () => setHouse(null)); }, []);
@@ -153,6 +155,18 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
   };
   const going = new Set(people.filter((p) => p.mine).map((p) => p.person_id));
   const toggle = (id: string) => run(() => peopleApi.setTripPeople(tripId, (house?.people ?? []).map((p) => p.id).filter((x) => (x === id ? !going.has(x) : going.has(x)))));
+  const allIds = (house?.people ?? []).map((p) => p.id);
+  const everyone = () => run(() => peopleApi.setTripPeople(tripId, allIds));
+  const parsedMany = many ? parseGuests(many.text) : [];
+  const saveMany = () => many && parsedMany.length > 0 && run(async () => {
+    // 一個一個存；中間失敗的話，已經存好的留著，剩下的名字留在框裡可以再試
+    for (let i = 0; i < parsedMany.length; i++) {
+      const g = parsedMany[i];
+      try { await peopleApi.saveGuest(tripId, { id: null, family: many.family, name: g.name, kind: g.kind, age: g.age, note: "" }); }
+      catch (e) { setMany({ family: many.family, text: parsedMany.slice(i).map((x) => (x.age !== null ? `${x.name} ${x.age}` : x.kind === "child" ? `${x.name} ${t("小孩")}` : x.name)).join(t("、")) }); await refreshTripPeople(tripId); throw e; }
+    }
+    setMany(null);
+  });
   const admin = member.role === "admin";
   const mayAddFor = (fam: string) => admin || (!isViewer(member) && member.family_id === fam);
   const saveGuest = () => guest && run(async () => {
@@ -181,6 +195,7 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
             ))}
           </div>
         ) : <p className="note">{t("你的家人名單還是空的。")}</p>}
+        {allIds.length > 1 && !isViewer(member) && allIds.some((id) => !going.has(id)) && <div className="actions"><button type="button" className="btn" disabled={busy} onClick={everyone}>{t("全部都去")}</button></div>}
         <p className="note">{tr("名單不對？到 <btn>帳號・好友 → 我的家人</btn> 新增或修改，改一次每個行程都會跟著更新。", { btn: (c) => <button type="button" className="link" onClick={openAccount}>{c}</button> })}</p>
       </div>
 
@@ -204,7 +219,23 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
                   <button type="button" className="btn" disabled={busy} onClick={() => setGuest(null)}>{t("取消")}</button>
                 </div>
               </>
-            ) : <button type="button" className="link" disabled={busy} onClick={() => setGuest({ ...blank, kind: "adult", family: f.id })}>{t("＋ 幫這一家代填一位（沒有帳號的人）")}</button>)}
+            ) : many?.family === f.id ? (
+              <div className="manyguests">
+                <textarea rows={3} value={many.text} onChange={(e) => setMany({ family: f.id, text: e.target.value })} placeholder={t("例：Yenchih、Amie、小宇 9 歲")} aria-label={t("一次加好幾位")} autoFocus />
+                <p className="note">{parsedMany.length
+                  ? t("會加 {n} 位：{names}", { n: parsedMany.length, names: parsedMany.map((g) => personLabel(g)).join(t("、")) })
+                  : t("名字用頓號、逗號或換行分開。小孩在名字後面寫年齡（小宇 9 歲）或寫「小孩」，沒寫的算大人。")}</p>
+                <div className="actions">
+                  <button type="button" className="btn primary" disabled={busy || parsedMany.length === 0} onClick={saveMany}>{busy ? t("儲存中…") : t("加入#add")}</button>
+                  <button type="button" className="btn" disabled={busy} onClick={() => setMany(null)}>{t("取消")}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="guestlinks">
+                <button type="button" className="link" disabled={busy} onClick={() => { setMany(null); setGuest({ ...blank, kind: "adult", family: f.id }); }}>{t("＋ 幫這一家代填一位（沒有帳號的人）")}</button>
+                <button type="button" className="link" disabled={busy} onClick={() => { setGuest(null); setMany({ family: f.id, text: "" }); }}>{t("＋ 一次加好幾位")}</button>
+              </div>
+            ))}
           </div>
         );
       })}
@@ -260,7 +291,13 @@ export function StopPeople({ day, stop }: { day: Day; stop: Stop }) {
   useEffect(() => { if (!writing.current && !want.current) setChosen(stop.people); }, [stop]);
   if (!current || !people) return null;
   const all = relevantPeople(people, day, sharedFamilies(trip.days, trip.families, day.id, stop.sid));
-  if (all.length === 0) return null;
+  // 還沒有人勾「這趟誰會去」：沒有名字可以選。以前整塊不顯示，看起來像是不能選誰去。
+  if (all.length === 0) return (
+    <div className="sec stoppeople">
+      <h4>{t("誰參加")}</h4>
+      <p className="note">{t("這裡還沒有名字可以選：要先勾「這趟誰會去」，之後每一站預設全員參加，點名字就可以拿掉。")}{member?.role !== "viewer" && <> <a className="link" href="#people">{t("去勾這趟誰會去 ›")}</a></>}</p>
+    </div>
+  );
   const editable = canEdit(day.fam, member);
   const on = (id: string) => !chosen || chosen.includes(id);
   const selected = all.filter((p) => on(p.id));

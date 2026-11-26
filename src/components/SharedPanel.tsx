@@ -60,7 +60,7 @@ export function SharedPanel({ day, stop, onGone }: { day: Day; stop: Stop; onGon
         ))}
       </div>
       {shared
-        ? <p className="note">{t("這一站是共同的：時間、訂位、備註、誰參加，任何一家改了每一家都會更新。前後的交通各家自己排。")}{editable && <> <button type="button" className="link danger" disabled={busy} onClick={() => { if (confirm(t("整個取消「{name}」？每一家那一天的行程都會把它拿掉。", { name: stop.n }))) run(() => sharedApi.unshare(current.id, day.id, stop.sid!, null), true); }}>{t("整個取消")}</button></>}</p>
+        ? <p className="note">{trip.families.every((f) => on(f.id)) ? t("每一家都一起。") : null}{t("這一站是共同的：時間、訂位、備註、誰參加，任何一家改了每一家都會更新。前後的交通各家自己排。")}{editable && <> <button type="button" className="link danger" disabled={busy} onClick={() => { if (confirm(t("整個取消「{name}」？每一家那一天的行程都會把它拿掉。", { name: stop.n }))) run(() => sharedApi.unshare(current.id, day.id, stop.sid!, null), true); }}>{t("整個取消")}</button></>}</p>
         : editable && <p className="note">{t("各家那一天行程不同，但這一站要一起（例如一起吃飯）：點別家的名字，這一站就會出現在他們那一天的行程裡，之後內容每一家同步。")}</p>}
     </div>
   );
