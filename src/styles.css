@@ -1450,3 +1450,4 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .stoppeople .count{margin-top:6px}
 .stoppeople .count .skipped{font-size:.8rem;color:var(--shu);font-weight:700}
 .stoppeople .count .copybtn{min-height:30px;display:inline-flex;align-items:center}
+.panel .note.waiting{margin:6px 0 8px;padding:8px 10px;border-radius:8px;background:var(--ai-soft);color:var(--ink)}

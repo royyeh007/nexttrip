@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTrip } from "../trip";
+import { supabase } from "../supabase";
 import { canEdit, isViewer } from "../data";
 import type { Day, Stop } from "../data";
 import { NotReady, friendsApi } from "../friends";
@@ -144,6 +145,12 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => { peopleApi.household().then(setHouse, () => setHouse(null)); }, []);
+  // 行程裡有帳號的成員（不含觀察員）：加入行程不等於「會去」，還沒勾自己的人要在各家下面講清楚
+  const [accounts, setAccounts] = useState<{ user_id: string; family_id: string; name: string | null; email: string | null }[]>([]);
+  useEffect(() => {
+    if (!supabase || !tripId) return;
+    supabase.from("members").select("user_id, family_id, name, email, role").eq("trip_id", tripId).neq("role", "viewer").then(({ data }) => setAccounts(data ?? []));
+  }, [tripId]);
 
   if (!tripId || !member) return null;
   if (people === null) return <section className="dayhead"><h2>{t("誰會去")}</h2><p className="note">{tr("這個功能要先升級資料庫才能用（管理員在電腦上跑 <code>make db-push</code>），或是現在連不上伺服器。", { code: (c) => <code>{c}</code> })}</p></section>;
@@ -211,6 +218,20 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
                 {(admin || (p.guest && mayAddFor(f.id))) && !p.mine && <button type="button" className="link" disabled={busy} onClick={() => { if (confirm(t("把 {name} 從這個行程拿掉？", { name: p.name }))) run(() => peopleApi.removeTripPerson(p.id)); }}>{t("拿掉")}</button>}
               </div>
             ))}
+            {(() => {
+              // 這一家已經加入行程、但還沒勾自己會去的帳號
+              const waiting = accounts.filter((a) => a.family_id === f.id && !people.some((p) => p.user_id === a.user_id)).map((a) => a.name || a.email?.split("@")[0] || t("成員"));
+              if (!waiting.length) return null;
+              const mineToo = accounts.some((a) => a.family_id === f.id && a.user_id === member.user_id && !people.some((p) => p.user_id === a.user_id));
+              return (
+                <p className="note waiting">
+                  {t("{names} 已經加入行程，但還沒勾這趟誰會去，所以這裡看不到。", { names: waiting.join(t("、")) })}{" "}
+                  {mineToo ? t("到上面「我們家這趟誰會去」勾選。") : t("請他們打開行程 → 管理 → 誰會去，勾自己和家人。")}
+                  {!mineToo && mayAddFor(f.id) && many?.family !== f.id && <> <button type="button" className="link" disabled={busy} onClick={() => { setGuest(null); setMany({ family: f.id, text: waiting.join(t("、")) }); }}>{t("先幫他們代填")}</button></>}
+                  {!mineToo && mayAddFor(f.id) && <> {t("他們之後自己勾的時候，同名的代填會自動變成本人，不會重複。")}</>}
+                </p>
+              );
+            })()}
             {mayAddFor(f.id) && (guest?.family === f.id ? (
               <>
                 <PersonForm d={guest} set={(d) => setGuest({ ...d, family: f.id })} withBirthday={false} />
