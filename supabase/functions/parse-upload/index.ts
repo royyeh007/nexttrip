@@ -7,7 +7,7 @@ import { zodOutputFormat } from "npm:@anthropic-ai/sdk@1.8.0/helpers/zod";
 import { handle, json, HttpError, readJson } from "../_shared/http.ts";
 import { requireMember } from "../_shared/supa.ts";
 import { aiErrorMessage, anthropic, MODEL } from "../_shared/claude.ts";
-import { ProposalZ, formatGuide, normalize } from "../_shared/proposal.ts";
+import { FreshProposalZ, ProposalZ, formatGuide, normalize } from "../_shared/proposal.ts";
 import type { GuideCtx } from "../_shared/proposal.ts";
 import { reserve, settle, sumUsage } from "../_shared/usage.ts";
 
@@ -38,11 +38,22 @@ ${formatGuide(ctx)}
 「怎麼去」那欄是從上一站過去的交通，要變成前一個 leg。
 只整理資料裡真的有的東西，不要自己補行程；不確定的寫進 notes。`;
 
+// 用上傳建立新行程（首頁）：行程剛建好、還是空的，名稱和日期要從內容讀。
+const freshSystem = (ctx: GuideCtx) => `你在幫使用者把一份現成的行程變成行程 App 裡的一個新行程。
+使用者會給你一份行程：表單、截圖、PDF 或一段文字，也可能是另一個 AI 照固定格式排好的行程。
+把裡面的行程讀出來，整理成指定的 JSON 格式，行程的名稱、主要城市、開始和結束日期填進 trip。
+
+${formatGuide(ctx)}
+
+只整理資料裡真的有的東西，不要自己補行程；不確定的寫進 notes。`;
+
 Deno.serve(handle(async (req) => {
-  const body = await readJson<{ path?: unknown; text?: unknown; family_id?: string; trip_id?: string }>(req);
+  const body = await readJson<{ path?: unknown; text?: unknown; family_id?: string; trip_id?: string; fresh?: unknown }>(req);
   const { user, admin, member, trip, uid, who } = await requireMember(req, body, { editor: true });
   const { data: famRows } = await admin.from("families").select("id, label").eq("trip_id", trip.id).order("sort");
   const families = (famRows ?? []) as { id: string; label: string }[];
+  const fresh = body.fresh === true;
+  if (fresh && member.role !== "admin") throw new HttpError(403, "只有建立行程的人可以這樣做");
   const family_id = member.role === "admin" && body.family_id && families.some((f) => f.id === body.family_id) ? body.family_id : member.family_id;
   const pasted = typeof body.text === "string" ? body.text.trim() : "";
   if (pasted.length > MAX_TEXT_CHARS) throw new HttpError(400, `一次最多貼 ${MAX_TEXT_CHARS.toLocaleString()} 個字，請分成幾次（例如一次兩三天）`);
@@ -92,20 +103,29 @@ Deno.serve(handle(async (req) => {
   try {
     const { data: sharedRows } = await admin.from("days").select("date_id").eq("trip_id", trip.id).is("fam", null);
     const ctx: GuideCtx = { trip, families, sharedDates: [...new Set((sharedRows ?? []).map((d) => d.date_id as string))].sort() };
+    // 全新行程：「今天」照使用者那邊的日期算不到，用行程預設時區的今天（差一天不影響：只用來補年份）
+    if (fresh) ctx.fresh = new Date().toLocaleDateString("sv-SE", { timeZone: trip.tz || "Asia/Tokyo" });
     // 串流版：SDK 對非串流的大 max_tokens 會拒絕。整個函式最多 150 秒，所以這一次呼叫最多等 135 秒、不重試，
     // 逾時才來得及把這筆上傳標成失敗（不然會被平台砍掉、永遠停在「處理中」）。
     const res = await anthropic({ timeoutMs: 135_000, maxRetries: 0 }).messages.stream({
       model: MODEL,
       max_tokens: 16000,
-      system: system(ctx),
+      system: fresh ? freshSystem(ctx) : system(ctx),
       messages: [{ role: "user", content }],
-      output_config: { format: zodOutputFormat(ProposalZ), effort: "medium" },
+      output_config: { format: zodOutputFormat(fresh ? FreshProposalZ : ProposalZ), effort: "medium" },
     }).finalMessage();
     usage = { ...usage, ...sumUsage(MODEL, [res.usage]) };
     if (res.stop_reason === "refusal") throw new Error("Trip醬拒絕處理這個內容");
     if (res.stop_reason === "max_tokens") throw new Error("輸出不完整，請把檔案拆小一點（例如一次一天）再試");
     const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-    const proposal = normalize(ProposalZ.parse(JSON.parse(text)));
+    const raw = JSON.parse(text);
+    const guess = fresh ? FreshProposalZ.parse(raw).trip : null;
+    const proposal = normalize(ProposalZ.parse(raw));
+    if (fresh) {
+      // 新行程只有一家：每一天都是大家一起的，沒有「跟別家一起」，日期由使用者確認基本資料時決定
+      proposal.days = proposal.days.map((d) => ({ ...d, scope: "shared" as const }));
+      proposal.joins = []; proposal.extend_to = null;
+    }
     // 家庭 id 一定要是這個行程裡的；非管理員只能送自己家的
     const famOk = families.some((f) => f.id === proposal.family_id);
     const finalFam = member.role === "admin" && famOk ? proposal.family_id : family_id;
@@ -113,7 +133,7 @@ Deno.serve(handle(async (req) => {
     await admin.from("uploads").update({ parsed: fixed, family_id: finalFam }).eq("id", row.id);
     console.log("parse-upload usage", JSON.stringify(usage));
     await settle(admin, quota, usage);
-    return json({ id: row.id, proposal: fixed });
+    return json({ id: row.id, proposal: fixed, ...(guess ? { trip: guess } : {}) });
   } catch (e) {
     const msg = aiErrorMessage(e);
     await admin.from("uploads").update({ status: "failed", error: msg }).eq("id", row.id);

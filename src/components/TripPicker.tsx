@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { PlaceInput } from "./PlaceInput";
-import { supabase } from "../supabase";
+import { NewTrip } from "./NewTrip";
 import { useTrip } from "../trip";
 import { dotDate, tripLength } from "../data";
-import { fillTripDays } from "../days";
 import { GuideView } from "./GuideView";
 import { LogoMark, MenuIcon, PersonIcon, Wordmark } from "./Logo";
 import { MyInvitations } from "./AccountView";
@@ -24,49 +22,6 @@ function statusText(s: TripStatus): string {
   if (s.phase === "soon") return s.days === 1 ? t("明天出發") : t("還有 {n} 天", { n: s.days });
   if (s.length === 1) return t("就是今天");
   return t("進行中・第 {d} 天，共 {n} 天", { d: s.days, n: s.length });
-}
-
-function CreateTrip({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
-  const { session } = useTrip();
-  const today = new Date().toISOString().slice(0, 10);
-  const [name, setName] = useState("");
-  const [start, setStart] = useState(today);
-  const [end, setEnd] = useState(today);
-  const [place, setPlace] = useState("");
-  const [famLabel, setFamLabel] = useState("");
-  const [myName, setMyName] = useState<string>(session?.user.user_metadata?.full_name ?? "");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const submit = async () => {
-    if (!supabase) return;
-    setBusy(true); setErr(null);
-    const { data, error } = await supabase.rpc("create_trip", { p_name: name.trim(), p_start: start, p_end: end, p_place: place.trim(), p_family_label: famLabel.trim(), p_my_name: myName.trim() });
-    if (error) { setErr(t(error.message)); setBusy(false); return; }
-    // every date gets an empty "everyone" day so the trip is ready to fill in
-    try { await fillTripDays(String(data), start, end, place); } catch { /* the days can be added later from the date strip */ }
-    onCreated(String(data));
-  };
-
-  return (
-    <div className="panel">
-      <h3>{t("建立新行程")}</h3>
-      <p className="note">{t("建立的人就是這個行程的管理員，之後可以邀請家人、管理團員。開始到結束的每一天會先建好空白的日子，城市先填主要城市，之後每一天可以各自改。")}</p>
-      <div className="formgrid">
-        <label>{t("行程名稱")}<input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("例：2027 春天京都")} /></label>
-        <label>{t("主要城市")}<PlaceInput tripId="" kind="city" withCountry value={place} onChange={setPlace} placeholder={t("打幾個字找城市，例：東京")} /></label>
-        <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value); }} /></label>
-        <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
-        <label>{t("你們這一家叫什麼")}<input value={famLabel} onChange={(e) => setFamLabel(e.target.value)} placeholder={t("例：Lily 家")} /></label>
-        <label>{t("你的名字")}<input value={myName} onChange={(e) => setMyName(e.target.value)} placeholder={t("例：小明")} /></label>
-      </div>
-      <div className="actions">
-        <button type="button" className="btn primary" onClick={submit} disabled={busy || !name.trim() || !place.trim() || !start || !end}>{busy ? t("建立中…") : t("建立行程")}</button>
-        <button type="button" className="btn" onClick={onCancel} disabled={busy}>{t("取消")}</button>
-      </div>
-      {err && <p className="err">{err}</p>}
-    </div>
-  );
 }
 
 /** After sign-in: the trips this person is in, plus "create" and "join with a code". */
@@ -181,7 +136,7 @@ export function TripPicker() {
 
       <h2>{memberships.length ? t("建立或加入") : t("加入")}</h2>
       {creating ? (
-        <CreateTrip onCreated={async (id) => { await refreshMemberships(); enterTrip(id); }} onCancel={() => setCreating(false)} />
+        <NewTrip onCreated={async (id) => { await refreshMemberships(); enterTrip(id); }} onCancel={() => setCreating(false)} />
       ) : (
         <div className="panel startrow">
           {memberships.length > 0 && <button type="button" className="btn primary" onClick={() => setCreating(true)}>{t("＋ 建立新行程")}</button>}

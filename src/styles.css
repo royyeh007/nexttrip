@@ -1422,3 +1422,19 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .tmmove label.check{display:flex;gap:10px;align-items:center;font-size:.95rem;font-weight:700;color:var(--ink);cursor:pointer;min-height:32px}
 .tmmove label.check input{width:20px;height:20px;flex:none;margin:0;accent-color:var(--ai)}
 .tmmove .note{margin:0;color:var(--ink)}
+
+/* ---------- 建立新行程：自己填／上傳行程／請 AI 排 ---------- */
+.newtrip{display:grid;gap:12px}
+.newtrip > h3,.newtrip > .note,.newtrip > .err,.newtrip .formgrid{margin-block:0}
+.newtrip .formgrid label.wide{grid-column:1 / -1}
+.newtrip .formgrid label.need{color:var(--shu)}
+.newtrip .formgrid label.need input{border-color:var(--shu)}
+.newtrip .step{display:flex;align-items:center;gap:8px;margin:6px 0 0;font-size:.95rem}
+.newtrip .step b{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--ai-soft);color:var(--ai);font-size:.82rem}
+.newtrip .wantpick{border:0;padding:0;margin:0;min-width:0}
+.newtrip .wantpick legend{padding:0;font-size:.84rem;color:var(--muted);margin-bottom:6px}
+.newtrip .wantpick .chip{display:inline-flex;align-items:center;min-height:36px;padding:5px 14px;font-size:.88rem}
+.newtrip .promptbox{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;line-height:1.5;background:var(--paper);white-space:pre-wrap}
+.newtrip .actions{display:flex;flex-wrap:wrap;gap:8px}
+.newtrip .actions .btn{display:inline-flex;align-items:center;gap:6px}
+.newtrip .resultbox .preview{max-height:46vh;overflow:auto}

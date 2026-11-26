@@ -99,10 +99,23 @@ export interface GuideCtx {
   families: { id: string; label: string }[];
   /** dates (YYYY-MM-DD) that currently have an everyone-together version */
   sharedDates: string[];
+  /** 用上傳建立新行程：名稱、城市、日期都還沒定，要從內容讀出來。值是今天的日期（YYYY-MM-DD）。 */
+  fresh?: string;
 }
 
+/** 用上傳建立新行程時，AI 從內容讀到的基本資料；讀不到的是 null，之後請使用者補。 */
+export const TripGuessZ = z.object({
+  name: z.string().nullable().describe("行程名稱；內容沒寫就照地點和時間取一個短的，例「2027 春天京都」"),
+  place: z.string().nullable().describe("主要城市，寫成「國家・城市」，例「日本・京都」；看不出來就 null"),
+  start_date: DateIdZ.nullable().describe("行程第一天；內容完全沒有日期就 null"),
+  end_date: DateIdZ.nullable().describe("行程最後一天；內容完全沒有日期就 null"),
+});
+export const FreshProposalZ = ProposalZ.extend({ trip: TripGuessZ });
+
 /** The format rules the AI follows, filled in with this trip's families and shared days. */
-export function formatGuide({ trip, families, sharedDates }: GuideCtx) {
+export function formatGuide(ctx: GuideCtx) {
+  if (ctx.fresh) return freshGuide(ctx, ctx.fresh);
+  const { trip, families, sharedDates } = ctx;
   const fams = families.map((f) => `${f.id}=${f.label}`).join("、") || "（還沒有家庭）";
   const shared = sharedDates.length ? sharedDates.map((d) => dateOf(d).d).join("、") : "目前沒有";
   return `行程格式說明：
@@ -117,5 +130,25 @@ export function formatGuide({ trip, families, sharedDates }: GuideCtx) {
 - 大家一起的日子（scope=shared）：${shared}；其他日子各家自己走（scope=family）。
 - 如果某天是「跟某家一起」，放進 joins（有「從幾點開始」就填 from），不要重抄那家的行程。
 - 日期超出行程範圍（${trip.start_date}–${trip.end_date}）的日子一樣可以放進 days；如果要順便把行程日期延長，填 extend_to（新的開始或結束日期）。
+- 家庭 id：${fams}。`;
+}
+
+/** 全新的行程：沒有名稱、日期可以對照，也沒有別家；每一天都是大家一起的。 */
+function freshGuide({ families }: GuideCtx, today: string) {
+  const fams = families.map((f) => `${f.id}=${f.label}`).join("、");
+  return `行程格式說明：
+- 這是一個全新的行程：名稱、主要城市、日期都還沒定，要從內容讀出來填進 trip。今天是 ${today}。
+- 內容裡的日期沒有年份：用今天之後最近的那一次。
+- 內容完全沒有日期（只有「第 1 天」「Day 2」這種）：date_id 從 ${today} 開始一天一天往後排，trip 的 start_date 和 end_date 填 null，並在 notes 寫一條「內容沒有日期」。
+- 一天 = date_id（YYYY-MM-DD）+ city + title + hotel + items。
+- items 照時間順序：每個地點是 type=stop；兩個地點中間的交通是 type=leg。
+- stop 的 k：餐廳 food、景點 sight、住宿 hotel、購物 shop、機場車站等交通節點 move。
+- leg 的 leg：計程車 taxi、走路 walk、電車 train、巴士 bus、包車 charter、接駁車 shuttle、飛機 flight。
+- 訂位狀態 st：已訂 ok、要訂（內容寫要先訂、建議預約）todo、待定 tbd、不用訂 null。
+- 時間用 24 小時制 H:MM（8:30、13:00）。清單欄位（book、rec、tips、info）一條一項；營業時間、費用放 info，推薦放 rec，提醒放 tips。
+- 內容寫「不確定」「無」「自行安排」的欄位當作沒有（null、空字串或空陣列），不要照抄。
+- q 是 Google 地圖的搜尋字：用當地語言的官方店名＋區域（例「ミキモト 銀座本店」）；新開的店、連鎖店或名字很普通的店，一定在 q 後面加上地址。內容有地址就同時填 addr。
+- n 是給人看的名稱：內容同時有當地語言和使用者語言的名稱時，用使用者看得懂的那個（例「淺草寺」）。
+- 每一天的 scope 都填 shared。joins 給空陣列。extend_to 兩個都填 null。
 - 家庭 id：${fams}。`;
 }
