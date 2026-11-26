@@ -1397,3 +1397,22 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .tstat.past{background:var(--line);color:var(--muted)}
 .tripcard.now{border-color:var(--pine);box-shadow:0 0 0 1px var(--pine)}
 .tripcard.past .ticon,.tripcard.past .tn,.tripcard.past .tp{opacity:.6}
+
+/* 首頁行程卡片右下角的「管理」，和打開的面板（編輯 / 複製 / 刪除） */
+.tripwrap{position:relative;display:flex}
+.tripwrap > .tripcard{width:100%}
+.tripcard.canmanage .tm{padding-right:84px}
+.tripmore{all:unset;box-sizing:border-box;cursor:pointer;position:absolute;right:12px;bottom:12px;display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:4px 12px 4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink);font-size:.82rem;font-weight:700;touch-action:manipulation}
+.tripmore:hover{border-color:var(--ai)}
+.tripmore:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.tripmanage .body{align-content:start}
+.tmtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:999px;background:var(--paper);padding:3px}
+.tmtabs button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border-radius:999px;font-size:.9rem;font-weight:700;color:var(--muted);touch-action:manipulation}
+.tmtabs button.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.tmtabs button:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.tmpane{display:grid;gap:10px}
+.tmpane .note,.tmpane .err{margin:0}
+.tmpane .formgrid{margin:0}
+.tmpane .formgrid input{font-size:16px;min-height:44px}
+.tmpane .iconpick{margin:0}
+.tmpane .actions{display:flex;flex-wrap:wrap;gap:8px}

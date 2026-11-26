@@ -8,10 +8,9 @@ interface Suggestion { id: string; main: string; sub: string }
 
 // 伺服器沒有設定金鑰（503）或這個人不能用時，這次開著網頁就不再問，輸入框照樣可以自己打字
 let off = false;
-// 「不用 Google 搜尋」：這台裝置記住，下次開表單還是不搜尋
-const MANUAL_KEY = "place-search-manual";
-const readManual = () => { try { return localStorage.getItem(MANUAL_KEY) === "1"; } catch { return false; } };
-const writeManual = (v: boolean) => { try { if (v) localStorage.setItem(MANUAL_KEY, "1"); else localStorage.removeItem(MANUAL_KEY); } catch { /* private mode: only for this form */ } };
+// 「不用 Google 搜尋」只管這一次打開的表單：每次打開都回到用 Google 找。
+// 以前會記在這台裝置上，結果關過一次之後每次都不搜尋；舊的記號順手清掉。
+try { localStorage.removeItem("place-search-manual"); } catch { /* ignore */ }
 const newSession = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join(""); };
 
 /**
@@ -58,7 +57,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const session = useRef(newSession());
-  const [manual, setManual] = useState(readManual);
+  const [manual, setManual] = useState(false);
   const skip = useRef(false);      // 「直接用我打的字」：這一格不再跳清單，直到清空重打
   const typed = useRef(false);     // only search for what the person typed here, not for the name the form opened with
   const composing = useRef(false); // 注音／拼音選字中：等選完字再查
@@ -121,7 +120,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   };
 
   const asTyped = () => { seq.current++; skip.current = true; setOpen(false); setItems([]); };
-  const setMode = (v: boolean) => { writeManual(v); setManual(v); seq.current++; setOpen(false); setItems([]); setNote(""); if (!v) { skip.current = false; typed.current = true; setTick((n) => n + 1); } };
+  const setMode = (v: boolean) => { setManual(v); seq.current++; setOpen(false); setItems([]); setNote(""); if (!v) { skip.current = false; typed.current = true; setTick((n) => n + 1); } };
 
   const pick = async (s: Suggestion) => {
     seq.current++; typed.current = false;

@@ -9,6 +9,8 @@ import { LogoMark, MenuIcon, PersonIcon, Wordmark } from "./Logo";
 import { MyInvitations } from "./AccountView";
 import { TripIcon, tripIconId } from "../tripIcons";
 import { t } from "../i18n";
+import { TripManage } from "./TripManage";
+import { LeaveDialog } from "./LeaveDialog";
 import { fakeNow, useNow } from "../now";
 import { TRIP_SORTS, matchTrip, sortTrips, todayIn, tripStatus, type TripDates, type TripSort, type TripStatus } from "../tripList";
 
@@ -102,6 +104,10 @@ export function TripPicker() {
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState("");
   const [q, setQ] = useState("");
+  const [manage, setManage] = useState<string | null>(null);
+  const [leave, setLeave] = useState<string | null>(null);
+  const leaving = memberships.find((m) => m.trip_id === leave);
+  const managing = memberships.find((m) => m.trip_id === manage && m.role === "admin");
   const [sort, setSort] = useState<TripSort>(readSort);
   useNow(); // 過了午夜，倒數和「進行中」要跟著變
   const shown = sortTrips(memberships.filter((m) => matchTrip(m.trip, q)), sort, todayOf);
@@ -141,7 +147,8 @@ export function TripPicker() {
           )}
           <div className="tripcards">
             {shown.map((m) => { const st = tripStatus(m.trip, todayOf(m.trip)); return (
-              <button key={m.trip_id} type="button" className={`tripcard ${st.phase}`} onClick={() => enterTrip(m.trip_id)}>
+              <div key={m.trip_id} className="tripwrap">
+              <button type="button" className={`tripcard ${st.phase}${" canmanage"}`} onClick={() => enterTrip(m.trip_id)}>
                 <TripIcon id={tripIconId(m.trip.settings)} size={48} />
                 <span className="tn">{m.trip.name}</span>
                 <span className={`tstat ${st.phase}`}>{statusText(st)}</span>
@@ -154,8 +161,21 @@ export function TripPicker() {
                 </span>
                 <span className="go">{t("進入 ›")}</span>
               </button>
+              {m.role === "admin" && (
+                <button type="button" className="tripmore" onClick={() => setManage(m.trip_id)} aria-label={t("管理「{name}」：編輯、複製、刪除", { name: m.trip.name })} title={t("編輯、複製、刪除")}>
+                  <MenuIcon name="more" size={18} />{t("管理")}
+                </button>
+              )}
+              {m.role !== "admin" && (
+                <button type="button" className="tripmore" onClick={() => setLeave(m.trip_id)} aria-label={t("退出「{name}」", { name: m.trip.name })}>
+                  <MenuIcon name="leave" size={18} />{t("退出")}
+                </button>
+              )}
+              </div>
             ); })}
           </div>
+          {leaving && <LeaveDialog key={leaving.trip_id} trip={{ id: leaving.trip_id, name: leaving.trip.name }} onClose={() => setLeave(null)} />}
+          {managing && <TripManage key={managing.trip_id} m={managing} onClose={() => setManage(null)} />}
         </>
       )}
 
