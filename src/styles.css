@@ -1375,3 +1375,9 @@ input[type="date"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date
 /* 手機：按鈕連點不會被當成「點兩下放大」（iOS 會先等一下、有時整頁放大，看起來像沒反應或畫面跳動）；兩指縮放照舊 */
 button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .stoppeople .note .saving{margin-left:8px;color:var(--muted)}
+.placemode{display:block;margin-top:4px;font-size:.76rem;color:var(--muted);font-weight:400}
+.placemode .link{font-size:inherit}
+.placelist button.astyped b{font-weight:600}
+/* 地點欄前面的圖示：圖釘 = 會用 Google 找地點；鉛筆 = 自己填 */
+.placeinput .placeicon{position:absolute;left:11px;top:0;height:var(--placeh,44px);display:flex;align-items:center;pointer-events:none;z-index:1}
+.placeinput > input{padding-left:38px !important}

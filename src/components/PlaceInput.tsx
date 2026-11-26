@@ -8,6 +8,10 @@ interface Suggestion { id: string; main: string; sub: string }
 
 // 伺服器沒有設定金鑰（503）或這個人不能用時，這次開著網頁就不再問，輸入框照樣可以自己打字
 let off = false;
+// 「不用 Google 搜尋」：這台裝置記住，下次開表單還是不搜尋
+const MANUAL_KEY = "place-search-manual";
+const readManual = () => { try { return localStorage.getItem(MANUAL_KEY) === "1"; } catch { return false; } };
+const writeManual = (v: boolean) => { try { if (v) localStorage.setItem(MANUAL_KEY, "1"); else localStorage.removeItem(MANUAL_KEY); } catch { /* private mode: only for this form */ } };
 const newSession = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join(""); };
 
 /**
@@ -54,6 +58,8 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const session = useRef(newSession());
+  const [manual, setManual] = useState(readManual);
+  const skip = useRef(false);      // 「直接用我打的字」：這一格不再跳清單，直到清空重打
   const typed = useRef(false);     // only search for what the person typed here, not for the name the form opened with
   const composing = useRef(false); // 注音／拼音選字中：等選完字再查
   const seq = useRef(0);
@@ -63,8 +69,9 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
   const [box, setBox] = useState<{ left: number; width: number } | null>(null);
 
   useEffect(() => {
-    if (off || !typed.current || composing.current) return;
     const q = value.trim();
+    if (!q) skip.current = false;
+    if (off || manual || skip.current || !typed.current || composing.current) return;
     const mine = ++seq.current;
     const link = kind === "place" && tripId ? q.match(MAP_LINK)?.[0] : undefined;
     if (link) { setItems([]); setOpen(false); fromLink(link, mine); return; } // 也讓還在路上的舊查詢作廢：清空欄位後不該再跳出剛才的結果
@@ -82,7 +89,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
       }
     }, 280);
     return () => clearTimeout(h);
-  }, [value, tick, tripId, near?.lat, near?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value, tick, tripId, near?.lat, near?.lon, manual]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 欄位常在兩欄表單的右半邊：清單要夠寬才讀得到地址，所以往左伸出去，但不超出畫面
   useLayoutEffect(() => {
@@ -113,6 +120,9 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
     } finally { if (mine === seq.current) setBusy(false); session.current = newSession(); }
   };
 
+  const asTyped = () => { seq.current++; skip.current = true; setOpen(false); setItems([]); };
+  const setMode = (v: boolean) => { writeManual(v); setManual(v); seq.current++; setOpen(false); setItems([]); setNote(""); if (!v) { skip.current = false; typed.current = true; setTick((n) => n + 1); } };
+
   const pick = async (s: Suggestion) => {
     seq.current++; typed.current = false;
     setOpen(false); setItems([]);
@@ -130,6 +140,7 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
 
   return (
     <span className="placeinput" ref={wrap}>
+      <span className="placeicon" aria-hidden="true"><MenuIcon name={manual && kind === "place" ? "rename" : "pin"} size={18} /></span>
       <input
         value={value} placeholder={placeholder} autoComplete="off" role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
@@ -148,6 +159,12 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
       />
       {busy && <small className="placebusy" role="status">{t("帶入地址中…")}</small>}
       {!busy && note && <small className="placebusy err" role="alert">{note}</small>}
+      {kind === "place" && !off && (
+        <small className="placemode">
+          {manual ? t("現在不搜尋，照你打的字。") : null}
+          <button type="button" className="link" onClick={() => setMode(!manual)}>{manual ? t("改回用 Google 找地點") : t("不用 Google 搜尋，自己填")}</button>
+        </small>
+      )}
       {open && (
         <span className="placelist" role="listbox" id={listId} style={box ? { left: box.left, width: box.width, right: "auto" } : undefined}>
           {items.map((s, i) => (
@@ -156,6 +173,9 @@ export function PlaceInput({ tripId, value, onChange, onPick, near, placeholder,
               <MenuIcon name="pin" size={18} /><span><b>{s.main}</b>{s.sub && <small>{s.sub}</small>}</span>
             </button>
           ))}
+          <button type="button" className="astyped" onMouseDown={(e) => e.preventDefault()} onClick={asTyped}>
+            <MenuIcon name="rename" size={18} /><span><b>{t("直接用「{text}」", { text: value.trim() })}</b><small>{t("不選清單上的地點，照我打的字")}</small></span>
+          </button>
           <small className="placeby" translate="no">Google Maps</small>
         </span>
       )}
