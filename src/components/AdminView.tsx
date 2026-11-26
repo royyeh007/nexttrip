@@ -7,7 +7,7 @@ import { TRIP_ICONS, TripIcon, tripIconId } from "../tripIcons";
 import { supabase } from "../supabase";
 import { removeTripImages } from "../images";
 import { useTrip } from "../trip";
-import { COMMON_TZ, ROLE_LABEL } from "../data";
+import { COMMON_TZ, ROLE_LABEL, addDays, daysBetween } from "../data";
 import { fillTripDays } from "../days";
 import type { InviteRow, Member, Role } from "../data";
 import { t, tr } from "../i18n";
@@ -248,6 +248,8 @@ function Settings() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [confirmName, setConfirmName] = useState("");
+  // 改開始日期時，已經排好的日子要不要一起移（預設要）
+  const [move, setMove] = useState(true);
   // What the form was filled from. The trip can change while this page is open (dates widened by confirming a proposal,
   // another admin renaming it): fields the person has not touched follow along, and saving sends only what they changed.
   const base = useRef({ name: current?.name ?? "", start: current?.start_date ?? "", end: current?.end_date ?? "", place: current?.place ?? "", tz: current?.tz ?? "Asia/Tokyo", icon: tripIconId(current?.settings) });
@@ -268,25 +270,43 @@ function Settings() {
     const b = base.current;
     const changes: Record<string, unknown> = {};
     if (name.trim() !== b.name) changes.name = name.trim().slice(0, 80);
-    if (start !== b.start) changes.start_date = start;
-    if (end !== b.end) changes.end_date = end;
+    const delta = start && b.start ? daysBetween(b.start, start) : 0;
+    const shifting = move && delta !== 0;
+    if (!shifting && start !== b.start) changes.start_date = start;
+    if (end !== (shifting ? addDays(b.end, delta) : b.end)) changes.end_date = end;
     if (place.trim() !== b.place) changes.place = place.trim().slice(0, 200);
     if (tz !== b.tz) changes.tz = tz;
-    if (Object.keys(changes).length === 0 && icon === b.icon) { setMsg(t("沒有改動")); return; }
+    if (Object.keys(changes).length === 0 && icon === b.icon && !shifting) { setMsg(t("沒有改動")); return; }
     setBusy(true); setMsg(null);
+    let moved = 0;
+    if (shifting) {
+      // 先整份搬到新日期（行程的開始、結束也一起移），其他改動再照平常的存
+      const { data: n, error: e1 } = await supabase.rpc("shift_trip", { p_trip: current.id, p_start: start });
+      if (e1) { setMsg(t(e1.message)); setBusy(false); return; }
+      moved = Number(n) || 0;
+    }
     if (icon !== b.icon) {
       // the picture lives inside `settings` next to other things (the weather places): read the row again and change only this key
       const { data: fresh, error: e0 } = await supabase.from("trips").select("settings").eq("id", current.id).single();
       if (e0) { setMsg(t(e0.message)); setBusy(false); return; }
       changes.settings = { ...((fresh?.settings as Record<string, unknown> | null) ?? {}), icon };
     }
-    const { error } = await supabase.from("trips").update(changes).eq("id", current.id);
-    if (error) { setMsg(t(error.message)); setBusy(false); return; }
-    // dates extended → add the missing empty days
+    if (Object.keys(changes).length) {
+      const { error } = await supabase.from("trips").update(changes).eq("id", current.id);
+      if (error) { if (shifting) await Promise.all([refreshMemberships(), reload()]); setMsg(t(error.message)); setBusy(false); return; }
+    }
+    // dates extended → add the missing empty days (after a move the days on this page are stale: ask the database which dates exist)
     let added = 0;
-    try { added = await fillTripDays(current.id, start, end, place, trip.days.filter((d) => !d.fam).map((d) => d.id)); } catch { /* ignore */ }
+    try {
+      let have = trip.days.filter((d) => !d.fam).map((d) => d.id);
+      if (shifting) { const { data: rows } = await supabase.from("days").select("date_id").eq("trip_id", current.id).is("fam", null); have = (rows ?? []).map((r) => String(r.date_id)); }
+      added = await fillTripDays(current.id, start, end, place, have);
+    } catch { /* ignore */ }
     await Promise.all([refreshMemberships(), reload()]);
-    setMsg(added ? t("已儲存，補了 {n} 個空白日子", { n: added }) : t("已儲存"));
+    const parts = [t("已儲存")];
+    if (moved) parts.push(t("{n} 個排好的日子移到新日期", { n: moved }));
+    if (added) parts.push(t("補了 {n} 個空白日子", { n: added }));
+    setMsg(parts.join(t("，")));
     setBusy(false);
   };
   const destroy = async () => {
@@ -310,12 +330,23 @@ function Settings() {
         <div className="formgrid">
           <label>{t("行程名稱")}<input value={name} onChange={(e) => setName(e.target.value)} /></label>
           <label>{t("主要城市")}<PlaceInput tripId={current?.id ?? ""} kind="city" withCountry value={place} onChange={setPlace} placeholder={t("打幾個字找城市，例：東京")} /></label>
-          <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+          <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => { const v = e.target.value; if (v && start && end) { const by = daysBetween(start, v); setEnd(move ? addDays(end, by) : end < v ? v : end); } setStart(v); }} /></label>
           <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
           <label>{t("當地時區（「現在」的線、航班日期用）")}
             <select value={tz} onChange={(e) => setTz(e.target.value)}>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
           </label>
         </div>
+        {current && start && start !== current.start_date && (() => { const delta = daysBetween(current.start_date, start); return (
+          <div className="tmmove">
+            <label className="check">
+              <input type="checkbox" checked={move} onChange={(e) => { setMove(e.target.checked); if (e.target.checked) setEnd(addDays(current.end_date, delta)); }} />
+              <span>{delta > 0 ? t("已經排好的日子一起往後移 {n} 天", { n: delta }) : t("已經排好的日子一起往前移 {n} 天", { n: -delta })}</span>
+            </label>
+            <p className="note">{move
+              ? t("整份行程搬到新日期，每一天的內容不變。成員、待辦和聊天紀錄都留著。")
+              : t("不移：排好的日子留在原本的日期，新日期只會補上空白的日子。")}</p>
+          </div>
+        ); })()}
         <fieldset className="iconpick">
           <legend>{t("行程圖案（顯示在行程名稱旁邊和「我的行程」的卡片上）")}</legend>
           <div className="icongrid">

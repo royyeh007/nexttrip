@@ -1416,3 +1416,9 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .tmpane .formgrid input{font-size:16px;min-height:44px}
 .tmpane .iconpick{margin:0}
 .tmpane .actions{display:flex;flex-wrap:wrap;gap:8px}
+
+/* 改開始日期：排好的日子要不要一起移 */
+.tmmove{display:grid;gap:6px;border:1px solid var(--ai);background:var(--ai-soft);border-radius:12px;padding:10px 12px}
+.tmmove label.check{display:flex;gap:10px;align-items:center;font-size:.95rem;font-weight:700;color:var(--ink);cursor:pointer;min-height:32px}
+.tmmove label.check input{width:20px;height:20px;flex:none;margin:0;accent-color:var(--ai)}
+.tmmove .note{margin:0;color:var(--ink)}

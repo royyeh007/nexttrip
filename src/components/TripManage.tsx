@@ -25,6 +25,13 @@ export function TripManage({ m, onClose }: { m: Membership; onClose: () => void 
   const [start, setStart] = useState(trip.start_date);
   const [end, setEnd] = useState(trip.end_date);
   const [icon, setIcon] = useState(tripIconId(trip.settings));
+  // 改開始日期時，已經排好的日子要不要一起移（預設要：不移的話舊的日子留在原地，新日期只有空白的日子）
+  const [move, setMove] = useState(true);
+  const delta = start ? daysBetween(trip.start_date, start) : 0;
+  const pickStart = (v: string) => {
+    if (v && start && end) { const by = daysBetween(start, v); setEnd(move ? addDays(end, by) : end < v ? v : end); }
+    setStart(v);
+  };
   // ---- 複製 ----
   const [copyName, setCopyName] = useState(t("{name}（複本）", { name: trip.name }).slice(0, 80));
   const [copyStart, setCopyStart] = useState(trip.start_date);
@@ -43,31 +50,45 @@ export function TripManage({ m, onClose }: { m: Membership; onClose: () => void 
     if (!supabase) return;
     const changes: Record<string, unknown> = {};
     if (name.trim() !== trip.name) changes.name = name.trim().slice(0, 80);
-    if (start !== trip.start_date) changes.start_date = start;
-    if (end !== trip.end_date) changes.end_date = end;
+    const shifting = move && delta !== 0;
+    const datesChanged = start !== trip.start_date || end !== trip.end_date;
+    if (!shifting && start !== trip.start_date) changes.start_date = start;
+    if (end !== (shifting ? addDays(trip.end_date, delta) : trip.end_date)) changes.end_date = end;
     if (place.trim() !== trip.place) changes.place = place.trim().slice(0, 200);
     const iconChanged = icon !== tripIconId(trip.settings);
-    if (Object.keys(changes).length === 0 && !iconChanged) { setMsg({ tab: "edit", text: t("沒有改動") }); return; }
+    if (Object.keys(changes).length === 0 && !iconChanged && !shifting) { setMsg({ tab: "edit", text: t("沒有改動") }); return; }
     setBusy(true); setMsg(null);
+    let moved = 0;
+    if (shifting) {
+      // 先整份搬到新日期（行程的開始、結束也一起移），其他改動再照平常的存
+      const { data: n, error: e1 } = await supabase.rpc("shift_trip", { p_trip: trip.id, p_start: start });
+      if (e1) return fail("edit", t(e1.message));
+      moved = Number(n) || 0;
+    }
     if (iconChanged) {
       // the picture lives inside `settings` next to other things: read the row again and change only this key
       const { data: fresh, error: e0 } = await supabase.from("trips").select("settings").eq("id", trip.id).single();
       if (e0) return fail("edit", t(e0.message));
       changes.settings = { ...((fresh?.settings as Record<string, unknown> | null) ?? {}), icon };
     }
-    const { data, error } = await supabase.from("trips").update(changes).eq("id", trip.id).select("id");
-    if (error) return fail("edit", t(error.message));
-    if (!data?.length) return fail("edit", t("沒有存到：你可能已經不是管理員了"));
+    if (Object.keys(changes).length) {
+      const { data, error } = await supabase.from("trips").update(changes).eq("id", trip.id).select("id");
+      if (error) { if (shifting) await refreshMemberships(); return fail("edit", t(error.message)); }
+      if (!data?.length) return fail("edit", t("沒有存到：你可能已經不是管理員了"));
+    }
     // dates extended → add the missing empty days
     let added = 0;
-    if (changes.start_date || changes.end_date) {
+    if (datesChanged) {
       try {
         const { data: have } = await supabase.from("days").select("date_id").eq("trip_id", trip.id).is("fam", null);
         added = await fillTripDays(trip.id, start, end, place, (have ?? []).map((d) => String(d.date_id)));
       } catch { /* the days can be added later from the date strip */ }
     }
     await refreshMemberships();
-    setMsg({ tab: "edit", text: added ? t("已儲存，補了 {n} 個空白日子", { n: added }) : t("已儲存") });
+    const parts = [t("已儲存")];
+    if (moved) parts.push(t("{n} 個排好的日子移到新日期", { n: moved }));
+    if (added) parts.push(t("補了 {n} 個空白日子", { n: added }));
+    setMsg({ tab: "edit", text: parts.join(t("，")) });
     setBusy(false);
   };
 
@@ -127,9 +148,20 @@ export function TripManage({ m, onClose }: { m: Membership; onClose: () => void 
               <div className="formgrid">
                 <label className="wide">{t("行程名稱")}<input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} /></label>
                 <label className="wide">{t("主要城市")}<PlaceInput tripId={trip.id} kind="city" withCountry value={place} onChange={setPlace} placeholder={t("打幾個字找城市，例：東京")} /></label>
-                <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value); }} /></label>
+                <label>{t("開始日期")}<input type="date" value={start} onChange={(e) => pickStart(e.target.value)} /></label>
                 <label>{t("結束日期")}<input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></label>
               </div>
+              {delta !== 0 && (
+                <div className="tmmove">
+                  <label className="check">
+                    <input type="checkbox" checked={move} onChange={(e) => { setMove(e.target.checked); if (e.target.checked) setEnd(addDays(trip.end_date, delta)); }} />
+                    <span>{delta > 0 ? t("已經排好的日子一起往後移 {n} 天", { n: delta }) : t("已經排好的日子一起往前移 {n} 天", { n: -delta })}</span>
+                  </label>
+                  <p className="note">{move
+                    ? t("整份行程搬到新日期，每一天的內容不變。成員、待辦和聊天紀錄都留著。")
+                    : t("不移：排好的日子留在原本的日期，新日期只會補上空白的日子。")}</p>
+                </div>
+              )}
               <p className="note">{t("延長日期時，多出來的日子會自動補上空白的「大家一起」版本。")}</p>
               <fieldset className="iconpick">
                 <legend>{t("行程圖案")}</legend>
