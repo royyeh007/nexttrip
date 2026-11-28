@@ -76,7 +76,8 @@ function PocketView() {
 
   const cats = useMemo(() => categoriesOf(pk.places), [pk.places]);
   const shown = useMemo(() => pk.places.filter((p) => matchPlace(p, q)), [pk.places, q]);
-  const groups = useMemo(() => groupPlaces(shown, by), [shown, by]);
+  // 沒有自己取分類的地點，照分類看的時候歸在它的種類底下（餐廳、景點…），不會全部擠在「未分類」
+  const groups = useMemo(() => groupPlaces(by === "category" ? shown.map((p) => (p.category ? p : { ...p, category: KIND_NAME[p.kind] })) : shown, by).map((g) => ({ key: g.key, items: g.items.map((x) => shown.find((p) => p.id === x.id) ?? x) })), [shown, by]);
   const searching = q.trim() !== "";
   const card = (p: PocketPlace) => (
     <PlaceCard key={p.id} place={p} uses={pk.uses.filter((u) => u.place_id === p.id)} cats={cats} skip={searching ? undefined : by} searchTrip={searchTrip}
@@ -204,10 +205,10 @@ function PlaceCard({ place: p, uses, cats, skip, searchTrip, open, onToggle, onS
               onSave={async (d) => { patchPocket(await pocketApi.update(p.id, d)); setMode(""); }} />
           ) : (
             <>
-              {(p.s || p.addr || p.tel || p.city || p.category) && (
+              {(
                 <dl className="kv">
                   {p.s && <><dt>{t("說明")}</dt><dd>{p.s}</dd></>}
-                  {p.category && <><dt>{t("分類")}</dt><dd>{p.category}</dd></>}
+                  <dt>{t("分類")}</dt><dd>{p.category || <>{KIND_NAME[p.kind]}<small className="muted">{t("（還沒自己取分類，先照種類放。按「編輯」可以取）")}</small></>}</dd>
                   {p.city && <><dt>{t("城市")}</dt><dd>{p.city}</dd></>}
                   {p.addr && <><dt>{t("地址")}</dt><dd>{p.addr}</dd></>}
                   {p.tel && <><dt>{t("電話")}</dt><dd><a href={`tel:${p.tel.replace(/[^\d+]/g, "")}`}>{p.tel}</a></dd></>}

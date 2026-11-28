@@ -33,6 +33,7 @@ const en: Record<string, string> = {
   "（沒有標題）": "(untitled)",
   "（要確認）": " (check first)",
   "（優惠標示已到期，要確認）": " (offer listed as expired, check first)",
+  "（還沒自己取分類，先照種類放。按「編輯」可以取）": " (no category of your own yet, so it sits under its kind. Tap Edit to set one)",
   "{adults}＋{kids}": "{adults} + {kids}",
   "{alt}（點一下放大）": "{alt} (tap to enlarge)",
   "{bank} ・ {country}一般 {why}": "{bank} · everyday in {country}: {why}",
