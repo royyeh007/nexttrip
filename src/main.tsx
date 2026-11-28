@@ -5,10 +5,12 @@ import { Backdrop } from "./components/Backdrop";
 import { TripProvider } from "./trip";
 import { captureInvite } from "./supabase";
 import { captureFriend } from "./friends";
+import { capturePocketLink } from "./pocket";
 import "./styles.css";
 
 captureInvite();
 captureFriend();
+capturePocketLink();
 
 // Offline support (production build only): the worker keeps the page, the app's files and the coupon pictures on the phone.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

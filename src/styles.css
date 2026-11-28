@@ -1459,3 +1459,82 @@ button,a,summary,label,select,input,.btn,.chip{touch-action:manipulation}
 .newtrip .luckybox .note{margin:0}
 .newtrip .luckybox .drawn b{color:var(--ink)}
 .newtrip .wantpick.optional .chip:not(.on){text-decoration:none;border-style:solid;color:var(--ink)}
+
+/* ---------- 口袋名單 ---------- */
+.pockettitle{display:flex;align-items:center;gap:10px}
+.pocketfind{margin-top:0}
+.pocketacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.pgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow:hidden}
+.pgroup[open]{border-color:var(--ai)}
+.pgroup > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;min-height:48px;box-sizing:border-box}
+.pgroup > summary::-webkit-details-marker{display:none}
+.pgroup > summary b{font-family:var(--f-display);font-size:1rem;min-width:0;overflow-wrap:anywhere}
+.pgroup > summary .hc,.pghead .hc{font-size:.8rem;color:var(--muted);font-weight:400;margin-left:auto;text-align:right}
+.pgroup > summary .foldchev{flex:none}
+.pgroup[open] > summary .foldchev{transform:rotate(180deg)}
+.pgroup.flat{padding-top:4px}
+.pghead{display:flex;align-items:baseline;gap:10px;font-family:var(--f-display);font-size:1rem;margin:0;padding:10px 14px 6px}
+.plist{display:grid;gap:8px;padding:4px 10px 12px}
+.plist > .note{margin:4px 4px 0}
+.pgshare{justify-self:start;margin:2px 4px 0;min-height:32px;display:inline-flex;align-items:center}
+.psub{font-size:.8rem;color:var(--muted);margin:10px 4px 0;font-weight:700}
+.pcard{border:1px solid var(--line);border-radius:12px;background:var(--paper);min-width:0}
+.pcard.open{border-color:var(--ai);background:var(--surface)}
+.phead{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;min-height:52px;-webkit-tap-highlight-color:transparent}
+.phead.static{cursor:default;flex-wrap:wrap}
+.phead:focus-visible{outline:2px solid var(--ai);outline-offset:-2px;border-radius:12px}
+.phead .k{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:900;font-size:.9rem}
+.phead .pname{display:grid;gap:1px;min-width:0;flex:1 1 0}
+.phead .pname b{font-size:.95rem;overflow-wrap:anywhere}
+.phead .pname small{color:var(--muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard.open .phead .pname small,.phead.static .pname small{white-space:normal;overflow-wrap:anywhere}
+.phead .pmeta{display:flex;gap:8px;flex:none;color:var(--muted);font-size:.78rem}
+.phead .pmeta span{display:inline-flex;align-items:center;gap:3px}
+.phead .foldchev{flex:none}
+.pcard.open .phead .foldchev{transform:rotate(180deg)}
+.pbody{display:grid;gap:14px;padding:4px 12px 14px;min-width:0}
+.pbody .acts{display:flex;flex-wrap:wrap;gap:8px}
+.pbody .acts .btn[aria-pressed="true"]{border-color:var(--ai);background:var(--ai-soft)}
+.pbody p{margin:0;overflow-wrap:anywhere}
+.pbody .sec .note{margin:0}
+.pbody .kv a{color:var(--ai)}
+.pquote{border-left:3px solid var(--line);padding-left:10px;color:var(--ink);white-space:pre-wrap}
+.pnote textarea,.pform textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;resize:vertical}
+.pcard.open .pnote textarea{background:var(--surface)}
+.pnote .actions,.ptrip .actions,.pform .actions,.pshared > .actions,.pshare .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.pnote .actions .note{margin:0}
+.pthumbs{display:flex;flex-wrap:wrap;gap:10px}
+.pthumbs figure{margin:0;display:grid;gap:2px;justify-items:center}
+.pthumb{all:unset;box-sizing:border-box;width:92px;height:92px;border-radius:10px;border:1px solid var(--line);background:#fff;overflow:hidden;cursor:zoom-in;display:block}
+.pthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pthumb:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+.pthumb.add{cursor:pointer;display:grid;place-content:center;justify-items:center;gap:4px;border-style:dashed;background:none;color:var(--muted);font-size:.8rem}
+.pthumb.add.busy{opacity:.6;cursor:progress}
+.pphotos .note{margin:8px 0 0}
+.puses{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.puses li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:.9rem}
+.puses small{color:var(--muted);font-size:.78rem}
+.ptrip{border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+.ptrip .formgrid{margin-block:0 8px}
+.ptrip .note{margin:0}
+.pform{display:grid;gap:8px}
+.pform h4{margin:0;font-size:.95rem}
+.pform label{display:grid;gap:4px;font-size:.84rem;color:var(--muted)}
+.pform label.full > input{font:inherit;font-size:16px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%;box-sizing:border-box;min-height:38px}
+.pform .formgrid{margin-block:0}
+.pform .catchips .chip{text-decoration:none;border-style:solid;color:var(--ink);cursor:pointer;min-height:30px;display:inline-flex;align-items:center}
+.pform .note{margin:0}
+.pshare .invite{border-bottom:0}
+.pshared .plist{padding-inline:0}
+.pshares .invite.person .pname{display:grid;gap:1px;min-width:0;flex:1 1 140px}
+.pshares .invite.person .pname small{color:var(--muted)}
+.btn.saved{color:var(--pine);border-color:var(--pine);opacity:1}
+.btn.saved:disabled{cursor:default}
+.pocketpick{margin-bottom:2px}
+.pocketpick .morebtn b{display:inline-flex;align-items:center;gap:6px}
+.pocketpicklist{display:grid;gap:6px;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:10px;background:var(--paper)}
+.pocketpicklist input{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%;box-sizing:border-box}
+.pocketpicklist .phead{border-radius:8px;background:var(--surface);border:1px solid var(--line);min-height:46px;padding:7px 10px}
+.pocketpicklist .phead:hover{border-color:var(--ai)}
+.pocketpicklist .note{margin:0}
+.pshared{margin-bottom:14px}

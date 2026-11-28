@@ -176,7 +176,7 @@ export function InviteFriends() {
   return (
     <div className="panel admin">
       <h3>{t("邀請好友")}</h3>
-      <p className="note">{tr("不用傳連結：對方打開網站，在「我的行程」那一頁會看到邀請，可以選加入或不加入。要先互為好友（<btn>帳號・家人・好友</btn>）。", { btn: (c) => <button type="button" className="link" onClick={openAccount}>{c}</button> })}</p>
+      <p className="note">{tr("不用傳連結：對方打開網站，在「我的行程」那一頁會看到邀請，可以選加入或不加入。要先互為好友（<btn>帳號・家人・好友</btn>）。", { btn: (c) => <button type="button" className="link" onClick={() => openAccount()}>{c}</button> })}</p>
       {sent.map((s) => (
         <div key={s.id} className="invite person">
           <PersonLine p={s} />

@@ -21,6 +21,9 @@ import { SplitPanel, newPar } from "./Split";
 import { familiesWithNobody, personLabel, useTripPeople } from "../people";
 import { SharedPanel, rowFamilies } from "./SharedPanel";
 import { contentPatch, sharedFamilies, syncShared } from "../shared";
+import { PocketPick, SaveToPocket } from "./PocketView";
+import { pocketApi, pocketKey, refreshPocket } from "../pocket";
+import type { PocketPlace } from "../pocket";
 import { t, tr, wk } from "../i18n";
 
 function Copy({ value }: { value: string }) {
@@ -161,6 +164,12 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
   const [err, setErr] = useState<string | null>(null);
   // 細節預設收起來；編輯時如果訂位、提醒、交通這些已經有內容就先打開（地址和電話收著時另外顯示一行）
   const [more, setMore] = useState(() => mode === "edit" && !!(d.who || d.ref || d.book || d.rec || d.info || d.tips || d.legMode || d.legTxt));
+  // 從口袋名單帶進來的地點：存好之後記下它排進了這個行程
+  const fromPocket = useRef<PocketPlace | null>(null);
+  const fillFromPocket = (p: PocketPlace) => {
+    fromPocket.current = p;
+    setD((x) => ({ ...x, n: p.name, k: p.kind, q: p.q || [p.name, p.addr].filter(Boolean).join(" "), addr: p.addr, tel: p.tel, s: p.s, rec: (p.details.rec ?? []).join("\n"), info: (p.details.info ?? []).join("\n"), tips: (p.details.tips ?? []).join("\n") }));
+  };
   const up = <K extends keyof Draft>(k: K) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setD((x) => ({ ...x, [k]: e.target.value }));
   const hasArrive = mode === "new" ? day.items.some((it) => !isLeg(it)) : mode === "add" || !!arrive || day.items.findIndex((it) => !isLeg(it)) !== day.items.indexOf(stop);
 
@@ -190,6 +199,8 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
     setBusy(true); setErr(null); setBad(null);
     const next = stopOf(d, mode === "edit" ? stop : undefined);
     if (pickPeople && going) next.people = going;
+    const pocket = mode !== "edit" && fromPocket.current && pocketKey(fromPocket.current.name) === pocketKey(next.n) ? fromPocket.current : null;
+    if (pocket?.details.ll && (next.addr ?? "") === pocket.addr) next.ll = pocket.details.ll;
     // The link to another trip: only touch it when this person changed the choice. Someone who is not in the linked trip
     // (it is not in their list) used to wipe the link for everyone just by editing the time.
     const refTrip = otherTrips.find((m) => m.trip_id === d.ref);
@@ -237,6 +248,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
       : refPeople ? await syncShared(current.id, day, stop.sid, { people: refPeople }) : null;
     setBusy(false);
     if (warn) alert(warn);
+    if (pocket) pocketApi.recordUse(pocket.id, { id: current.id, name: current.name }, day.id).then(() => refreshPocket(), () => { /* only a history line */ });
     await reload();
     onDone({ t: next.t, n: next.n });
   };
@@ -259,6 +271,7 @@ function StopEditor({ day, stop, arrive, mode, onDone, onCancel }: { day: Day; s
         <label data-field="t" className={bad?.field === "t" ? "bad" : undefined}>{t("時間")}<TimeField value={d.t} onChange={(v) => setD((x) => ({ ...x, t: v }))} hint={t("選時間")} />{badOf("t")}</label>
         <label>{t("類型")}<select value={d.k} onChange={up("k")}>{(Object.keys(KIND_NAME) as Kind[]).map((k) => <option key={k} value={k}>{KIND_NAME[k]}</option>)}</select></label>
       </div>
+      {mode !== "edit" && <PocketPick city={day.city} onPick={fillFromPocket} />}
       <label data-field="n" className={`full${bad?.field === "n" ? " bad" : ""}`}>{t("名稱")}<PlaceInput tripId={current?.id ?? ""} value={d.n} placeholder={t("打字找地點，或貼上地圖連結")} near={near}
           onChange={(v) => setD((x) => ({ ...x, n: v }))}
           onPick={(p) => setD((x) => {
@@ -447,6 +460,7 @@ export function DetailSheet({ day: day0, stop: stop0, arrive: arrive0, onClose }
                     <ModeIcon mode={arrive.leg} />{t("從上一站過來")}
                   </a>
                 )}
+                <SaveToPocket day={day} stop={stop} />
               </div>
               {editable && (
                 <div className="acts editacts">

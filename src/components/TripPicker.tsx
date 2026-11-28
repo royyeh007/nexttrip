@@ -39,7 +39,7 @@ function HomeMenu() {
   const full: string = session?.user.user_metadata?.full_name ?? session?.user.email?.split("@")[0] ?? t("我");
   return (
     <details className="menu" ref={ref}>
-      <summary aria-label={t("帳號選單")} title={t("帳號・好友、登出")}>
+      <summary aria-label={t("帳號選單")} title={t("帳號・好友、口袋名單、登出")}>
         <PersonIcon />
         <span className="mname">{full.split(/\s+/)[0]}</span>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
@@ -47,6 +47,7 @@ function HomeMenu() {
       <div className="list">
         <small>{session?.user.email}</small>
         <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />{t("帳號・家人・好友")}</button>
+        <button type="button" onClick={() => { close(); openAccount("pocket"); }}><MenuIcon name="pocket" />{t("口袋名單")}</button>
         <button type="button" onClick={() => { close(); document.getElementById("guide-home")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><MenuIcon name="guide" />{t("使用教學")}</button>
         <button type="button" onClick={signOut}><MenuIcon name="signout" />{t("登出")}</button>
       </div>

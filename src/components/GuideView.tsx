@@ -10,8 +10,8 @@ import { lang, t } from "../i18n";
  * The guide's text is shared with the chat helper, so it names buttons with plain characters (🧳 Trip醬, 👤 你的名字).
  * On the page those are swapped for the pictures the real buttons use, so what the guide shows is what the person will look for.
  */
-const TARGET_ICON: Record<string, Parameters<typeof MenuIcon>[0]["name"]> = { switch: "switch", people: "people", admin: "admin", overview: "overview", todo: "todo", upload: "upload", info: "info", cards: "cards" };
-const SECTION_ICON: Record<string, Parameters<typeof MenuIcon>[0]["name"]> = { enter: "switch", view: "overview", edit: "rename", info: "info", cards: "cards", people: "people", todo: "todo", admin: "admin", viewer: "eye", faq: "question" };
+const TARGET_ICON: Record<string, Parameters<typeof MenuIcon>[0]["name"]> = { switch: "switch", people: "people", admin: "admin", overview: "overview", todo: "todo", upload: "upload", info: "info", cards: "cards", pocket: "pocket" };
+const SECTION_ICON: Record<string, Parameters<typeof MenuIcon>[0]["name"]> = { enter: "switch", view: "overview", edit: "rename", info: "info", cards: "cards", people: "people", pocket: "pocket", todo: "todo", admin: "admin", viewer: "eye", faq: "question" };
 function Label({ target, label, size = 18 }: { target: string; label: string; size?: number }) {
   const text = label.replace(/^(🧳|👤|👪|⚙|☷|✓|↑|ⓘ|💳)\s*/u, "");
   if (target === "chat") return <><SuitcaseIcon size={size} />{text}</>;
@@ -22,13 +22,14 @@ function Label({ target, label, size = 18 }: { target: string; label: string; si
 
 /** Buttons inside the guide jump to the real feature: a page, the chat, the account menu, the add-day form. */
 function useGo(interactive: boolean) {
-  const { leaveToPicker } = useTrip();
+  const { leaveToPicker, openAccount } = useTrip();
   return (target: string) => {
     if (!interactive) return;
     switch (target) {
       case "chat": askClaude(""); break;
       case "menu": window.dispatchEvent(new CustomEvent("jp-open-menu")); break;
       case "switch": leaveToPicker(); break;
+      case "pocket": openAccount("pocket"); return;
       case "addday": window.dispatchEvent(new CustomEvent("jp-add-day")); break;
       default: location.hash = `#${target}`;
     }

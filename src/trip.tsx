@@ -13,6 +13,8 @@ export interface TripData { families: Family[]; days: Day[]; todos: TodoRow[]; c
 /** 信用卡：大家共用的卡片庫 + 這個人勾了哪幾張。`available` false = 資料庫還沒升級（沒有這兩張表）。 */
 export interface CardsState { ready: boolean; available: boolean; catalog: Card[]; mine: string[] }
 /** signedout → (join: an invite code is waiting) → pick: choose/create/join a trip → ready: inside a trip */
+/** 帳號選單底下、不屬於任何行程的頁面 */
+export type AccountPageId = "account" | "pocket";
 export type Phase = "noconfig" | "loading" | "signedout" | "join" | "account" | "pick" | "ready" | "error";
 /**
  * How fresh the data on screen is. `message` is set when the last refresh failed (weak signal, offline): the page keeps
@@ -37,10 +39,13 @@ interface Ctx {
   /** pending invite code (from a #invite= link or typed in) */
   invite: string | null;
   setInvite: (code: string | null) => void;
-  enterTrip: (id: string) => void;
+  /** `hash`: open the trip on this day or page (e.g. "#2026-12-30") */
+  enterTrip: (id: string, hash?: string) => void;
   leaveToPicker: () => void;
   /** 帳號・好友：自己一頁，不屬於任何行程。 */
-  openAccount: () => void;
+  openAccount: (page?: AccountPageId) => void;
+  /** which of the account pages is open: the account itself, or the pocket list */
+  accountPage: AccountPageId;
   closeAccount: () => void;
   reload: () => Promise<void>;
   /** Apply a small change that was just saved to the copy on screen, instead of loading the whole trip again. */
@@ -85,7 +90,8 @@ const signature = (r: SigRows) => JSON.stringify([
 ]);
 
 /** What a browser-history entry shows: the trip picker, or one trip. Stored in history.state. */
-interface NavMark { jpTrip?: string; jpPicker?: boolean; jpAccount?: boolean }
+interface NavMark { jpTrip?: string; jpPicker?: boolean; jpAccount?: boolean | AccountPageId }
+const pageOf = (st: NavMark | null): AccountPageId | null => (st?.jpAccount === "pocket" ? "pocket" : st?.jpAccount ? "account" : null);
 const navMark = (): NavMark | null => { const st: unknown = history.state; return st && typeof st === "object" ? (st as NavMark) : null; };
 
 export function TripProvider({ children }: { children: ReactNode }) {
@@ -199,8 +205,18 @@ export function TripProvider({ children }: { children: ReactNode }) {
     setMemberships((ms) => ms.map((m) => (m.trip_id === id ? { ...m, last_opened_at: new Date().toISOString() } : m)));
   }, []);
   const showPicker = useCallback(() => { setPickerOpen(true); setCurrentId(null); setStoredTrip(null); setTrip(EMPTY); setTripLoaded(false); have.current.trip = null; setViewFam(null); }, []);
-  const enterTrip = useCallback((id: string) => {
+  const [accountOpen, setAccountOpen] = useState<AccountPageId | null>(() => pageOf(navMark()));
+  const pushedAccount = useRef(false);
+  const enterTrip = useCallback((id: string, hash?: string) => {
     const mark: NavMark = { jpTrip: id };
+    // from the account or pocket page: that page closes, and its history entry becomes the trip
+    setAccountOpen(null); pushedAccount.current = false;
+    if (hash) {
+      history.replaceState(mark, "", location.pathname + location.search + hash);
+      // already the open trip (its data is still loaded): opening it again would wait for a load that never starts
+      if (id !== currentIdRef.current) openTrip(id);
+      return;
+    }
     // from the picker: a new entry without a # (the trip page then writes its own); otherwise (a link from one trip into another, after joining) relabel this entry
     if (navMark()?.jpPicker) history.pushState(mark, "", location.pathname + location.search);
     else history.replaceState(mark, "", location.hash.startsWith("#admin") ? location.pathname + location.search : location.href);
@@ -211,23 +227,21 @@ export function TripProvider({ children }: { children: ReactNode }) {
     showPicker();
   }, [showPicker]);
   // 帳號・好友是自己的一頁（瀏覽紀錄裡也是一筆）：上一頁會回到原本的行程或選行程頁
-  const [accountOpen, setAccountOpen] = useState(() => !!navMark()?.jpAccount);
-  const pushedAccount = useRef(false);
-  const openAccount = useCallback(() => {
-    history.pushState({ jpAccount: true } satisfies NavMark, "", location.pathname + location.search);
+  const openAccount = useCallback((page: AccountPageId = "account") => {
+    history.pushState({ jpAccount: page } satisfies NavMark, "", location.pathname + location.search);
     pushedAccount.current = true;
-    setAccountOpen(true);
+    setAccountOpen(page);
   }, []);
   const closeAccount = useCallback(() => {
     if (pushedAccount.current) { pushedAccount.current = false; history.back(); return; } // the entry underneath is the page we came from
     // arrived here directly (the page was reloaded on this entry): turn this entry into the trip or the picker
     history.replaceState((currentIdRef.current ? { jpTrip: currentIdRef.current } : { jpPicker: true }) satisfies NavMark, "", location.pathname + location.search);
-    setAccountOpen(false);
+    setAccountOpen(null);
   }, []);
   useEffect(() => {
     const onPop = () => {
       const st = navMark();
-      setAccountOpen(!!st?.jpAccount);
+      setAccountOpen(pageOf(st));
       if (!st?.jpAccount) pushedAccount.current = false;
       if (st?.jpPicker) { if (currentIdRef.current) showPicker(); }
       else if (st?.jpTrip && st.jpTrip !== currentIdRef.current) {
@@ -379,7 +393,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
     cache.clearAll();
     have.current = { memberships: false, trip: null };
     setError(null); setSync({ message: null, at: null }); setOfflineUid(null); setSession(null);
-    setMemberships([]); setCurrentId(null); setPickerOpen(false); setAccountOpen(false); setViewFam(null); setTrip(EMPTY); setTripLoaded(false); setCards(NO_CARDS);
+    setMemberships([]); setCurrentId(null); setPickerOpen(false); setAccountOpen(null); setViewFam(null); setTrip(EMPTY); setTripLoaded(false); setCards(NO_CARDS);
   };
 
   const phase: Phase =
@@ -409,7 +423,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
     <TripContext.Provider value={{
       phase, error, session, memberships, current, member, trip,
       viewFam: viewFam ?? member?.family_id ?? families[0]?.id ?? "",
-      setViewFam, labelOf, invite, setInvite, enterTrip, leaveToPicker, openAccount, closeAccount, reload, patchTrip, refreshMemberships, signOut, cards, reloadCards,
+      setViewFam, labelOf, invite, setInvite, enterTrip, leaveToPicker, openAccount, closeAccount, accountPage: accountOpen ?? "account", reload, patchTrip, refreshMemberships, signOut, cards, reloadCards,
       sync: syncState, retry,
     }}>
       {children}

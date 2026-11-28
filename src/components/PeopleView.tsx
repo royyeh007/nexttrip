@@ -203,7 +203,7 @@ export function PeopleView({ embedded = false }: { embedded?: boolean }) {
           </div>
         ) : <p className="note">{t("你的家人名單還是空的。")}</p>}
         {allIds.length > 1 && !isViewer(member) && allIds.some((id) => !going.has(id)) && <div className="actions"><button type="button" className="btn" disabled={busy} onClick={everyone}>{t("全部都去")}</button></div>}
-        <p className="note">{tr("名單不對？到 <btn>帳號・好友 → 我的家人</btn> 新增或修改，改一次每個行程都會跟著更新。", { btn: (c) => <button type="button" className="link" onClick={openAccount}>{c}</button> })}</p>
+        <p className="note">{tr("名單不對？到 <btn>帳號・好友 → 我的家人</btn> 新增或修改，改一次每個行程都會跟著更新。", { btn: (c) => <button type="button" className="link" onClick={() => openAccount()}>{c}</button> })}</p>
       </div>
 
       {trip.families.map((f) => {

@@ -22,6 +22,8 @@ import { CouponHost, openCoupons, useCouponsOn } from "./components/Coupons";
 import { MenuIcon, PaperPlane, PersonIcon } from "./components/Logo";
 import { TripIcon, tripIconId } from "./tripIcons";
 import { AccountPage } from "./components/AccountView";
+import { PocketPage } from "./components/PocketView";
+import { pendingPocketLink } from "./pocket";
 import { setBackdropContext } from "./components/Backdrop";
 import { TripLoader } from "./components/Loader";
 import { describe, fetchCurrent, placeByKey, placesFor } from "./weather";
@@ -112,7 +114,14 @@ function SyncBar() {
 }
 
 export default function App() {
-  const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip, session } = useTrip();
+  const { phase, error, invite, setInvite, signOut, retry, refreshMemberships, enterTrip, session, openAccount, accountPage } = useTrip();
+  // 帶著朋友的口袋名單分享連結進來：登入後直接打開口袋名單（這次開網頁只自動開一次）
+  const openedShare = useRef(false);
+  useEffect(() => {
+    if (openedShare.current || (phase !== "ready" && phase !== "pick") || !pendingPocketLink()) return;
+    openedShare.current = true;
+    openAccount("pocket");
+  }, [phase, openAccount]);
   usePendingFriend(phase === "ready" || phase === "pick" || phase === "account" ? session?.user.id : undefined);
   const loading = useMinLoading(phase === "loading");
   if (loading && phase !== "noconfig" && phase !== "error") return <Loading />;
@@ -135,7 +144,7 @@ export default function App() {
   if (phase === "join" && invite) {
     return <JoinTrip code={invite} onDone={async (tripId) => { setInvite(null); await refreshMemberships(); enterTrip(tripId); }} onCancel={() => setInvite(null)} />;
   }
-  if (phase === "account") return <AccountPage />;
+  if (phase === "account") return accountPage === "pocket" ? <PocketPage /> : <AccountPage />;
   if (phase === "pick") return <TripPicker />;
   return <Main />;
 }
@@ -177,6 +186,7 @@ function TripMenu() {
         <small>{member?.name ?? member?.email}</small>
         <button type="button" onClick={() => { close(); leaveToPicker(); }}><MenuIcon name="switch" />{t("切換行程")}{pending > 0 && <b className="badge">{pending === 1 ? t("1 個邀請") : t("{n} 個邀請", { n: pending })}</b>}</button>
         <button type="button" onClick={() => { close(); openAccount(); }}><MenuIcon name="friends" />{t("帳號・家人・好友")}</button>
+        <button type="button" onClick={() => { close(); openAccount("pocket"); }}><MenuIcon name="pocket" />{t("口袋名單")}</button>
         <a href="#admin" onClick={close}><MenuIcon name="admin" />{t("管理這個行程")}</a>
         <a href="#cards" onClick={close}><MenuIcon name="cards" />{t("我的信用卡")}</a>
         <a href="#guide" onClick={close}><MenuIcon name="guide" />{t("使用教學")}</a>

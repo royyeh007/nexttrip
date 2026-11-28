@@ -102,6 +102,13 @@ export const GUIDE: GuideSection[] = [
     { text: "分頭行動（例如小孩去一個地方、大人去另一個）：點開其中一站 →「＋ 之後加一站」→「和這一站的關係」選「同時進行」。可以直接選「小孩去這一站、大人留在原本那一站」，或之後在「誰參加」自己分。兩站會框在一起標「分頭行動」，並檢查有沒有人沒排到或兩邊都有。" },
     { text: "點開任何一個地點有「誰參加」：預設全員，點名字可以拿掉或加回來，會顯示這一站幾大幾小，可以一鍵複製給餐廳。" },
   ] },
+  { id: "pocket", icon: "★", title: "口袋名單：收藏想去的地點", lead: "跟著帳號走，不屬於任何行程。只有你自己看得到，除非你分享出去。", items: [
+    { text: "[[menu|👤 你的名字]] → [[pocket|口袋名單]]。加地點有兩種方式：在口袋名單按「＋ 新增地點」；或在行程裡點開一個地點，按「加到口袋名單」。" },
+    { text: "每個地點可以自己取分類（例：想吃的甜點、帶爸媽去）、寫備註、放照片。照片最多 3 張，會自動縮小再存，縮小後每張上限 2 MB。清單可以照分類、種類或城市分組，也可以打字找。" },
+    { text: "把口袋名單的地點加到行程：在口袋名單點開地點 →「加到行程」，選行程、哪一天、時間；或在行程裡按「＋ 加一站」→「從口袋名單選」。", roles: editors },
+    { text: "點開地點會看到「排進過的行程」：這個地點曾經排在哪個行程的哪一天，點行程名稱可以直接過去。" },
+    { text: "分享給朋友：一個地點、某一類或全部都可以產生連結（「分享」「分享這一類」「分享全部」）。朋友登入後打開，可以把地點存到他自己的口袋名單。他看得到名稱、地址、你的備註和照片，看不到你排進過哪些行程。連結可以在口袋名單最下面的「分享」刪掉，刪了立刻失效。" },
+  ] },
   { id: "todo", icon: "✓", title: "待辦與聯絡資料", items: [
     { text: "[[todo|✓ 待辦・聯絡]] 分自己家和大家一起；「看所有家」可以並排看每一家的清單。" },
     { text: "可以新增、修改、勾選待辦，新增時選「給誰看」。", roles: editors },
@@ -196,6 +203,13 @@ export const GUIDE_EN: GuideSection[] = [
     { text: "Not going to a shared stop after all: “Delete this stop” in your own family's itinerary only removes it for your family. To cancel it for every family, use “Cancel for everyone” under “With whom”." },
     { text: "Split up (for example the kids go one place and the adults another): open one of the stops → “+ Add a stop after this” → under “Relation to this stop” choose “At the same time”. You can pick “Kids go to this stop, adults stay at the original one” directly, or divide people yourself later under “Who's joining”. The two stops are boxed together and marked “Split up”, and it checks that nobody is left out or placed in both." },
     { text: "Every stop has “Who's joining”: everyone by default; tap a name to take someone out or put them back. It shows how many adults and children are at this stop, and you can copy that in one tap for the restaurant." },
+  ] },
+  { id: "pocket", icon: "★", title: "Pocket list: places you want to go", lead: "It belongs to your account, not to any trip. Only you can see it, unless you share it.", items: [
+    { text: "[[menu|👤 your name]] → [[pocket|Pocket list]]. Two ways to add a place: tap “+ Add a place” in the pocket list, or open a stop in a trip and tap “Save to pocket list”." },
+    { text: "Each place can have your own category (for example: desserts to try, good for parents), a note and photos. Up to 3 photos; they are shrunk before saving, and each can be at most 2 MB after shrinking. The list can be grouped by category, kind or city, and you can search it." },
+    { text: "To put a pocket place into a trip: open the place in the pocket list → “Add to a trip”, then choose the trip, the day and the time. Or in a trip tap “+ Add a stop” → “Pick from pocket list”.", roles: editors },
+    { text: "An open place shows “Trips it has been in”: which trip and which day it was on. Tap the trip name to go there." },
+    { text: "Sharing with friends: one place, one group or the whole list can be turned into a link (“Share”, “Share this group”, “Share all”). Your friend opens it after signing in and can save the places to their own pocket list. They see the name, address, your note and photos, but not which trips you put it in. Delete a link under “Sharing” at the bottom of the pocket list and it stops working at once." },
   ] },
   { id: "todo", icon: "✓", title: "To-dos and contacts", items: [
     { text: "[[todo|✓ To-dos & contacts]] is split into your own family's and everyone's; “All families” shows each family's list side by side." },
